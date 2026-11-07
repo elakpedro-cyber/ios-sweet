@@ -2,7 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: diagnosis succeeded; authenticated logs required
+### Latest: IOKit generator compatibility patch prepared
+
+User supplied diagnosis from `42407989137`: Xcode 16.4 iig-generated sources
+fail because XNU 8796's `IORPC` lacks `kernelContent`. Added optional lemon
+patch 0003, mirroring the `#if KERNEL` trailing `IORPCMessage *kernelContent`
+field in Apple's current IORPC header; workflow copies it as patch 0084. This
+is a compile-compatibility attempt, NOT proof that modern generated RPC code
+works correctly at runtime: kernelContent initialization and semantics must
+be examined with generated sources before any hardware test. Diagnosis listed
+166 distinct matches, including interleaved lines and skipped optional patches;
+other compiler errors may remain. Patch `git apply --check` passed against the
+local XNU source and repository validation passed (81 base patches, 19 Python,
+9 shell). 4K payload test passed but its header-preprocessing portion could not
+run: clang is unavailable in this Windows environment. No full XNU build or
+new CI run, no device commands. Local/remote histories differ but their trees
+matched apart from handoff notes before this change; do not force-push.
+Next: authenticate GitHub CLI, safely integrate remote branch, run CI, inspect
+remaining errors and generated iig source. No phone or partition changes.
+
+### Previous: diagnosis succeeded; authenticated logs required
 
 First XNU build run `42407194318` failed. Diagnostic run `42407989137`,
 job `128509745819`, succeeded and produced artifact `ci-diagnosis` (ID
