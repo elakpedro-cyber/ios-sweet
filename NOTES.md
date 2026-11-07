@@ -2,7 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: IOKit generator compatibility patch prepared
+### Latest: kernel builds; generated RPC has an unresolved runtime defect
+
+CI run `42411427607` succeeded on commit `6db1c4214c977b99515e20359c540c3f645d676b`.
+Job `128520207843` applied lemon patches 0082-0084, compiler commands included
+`-DLEMON_4K -march=armv8-a+crypto`, and installed arm64
+`kernel.development.sweet` (16,278,960 bytes). GitHub artifacts `xnu-kernel`
+and `xnu-buildtree` were uploaded; buildtree downloaded locally under ignored
+`research/ci-42411427607/`. This is a compile/link result, not a boot test.
+Generated `OSObject.iig.cpp` reads `rpc.kernelContent`, while the old
+`iokit/Kernel/IOUserServer.cpp:3212` initializer omits it before dispatching;
+thus this path passes a null pointer to generated code, a runtime incompatibility
+requiring analysis and fix. No device boot/flash. Sweet board drivers and other
+hardware assumptions are also not yet validated for lemon. Next fix/audit the
+RPC compatibility and remaining board-specific assumptions before any phone test.
+
+### Previous: IOKit generator compatibility patch prepared
 
 GitHub CLI authenticated as the fork owner. Merged the divergent histories
 without force-pushing in `6db1c4214c977b99515e20359c540c3f645d676b`, then
