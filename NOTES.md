@@ -2,6 +2,21 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: diagnosis succeeded; authenticated logs required
+
+First XNU build run `42407194318` failed. Diagnostic run `42407989137`,
+job `128509745819`, succeeded and produced artifact `ci-diagnosis` (ID
+`13588805052`), but its output and artifact require GitHub authentication.
+GitHub CLI is not installed or not on PATH in this environment, and Git
+Credential Manager has no available noninteractive GitHub credentials. The
+actual compiler error remains unknown; do not guess at a fix or claim a build.
+The remote `fork/lemon-bringup` is at `be6156da0db37742da2c4274bde9adcf8653b221`
+and has a different history from local `lemon-bringup` (last pre-handoff local
+commit `5369aa61cb1a3a667a1a18f5b503112c22f01a34`); preserve both histories,
+never force-push. Next: obtain authenticated diagnosis output, investigate the
+first concrete compiler error, then reconcile the branches safely before CI.
+No device command, flash or reboot performed in this milestone.
+
 ### Latest: early 4K framebuffer verified, fork CI setup in progress
 
 Fork access granted by user. Remote branch lemon-bringup created at
