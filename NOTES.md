@@ -1,5 +1,28 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## Local Redmi 9T NFC port handoff (2026-11-07)
+
+This checkout now starts a separate **lemon** port. Current local work takes
+precedence over the historical Sweet handoff below. Read
+`docs/LEMON_BRINGUP.md` for observed hardware, build command and next steps.
+User explicitly requires keeping the installed TWRP: do not replace or flash recovery.
+Base upstream: `45263bee51df4a0f55cdf9c649af886399488ddb`.
+Live recovery FDT and current boot were pulled into gitignored `dtb/`, `backup/`.
+EL0 CPU check ran successfully, but Linux hides the MMFR0 granule fields;
+16K support remains UNKNOWN. Do not treat `0xff000000` as raw hardware data.
+Bare-metal EL1 CPU probe uses upstream entry/console, lemon splash address
+and dimensions, and has no storage driver. Offline ARM64 build passed;
+no CI run and no device boot of this probe. Raw Image is not a boot.img.
+Final raw Image: 77824 bytes, SHA256
+`102c35dbf0628383bf364f93c0444716031ceab434e0582d3df22e9c3ee996a3`.
+Repository validation passed (81 patches, 15 Python, 8 shell scripts) after
+local LF normalization; probe compiles with -Werror and no undefined symbols.
+Temporary EL0 checker was removed from recovery /tmp after the readout.
+Next: establish a recoverable boot route, then read hardware MMFR0 before
+porting XNU memory mappings. Existing ABL research suggests no fastboot boot.
+No flashing, reboot, userdata changes or Apple downloads in this session.
+Historical upstream approvals and host paths below DO NOT apply to this user.
+
 ## Agent handoff / active work (2026-10-15, latest)
 
 ### >>> UPDATE 2026-10-18 (read first, then the 10-17 handoff below) <<<
