@@ -140,18 +140,20 @@ def adt_dram(adt_blob):
             struct.unpack('<Q', chosen.prop('dram-size'))[0])
 
 
-def build(kernel_path, adt_path, cmdline, ramdisk_path=None):
+def build(kernel_path, adt_path, cmdline, ramdisk_path=None, page_size=PAGE):
+    if page_size not in (4096, 16384):
+        raise ValueError('page_size must be 4096 or 16384')
     buf = bytearray(open(kernel_path, 'rb').read())
     m = parse_macho(buf)
     nfix = apply_chained_fixups(buf, m)
     segs = [s for s in m['segs'] if s['vmsize']]
     text = m['segs'][0]
     assert text['name'] == '__TEXT' and text['fileoff'] == 0
-    # virt_base: 32MB (16K-granule L2 block) below the mach header, so start.s's
-    # block mapping that starts at the header's block begins exactly at phys_base.
-    virt_base = text['vmaddr'] & ~(0x2000000 - 1)
+    # Match the hardware L2 block: 2 MiB for 4K, 32 MiB for 16K pages.
+    block_size = 0x200000 if page_size == 4096 else 0x2000000
+    virt_base = text['vmaddr'] & ~(block_size - 1)
     kernel_end = max(s['vmaddr'] + s['vmsize'] for s in segs)
-    kernel_end = (kernel_end + PAGE - 1) & ~(PAGE - 1)
+    kernel_end = (kernel_end + page_size - 1) & ~(page_size - 1)
 
     adt_blob = open(adt_path, 'rb').read()
     # The ADT decides where the kernel's RAM is (mkadt.py --highmem).
@@ -160,7 +162,7 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None):
     ramdisk = None
     if ramdisk_path:
         image = open(ramdisk_path, 'rb').read()
-        rd_size = (len(image) + PAGE - 1) & ~(PAGE - 1)
+        rd_size = (len(image) + page_size - 1) & ~(page_size - 1)
         rd_va = kernel_end
         kernel_end = rd_va + rd_size
         rd_pa = rd_va - virt_base + PHYS_BASE
@@ -198,8 +200,10 @@ if __name__ == '__main__':
     ap.add_argument('kernel'); ap.add_argument('adt'); ap.add_argument('out')
     ap.add_argument('--cmdline', default='debug=0xc serial=3 cpus=1 keepsyms=1')
     ap.add_argument('--ramdisk', help='root image for md0 (boot with rd=md0)')
+    ap.add_argument('--page-size', type=int, choices=(4096, 16384), default=PAGE,
+                    help='kernel hardware page size; must match the kernel build (default: 16384)')
     a = ap.parse_args()
-    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk)
+    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.page_size)
     open(a.out, 'wb').write(blob)
     for k, v in info.items():
         if k != 'segs':

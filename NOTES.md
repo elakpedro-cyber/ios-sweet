@@ -2,7 +2,25 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest update: real CPU test completed; original boot RESTORED
+### Latest: offline 4K feasibility and first configuration completed
+
+Read `docs/LEMON_4K.md`. Native 4K pmap and PAGE_RATIO=4 already exist in
+Apple XNU; 16K logical pages do not require 16K hardware granules.
+Prepared OPTIONAL `xnu/ports/lemon/0001-4k-config.patch` after the 81 Sweet
+patches. Enables 4K/ARMv8-A/no assumed PAN and mobile user VA limit when
+LEMON_4K=1, MACHINE_CONFIG=SWEET. Not wired into workflow; not a full board port.
+Added mkpayload --page-size 4096 (2 MiB L2); default Sweet behavior preserved.
+Tests passed: synthetic payload + ramdisk + default compatibility and real
+XNU header preprocessing for 4K/16K geometry, TCR and user VA ranges.
+All 81 upstream patches plus optional config applied in ignored research tree.
+Repository validation passed (81 patches, 17 Python, 9 shell), diff check passed.
+NO full XNU compilation/link/boot: no macOS SDK/buildtree on this host.
+Next: replace Sweet-specific early framebuffer table assumptions with correct
+4K L1/L2 allocation, then lemon RAM/ADT/GIC and minimal QEMU kernel build.
+Existing Sweet drivers and early physical addresses are NOT safe for lemon.
+No device command, flash, or reboot performed in this offline milestone.
+
+### Previous: real CPU test completed; original boot RESTORED
 
 User explicitly approved starting now while charging from PC, in response to
 the concrete request for temporary boot-only write, test, and restoration.
