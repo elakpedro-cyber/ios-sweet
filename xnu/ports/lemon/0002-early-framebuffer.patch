@@ -1,0 +1,185 @@
+--- /dev/null
++++ b/osfmk/arm64/lemon_fb_map.h
+@@ -0,0 +1,60 @@
++/* Early 4K framebuffer mappings. Inputs x6=VA, x7=PA, x8=end VA.
++ * root/cursor/limit must not alias x0 or x6-x16. Cursor points at the last
++ * allocated page, as in XNU create_bootstrap_mapping. Clobbers x0,x6-x16.
++ */
++#ifndef LEMON_FB_MAP_H
++#define LEMON_FB_MAP_H
++#define LEMON_FB_BASE 0x5c000000
++#define LEMON_FB_WIDTH 1080
++#define LEMON_FB_HEIGHT 2340
++#define LEMON_FB_STRIDE 4320
++#define LEMON_FB_BYTES (LEMON_FB_HEIGHT * LEMON_FB_STRIDE)
++#define LEMON_FB_MAP_BYTES ((LEMON_FB_BYTES + 0x1fffff) & ~0x1fffff)
++#define LEMON_BOOTSTRAP_PAGES 34
++/* Valid L2 block, Normal-NC (MAIR[1]), outer-shareable, AF, PXN, UXN. */
++#define LEMON_FB_BLOCK_FLAGS 0x0060000000000605
++
++#ifdef ASSEMBLER
++.macro lemon_map_fb root, cursor, limit, fail
++1:
++    ubfx x9, x6, #30, #9
++    add x9, \root, x9, lsl #3
++    ldr x10, [x9]
++    cbnz x10, 3f
++    add x12, \cursor, #4096
++    add x0, x12, #4096
++    cmp x0, \limit
++    b.hi \fail
++    mov x13, x12
++    mov x14, #256
++2:
++    stp xzr, xzr, [x13], #16
++    subs x14, x14, #1
++    b.ne 2b
++    orr x10, x12, #3
++    str x10, [x9]
++    mov \cursor, x12
++3:
++    and x0, x10, #3
++    cmp x0, #3
++    b.ne \fail
++    and x11, x10, #0x0000fffffffff000
++    ubfx x14, x6, #21, #9
++    add x11, x11, x14, lsl #3
++    movz x15, #0x605
++    movk x15, #0x60, lsl #48
++    orr x16, x7, x15
++    ldr x10, [x11]
++    cbz x10, 4f
++    cmp x10, x16
++    b.ne \fail
++4:
++    str x16, [x11]
++    add x6, x6, #0x200000
++    add x7, x7, #0x200000
++    cmp x6, x8
++    b.lo 1b
++    dsb ishst
++.endm
++#endif
++#endif
+--- a/osfmk/arm64/start.s
++++ b/osfmk/arm64/start.s
+@@ -35,6 +35,9 @@
+ #include "assym.s"
+ #include <arm64/tunables/tunables.s>
+ #include <arm64/exception_asm.h>
++#if defined(LEMON_4K)
++#include <arm64/lemon_fb_map.h>
++#endif
+ 
+ #if __ARM_KERNEL_PROTECT__
+ #include <arm/pmap.h>
+@@ -515,7 +518,11 @@
+ 
+ #if defined(SWEET)
+ 	/* Stage 0: white 64x32 band, no stack or page tables needed. */
++#if defined(LEMON_4K)
++	MOV64	x0, (LEMON_FB_BASE + (LEMON_FB_HEIGHT - 32) * LEMON_FB_STRIDE)
++#else
+ 	MOV64	x0, (0x9c000000 + 2368 * 4320)
++#endif
+ 	mov		w1, #-1
+ 	mov		x2, #32
+ 	mov		x4, #4320
+@@ -678,7 +685,19 @@
+ 	lsr		x5,  x24, #(ARM_TT_L2_SHIFT)
+ 	create_bootstrap_mapping x14, x15, x5, x3, x2, x9, x10, x11, x12, x13
+ 
+-#if defined(SWEET)
++#if defined(LEMON_4K)
++    /* Preserve existing RAM tables; allocate only an absent FB L2 table. */
++    MOV64 x6, LEMON_FB_BASE
++    mov x7, x6
++    MOV64 x8, (LEMON_FB_BASE + LEMON_FB_MAP_BYTES)
++    add x17, x25, #(LEMON_BOOTSTRAP_PAGES * 4096)
++    lemon_map_fb x25, x2, x17, Llemon_fb_halt
++    b Llemon_fb_ready
++Llemon_fb_halt:
++    wfe
++    b Llemon_fb_halt
++Llemon_fb_ready:
++#elif defined(SWEET)
+ 	/*
+ 	 * Splash framebuffer: one 32MB Normal-NC block in the EXISTING V=P
+ 	 * L2 table. Both framebuffer and RAM use L1 index 0; another call to
+--- a/osfmk/arm/pmap/pmap.h
++++ b/osfmk/arm/pmap/pmap.h
+@@ -105,7 +105,7 @@
+ 
+ #if defined(__arm64__)
+ 
+-#if defined(ARM_LARGE_MEMORY)
++#if defined(ARM_LARGE_MEMORY) || defined(LEMON_4K)
+ /*
+  * 2 L1 tables (Linear KVA and V=P), plus 2*16 L2 tables map up to (16*64GB) 1TB of DRAM
+  * Upper limit on how many pages can be consumed by bootstrap page tables
+--- a/osfmk/arm64/sweet_early.c
++++ b/osfmk/arm64/sweet_early.c
+@@ -10,12 +10,22 @@
+ #if defined(SWEET)
+ #include <stdint.h>
+ #include <kern/misc_protos.h>
++#if defined(LEMON_4K)
++#include <arm64/lemon_fb_map.h>
++#endif
+ 
++#if defined(LEMON_4K)
++static volatile uint32_t *early_fb = (volatile uint32_t *)(uintptr_t)LEMON_FB_BASE;
++#define EARLY_WIDTH LEMON_FB_WIDTH
++#define EARLY_HEIGHT LEMON_FB_HEIGHT
++#define EARLY_STRIDE (LEMON_FB_STRIDE / 4)
++#else
+ static volatile uint32_t *early_fb = (volatile uint32_t *)(uintptr_t)0x9c000000;
+-#define EARLY_FB early_fb
+ #define EARLY_WIDTH 1080u
+ #define EARLY_HEIGHT 2400u
+ #define EARLY_STRIDE (4320u / 4)
++#endif
++#define EARLY_FB early_fb
+ #define EARLY_SCALE 2u
+ #define EARLY_CELL_W (8u * EARLY_SCALE)
+ #define EARLY_CELL_H (16u * EARLY_SCALE)
+--- a/osfmk/arm64/arm_vm_init.c
++++ b/osfmk/arm64/arm_vm_init.c
+@@ -42,6 +42,9 @@
+ #include <arm64/proc_reg.h>
+ #include <arm64/lowglobals.h>
+ #include <arm64/sweet_early.h>
++#if defined(LEMON_4K)
++#include <arm64/lemon_fb_map.h>
++#endif
+ #include <arm/cpu_data_internal.h>
+ #include <arm/misc_protos.h>
+ #include <pexpert/arm64/boot.h>
+@@ -1836,6 +1839,19 @@
+ static void
+ sweet_early_map_final(void)
+ {
++#if defined(LEMON_4K)
++    /* Same NC alias after TTBR0 is removed: cover all five 2 MiB blocks. */
++    assert(SWEET_EARLY_FB_VA + LEMON_FB_MAP_BYTES <= gVirtBase);
++    for (vm_map_address_t offset = 0; offset < LEMON_FB_MAP_BYTES; offset += ARM_TT_L2_SIZE) {
++        vm_map_address_t va = SWEET_EARLY_FB_VA + offset;
++        tt_entry_t l1 = cpu_tte[(va & ARM_TT_L1_INDEX_MASK) >> ARM_TT_L1_SHIFT];
++        assert((l1 & (ARM_TTE_VALID | ARM_TTE_TYPE_MASK)) == (ARM_TTE_VALID | ARM_TTE_TYPE_TABLE));
++        tt_entry_t *l2 = (tt_entry_t *)phystokv(l1 & ARM_TTE_TABLE_MASK);
++        tt_entry_t *slot = &l2[(va & ARM_TT_L2_INDEX_MASK) >> ARM_TT_L2_SHIFT];
++        assert(*slot == ARM_TTE_EMPTY);
++        *slot = (LEMON_FB_BASE + offset) | LEMON_FB_BLOCK_FLAGS;
++    }
++#else
+ 	const vm_map_address_t va = SWEET_EARLY_FB_VA;
+ 	assert(va + ARM_TT_L2_SIZE <= gVirtBase);
+ 	tt_entry_t l1 = cpu_tte[(va & ARM_TT_L1_INDEX_MASK) >> ARM_TT_L1_SHIFT];
+@@ -1847,6 +1863,7 @@
+ 	    ARM_TTE_BLOCK_SH(SH_OUTER_MEMORY) |
+ 	    ARM_TTE_BLOCK_ATTRINDX(CACHE_ATTRINDX_WRITECOMB) |
+ 	    ARM_TTE_BLOCK_AF | ARM_TTE_BLOCK_PNX | ARM_TTE_BLOCK_NX;
++#endif
+ 	__asm__ volatile("dsb ishst" ::: "memory");
+ }
+ #endif

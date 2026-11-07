@@ -60,6 +60,12 @@ for page, shift, block, tg0, tg1 in [(4096, 12, 0x200000, 0, 2 << 30),
                          ('TCR_TG0_GRANULE_SIZE', tg0), ('TCR_TG1_GRANULE_SIZE', tg1)]:
         source += f'#if {macro} != {value}\n#error wrong {macro}\n#endif\n'
     if page == 4096:
+        source += '#include <arm64/lemon_fb_map.h>\n'
+        source += ('#if LEMON_FB_BLOCK_FLAGS != (ARM_TTE_TYPE_BLOCK | ARM_TTE_VALID | '
+                   'ARM_TTE_BLOCK_SH(SH_OUTER_MEMORY) | '
+                   'ARM_TTE_BLOCK_ATTRINDX(CACHE_ATTRINDX_WRITECOMB) | '
+                   'ARM_TTE_BLOCK_AF | ARM_TTE_BLOCK_PNX | ARM_TTE_BLOCK_NX)\n'
+                   '#error framebuffer attributes differ from XNU\n#endif\n')
         source += '#ifdef __ARM_16K_PG__\n#error 16K macro must be undefined\n#endif\n'
         source += '#if __ARM_PAN_AVAILABLE__\n#error PAN requires separate CPU validation\n#endif\n'
         source += '#if MACH_VM_MAX_ADDRESS_RAW != 0xfc0000000ULL\n#error incorrect mobile VA limit\n#endif\n'

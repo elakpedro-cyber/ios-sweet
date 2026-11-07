@@ -2,7 +2,24 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: offline 4K feasibility and first configuration completed
+### Latest: early 4K framebuffer verified, fork CI setup in progress
+
+User provided fork https://github.com/elakpedro-cyber/ios-sweet and authorized
+GitHub Actions setup. Fork HEAD matches upstream 45263bee51df4a0f55cdf9c649af886399488ddb.
+New optional patch 0002-early-framebuffer covers all five 2 MiB FB blocks,
+allocates missing L2 tables without replacing RAM mappings, checks pool/collisions,
+uses lemon geometry in stage0/early console and final kernel alias.
+Increased bootstrap pool to 34 pages for this config only.
+QEMU A53/A76 ran the actual mapping macro with MMU enabled, switched code to
+high KVA, disabled TTBR0, accessed first/last FB pixels successfully.
+Tests also verify collision/capacity rejection, repeated map reuse, all block
+descriptors and preserved executable RAM. Extracted actual final-map C logic
+passed host checks (types mocked, memory barrier omitted; not full XNU compile).
+Next CI: macos-15 / Xcode 16.4, because macos-14 retired on 2026-11-02.
+Modern iig compatibility may need a follow-up fix; do not claim kernel built.
+No device commands, writes or reboot in this milestone; original boot/TWRP preserved.
+
+### Previous: offline 4K feasibility and first configuration completed
 
 Read `docs/LEMON_4K.md`. Native 4K pmap and PAGE_RATIO=4 already exist in
 Apple XNU; 16K logical pages do not require 16K hardware granules.
