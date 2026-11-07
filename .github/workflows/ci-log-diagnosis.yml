@@ -1,0 +1,30 @@
+name: ci-log-diagnosis
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Build job whose log should be summarized
+        default: "128507328097"
+  push:
+    branches: [lemon-bringup]
+    paths: [.github/workflows/ci-log-diagnosis.yml, tools/summarize-ci-log.py]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Summarize completed build log
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_ID: ${{ inputs.job_id || '128507328097' }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$JOB_ID/logs" > job.log
+          python3 tools/summarize-ci-log.py job.log > diagnosis.txt
+          cat diagnosis.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-diagnosis
+          path: diagnosis.txt

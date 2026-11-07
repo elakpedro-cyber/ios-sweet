@@ -4,6 +4,13 @@
 
 ### Latest: early 4K framebuffer verified, fork CI setup in progress
 
+Fork access granted by user. Remote branch lemon-bringup created at
+`cb3ecc4e959f7c4203f288d11c8052d1ca3edbde` (same tree as local 6b91a59).
+First Actions run `42407194318`, build job `128507328097`, in progress.
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/42407194318
+Checkout, build-script fetch and dependencies passed. Await actual Build result;
+then inspect logs and fix compile failures. No phone changes.
+
 User provided fork https://github.com/elakpedro-cyber/ios-sweet and authorized
 GitHub Actions setup. Fork HEAD matches upstream 45263bee51df4a0f55cdf9c649af886399488ddb.
 New optional patch 0002-early-framebuffer covers all five 2 MiB FB blocks,
