@@ -2,7 +2,31 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest update: packaged probe, waiting for explicit boot-write approval
+### Latest update: real CPU test completed; original boot RESTORED
+
+User explicitly approved starting now while charging from PC, in response to
+the concrete request for temporary boot-only write, test, and restoration.
+Preflight: lemon in TWRP/root; boot=/dev/block/sde49,
+recovery=/dev/block/sda9. All three partition hashes still match backups.
+Battery 11%; user instructed proceeding now. Recovery must stay untouched.
+Test and full original boot staged in recovery /tmp and hashes checked.
+Probe written to boot: dd 315392 bytes succeeded, prefix SHA256 matched.
+Recovery and dtbo full hashes unchanged. Executed adb reboot; after 8 seconds
+neither ADB nor fastboot enumerated, as expected for this halted probe.
+User observed blue CPU-test screen: MMFR0 ends in 1122 (leading zeroes),
+TGran16 all zeroes. Real EL1 readout therefore indicates no 16K granule on
+the boot CPU. User returned to TWRP with hardware keys; ADB confirmed recovery.
+Restored the complete 134217728-byte boot-current.img using dd + sync.
+Post-restore full SHA256: boot=f5ee6f406dc2a923dae167b9d45287daa0cba3c051484ce6e03536894b6c868f,
+recovery=1737005c5d9452d3238fcd0a2430956e7232937b35e9df427edc114f0dacd2eb,
+dtbo=6fd8b752c9a64bc77ccb43a43834b38a2a61e0499c44de01c6d1a349d73ce9a6.
+All match pre-test backups. Device left in TWRP; no probe remains in boot.
+Current Sweet kernel cannot run unchanged on the tested CPU (requires 16K).
+Next software task: audit feasibility of a 4K XNU configuration and iOS userland
+compatibility. Do not blindly replace __ARM_16K_PG__: loader, early mappings
+and pmap must agree. No further hardware test is needed for this milestone.
+
+### Previous update: packaged probe
 
 Boot image `shim/out/lemon-probe/boot-lemon-cpu-probe.img` is now prepared:
 315392 bytes, SHA256 `3e3b20d8fcaae8ce542c9f5eba2683231215eba34a9d85e4e66ca0d5c8d25f73`.
