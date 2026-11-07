@@ -2,6 +2,24 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest update: packaged probe, waiting for explicit boot-write approval
+
+Boot image `shim/out/lemon-probe/boot-lemon-cpu-probe.img` is now prepared:
+315392 bytes, SHA256 `3e3b20d8fcaae8ce542c9f5eba2683231215eba34a9d85e4e66ca0d5c8d25f73`.
+Raw Image now SHA256 `350667d2c65e2c3b7f99c6060b59aeff94286aad6833e0162e4b2849b1f3e917`.
+QEMU CPU probe tests passed for A53 (TGran16=0) and A76 (TGran16=1);
+these are emulator results, NOT phone results. Header/kernel/DTB checks passed.
+Repository validation passed: 81 patches, 16 Python, 9 shell scripts.
+Current boot/recovery/dtbo backups are complete and hashes match device reads.
+Recovery kernel has no kexec/kcore/devmem/kallsyms; modules require signatures.
+Device still in TWRP, charging at 11%; no reboot or partition write performed.
+Prepared exact test/rollback sequence is in docs/LEMON_BRINGUP.md.
+Next: obtain explicit approval for temporary boot-only write and restoration,
+let phone charge, then test. User must physically return the halted probe to
+TWRP with hardware keys. Never flash recovery. No test result from real hardware yet.
+
+### Previous milestone
+
 This checkout now starts a separate **lemon** port. Current local work takes
 precedence over the historical Sweet handoff below. Read
 `docs/LEMON_BRINGUP.md` for observed hardware, build command and next steps.

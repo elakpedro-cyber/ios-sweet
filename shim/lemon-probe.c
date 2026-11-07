@@ -2,6 +2,8 @@
 
 #define rsr(r) ({ uint64_t v; __asm__ volatile("mrs %0, " r : "=r"(v)); v; })
 
+volatile uint64_t lemon_mmfr0;
+
 static void halt(void)
 {
 	for (;;)
@@ -27,6 +29,7 @@ void secondary_main(uint64_t cpu)
 
 void shim_main(uint64_t dtb)
 {
+	lemon_mmfr0 = rsr("id_aa64mmfr0_el1");
 	con_clear(BLUE);
 	con_str("LEMON", "iOS port: CPU probe v1");
 	con_hex("DTB", dtb);
@@ -34,7 +37,7 @@ void shim_main(uint64_t dtb)
 	con_hex("SCTLR", rsr("sctlr_el1"));
 	con_hex("MIDR", rsr("midr_el1"));
 	con_hex("MPIDR", rsr("mpidr_el1"));
-	uint64_t mmfr0 = rsr("id_aa64mmfr0_el1");
+	uint64_t mmfr0 = lemon_mmfr0;
 	con_hex("MMFR0", mmfr0);
 	con_hex("TGran16", (mmfr0 >> 20) & 15);
 	con_hex("CNTFRQ", rsr("cntfrq_el0"));

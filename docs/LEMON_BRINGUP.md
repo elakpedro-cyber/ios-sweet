@@ -4,6 +4,80 @@
 upstream commit `45263bee51df4a0f55cdf9c649af886399488ddb`.
 Это начало переноса, а не готовая прошивка iOS для Redmi 9T.
 
+## Обновление: образ CPU-теста подготовлен
+
+Телефон остаётся в TWRP, ядро recovery 4.19.252. У него `CONFIG_KEXEC=n`,
+нет `/proc/kcore`, `/dev/mem`, `/proc/kallsyms`, включена обязательная подпись
+модулей. Эти способы чтения аппаратного MMFR0 из recovery недоступны.
+
+Новый Image сохраняет MMFR0 в переменной, доступной для проверки эмулятором.
+`tools/verify-lemon-probe.py` действительно запускает его в QEMU 8.2.2:
+
+- Cortex-A53: MMFR0=0x1122, TGran16=0 — PASS.
+- Cortex-A76: MMFR0=0x101122, TGran16=1 — PASS.
+
+Это проверка кода теста, не измерение процессора телефона.
+В обоих случаях проверены заголовок ARM64 Image, совпадение упакованного ядра
+после gzip-распаковки и побайтовое совпадение DTB с текущим boot.
+
+Упаковка:
+
+```sh
+bash shim/package-lemon-probe.sh ../../Redmi9T-Native-Linux/tools/mkbootimg.py
+python3 tools/unpack_bootv2.py shim/out/lemon-probe/boot-lemon-cpu-probe.img shim/out/lemon-probe/unpacked
+python3 tools/verify-lemon-probe.py
+```
+
+`shim/out/lemon-probe/boot-lemon-cpu-probe.img`: 315392 байта,
+SHA256 `3e3b20d8fcaae8ce542c9f5eba2683231215eba34a9d85e4e66ca0d5c8d25f73`.
+Raw Image SHA256 теперь
+`350667d2c65e2c3b7f99c6060b59aeff94286aad6833e0162e4b2849b1f3e917`.
+Boot v2 сохраняет адреса, размер страницы, OS version и patch level текущего
+boot. DTB взят из уже загружавшегося Linux; ramdisk — пустой gzip cpio.
+Проверка репозитория проходит: 81 патч, 16 Python, 9 shell.
+
+С телефона дополнительно прочитаны recovery и dtbo. Полные SHA256 на ПК
+совпали с чтением соответствующих разделов в recovery:
+
+| Копия в `backup/` | Байты | SHA256 |
+|---|---:|---|
+| boot-current.img | 134217728 | f5ee6f406dc2a923dae167b9d45287daa0cba3c051484ce6e03536894b6c868f |
+| recovery-current.img | 134217728 | 1737005c5d9452d3238fcd0a2430956e7232937b35e9df427edc114f0dacd2eb |
+| dtbo-current.img | 16777216 | 6fd8b752c9a64bc77ccb43a43834b38a2a61e0499c44de01c6d1a349d73ce9a6 |
+
+На момент подготовки заряд 11%, USB показывает Charging. Телефон не
+перезагружался, ни один раздел не записывался. Аппаратный тест пока не проведён.
+
+### Подготовленный аппаратный сценарий — ещё не разрешён и не выполнен
+
+После зарядки и отдельного подтверждения записи **только boot**:
+
+1. Сверить образ и резервные копии по SHA256 выше; повторно подтвердить
+   recovery/ADB и те же symlink путей boot/recovery.
+2. Передать тест в `/tmp` TWRP, проверить его SHA256 на телефоне.
+3. Записать его в `/dev/block/by-name/boot`, выполнить sync и проверить SHA256
+   первых 315392 байт boot. До reboot проверить неизменность recovery/dtbo.
+   При ошибке оставаться в TWRP, не перезагружаться.
+4. Перезагрузить system; снять с экрана MMFR0 и TGran16. После завершения тест
+   останавливается, USB/ADB у него нет. Если изображения нет, это не доказывает
+   неподдерживаемый размер страниц. Удержанием Power и Volume Up вернуться
+   в сохранённый TWRP; этот возврат требует физического участия пользователя.
+5. Вернуть `backup/boot-current.img` в тот же boot и проверить полный SHA256.
+   Оставить телефон в TWRP. Recovery не заменять ни на одном шаге.
+
+Восстановление boot (пример из корня `ios-lemon`, только в согласованном тесте):
+
+```powershell
+..\platform-tools\adb.exe push backup/boot-current.img /tmp/lemon-boot-restore.img
+..\platform-tools\adb.exe shell 'sha256sum /tmp/lemon-boot-restore.img'
+# Выполнять запись только если SHA256 совпадает с таблицей.
+..\platform-tools\adb.exe shell 'dd if=/tmp/lemon-boot-restore.img of=/dev/block/by-name/boot bs=4096 && sync'
+..\platform-tools\adb.exe shell 'sha256sum /dev/block/by-name/boot /dev/block/by-name/recovery /dev/block/by-name/dtbo'
+```
+
+Подтверждение записи boot запрошено согласно AGENTS.md. Общее «делаем»
+использовано для подготовки; согласие на изменение раздела ещё не получено.
+
 ## Что проверено на подключённом телефоне
 
 ADB работает в recovery. `ro.product.device=lemon`, платформа `bengal`,
