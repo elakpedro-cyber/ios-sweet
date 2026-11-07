@@ -4,6 +4,15 @@
 
 ### Latest: IOKit generator compatibility patch prepared
 
+GitHub CLI authenticated as the fork owner. Merged the divergent histories
+without force-pushing in `6db1c4214c977b99515e20359c540c3f645d676b`, then
+pushed `lemon-bringup`. Push started XNU run `42411427607`:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/42411427607
+It was in progress at handoff; inspect result and generated iig sources. Full
+previous job log was accessible: apart from kernelContent failures, observed
+matches were skipped optional patches and source lines containing error text;
+interleaving can hide individual errors. No phone commands or writes.
+
 User supplied diagnosis from `42407989137`: Xcode 16.4 iig-generated sources
 fail because XNU 8796's `IORPC` lacks `kernelContent`. Added optional lemon
 patch 0003, mirroring the `#if KERNEL` trailing `IORPCMessage *kernelContent`
