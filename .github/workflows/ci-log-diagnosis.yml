@@ -21,7 +21,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           JOB_ID: ${{ inputs.job_id || '128507328097' }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$JOB_ID/logs" > job.log
+          gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/$JOB_ID/logs" > job.log
           python3 tools/summarize-ci-log.py job.log > diagnosis.txt
           cat diagnosis.txt
       - uses: actions/upload-artifact@v4

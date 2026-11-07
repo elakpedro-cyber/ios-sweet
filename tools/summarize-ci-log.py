@@ -7,6 +7,7 @@ errors = {}
 patches = []
 with open(sys.argv[1], errors='replace') as log:
     for line in log:
+        line = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', line)
         line = re.sub(r'^\S+Z\s+', '', line.rstrip())
         if 'Applying patch:' in line or 'Skipping patch ' in line:
             patches.append(line)
