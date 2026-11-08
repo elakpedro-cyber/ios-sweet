@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE V2 PHYSICAL TEST: temporary boot installed, MUST RESTORE (2026-11-08)
+
+User approved v2 temporary boot replacement and restoration. Pre-write live
+boot/recovery/dtbo hashes and local full 134217728-byte boot backup match known
+good copies. Wrote 16977920 bytes of console v2 to boot using TWRP dd/fsync.
+Read-back prefix SHA256 e116b925c381895868bb901ee5862ae1bb8aa52cb886a72ab47db0c05a40d950
+matches image. Recovery/dtbo unchanged. Reboot system next, record screen,
+then user returns to TWRP with buttons. Push backup/boot-current.img anew,
+verify and restore ALL 134217728 bytes ONLY boot; verify full boot/recovery/dtbo
+hashes. No userdata/recovery/dtbo writes. Do not leave v2 installed after test.
+
 ### Latest: console v2 built, QEMU verified, physical approval pending (2026-11-08)
 
 CI 42452145524 SUCCESS on 3b0a203, job 128643452833, 8m33s.
