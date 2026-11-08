@@ -58,6 +58,7 @@ jobs:
           cp xnu/ports/lemon/0008-pfz-baseline-atomics.patch dxb/patches/0089-lemon-pfz-baseline-atomics.patch
           cp xnu/ports/lemon/0009-cpu-personality.patch dxb/patches/0090-lemon-cpu-personality.patch
           cp xnu/ports/lemon/0010-framebuffer-va-reservation.patch dxb/patches/0091-lemon-framebuffer-va-reservation.patch
+          cp xnu/ports/lemon/0011-console-handoff.patch dxb/patches/0092-lemon-console-handoff.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -113,6 +114,9 @@ jobs:
 
       - name: Verify minimal lemon ADT
         run: python3 tools/test-lemon-adt.py
+
+      - name: Verify lemon framebuffer console
+        run: python3 tools/test-lemon-console.py --xnu dxb/xnu
 
       - name: Package build tree for local compiles
         if: always()

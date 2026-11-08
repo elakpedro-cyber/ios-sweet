@@ -2,6 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### In progress: console handoff diagnostic prepared (2026-11-08)
+
+Patch 0011 gives fbcon the existing sweet_early_framebuffer() permanent Normal-NC
+alias instead of creating a second ml_io_map_wcomb alias. The physical stall's
+cause is still unproven; this removes an unnecessary mapping/attribute change.
+It validates the lemon FB base/dimensions before reusing that alias and drains
+framebuffer stores on newline. arm_init emits direct PE_kputc markers after
+handoff, PE_create_console, platform init and CPU PIO mapping, independent of
+DEVELOPMENT kprintf spam settings. Original Sweet path remains unchanged.
+tools/test-lemon-console.py compiles actual getter/probe/render functions with
+mock DT and guarded framebuffer under ASan/UBSan: alias/no extra map, glyph,
+newline/wrap, buffer guards and invalid-display rejection PASS on Linux.
+Workflow applies 0011 and runs this check. Next full CI and real-loader A53
+QEMU, then package a concrete new image before asking for another physical
+boot-write approval. Phone remains in TWRP with original boot restored.
+
 ### Latest: physical XNU reaches EARLY 20; original boot RESTORED (2026-11-08)
 
 User explicitly approved temporary write ONLY boot and restoration after test.

@@ -1,0 +1,128 @@
+--- a/osfmk/arm64/sweet_early.h
++++ b/osfmk/arm64/sweet_early.h
+@@ -12,6 +12,9 @@
+ void sweet_early_panic(const char *fmt, va_list *args);
+ void sweet_early_relocate(uint64_t base);
+ void sweet_early_disable(void);
++#if defined(LEMON_4K)
++uintptr_t sweet_early_framebuffer(void);
++#endif
+ #else
+ static inline void sweet_early_mark(unsigned int stage, const char *label)
+ {
+--- a/osfmk/arm64/sweet_early.c
++++ b/osfmk/arm64/sweet_early.c
+@@ -144,6 +144,14 @@
+ 	sweet_early_mark(9, "kernel framebuffer VA live");
+ }
+ 
++#if defined(LEMON_4K)
++uintptr_t
++sweet_early_framebuffer(void)
++{
++	return (uintptr_t)early_fb;
++}
++#endif
++
+ void
+ sweet_early_disable(void)
+ {
+--- a/pexpert/arm/pe_serial.c
++++ b/pexpert/arm/pe_serial.c
+@@ -27,6 +27,9 @@
+ #include <pexpert/arm64/board_config.h>
+ #include <arm64/proc_reg.h>
+ #include <arm64/sweet_early.h>
++#if defined(LEMON_4K)
++#include <arm64/lemon_fb_map.h>
++#endif
+ #include <pexpert/arm/protos.h>
+ #include <kern/sched_prim.h>
+ #if HIBERNATION
+@@ -739,6 +742,9 @@
+ 	fbcon_row = (fbcon_row + 1) % fbcon_rows;
+ 	fbcon_clear_row(fbcon_row);
+ 	fbcon_clear_row((fbcon_row + 1) % fbcon_rows);
++#if defined(LEMON_4K)
++	__asm__ volatile("dsb sy" ::: "memory");
++#endif
+ }
+ 
+ static void
+@@ -835,7 +841,17 @@
+ 		return;
+ 	}
+ 	sweet_early_mark(17, "fbcon config read; mapping");
++#if defined(LEMON_4K)
++	if (reg[0] != LEMON_FB_BASE || reg[1] < LEMON_FB_BYTES ||
++	    fbcon_width != LEMON_FB_WIDTH || fbcon_height != LEMON_FB_HEIGHT ||
++	    fbcon_stride != LEMON_FB_STRIDE) {
++		return;
++	}
++	/* Reuse the reserved Normal-NC alias already proven by the early console. */
++	fbcon_base = (volatile uint32_t *)sweet_early_framebuffer();
++#else
+ 	fbcon_base = (volatile uint32_t *)ml_io_map_wcomb(reg[0], reg[1]);
++#endif
+ 	sweet_early_mark(18, "fbcon mapping returned");
+ 	if (fbcon_base != NULL) {
+ 		register_serial_functions(&sweet_fbcon_serial_functions);
+--- a/osfmk/arm/arm_init.c
++++ b/osfmk/arm/arm_init.c
+@@ -77,6 +77,16 @@
+ 
+ #include <console/serial_protos.h>
+ 
++#if defined(LEMON_4K)
++static void
++lemon_console_mark(const char *label)
++{
++	while (*label) {
++		PE_kputc(*label++);
++	}
++}
++#endif
++
+ #if CONFIG_TELEMETRY
+ #include <kern/telemetry.h>
+ #endif
+@@ -544,6 +554,9 @@
+ 	sweet_early_mark(20, "kprintf startup complete");
+ 	if (serial_exists) {
+ 		sweet_early_disable();
++#if defined(LEMON_4K)
++		lemon_console_mark("LEMON CONSOLE: framebuffer handoff complete\n");
++#endif
+ 	}
+ 
+ 	serialmode = 0;
+@@ -585,6 +598,9 @@
+ 		disableConsoleOutput = FALSE;     /* Allow printfs to happen */
+ 	}
+ 	PE_create_console();
++#if defined(LEMON_4K)
++	lemon_console_mark("LEMON STARTUP: console created\n");
++#endif
+ 
+ 	/* setup console output */
+ 	PE_init_printf(FALSE);
+@@ -598,6 +614,9 @@
+ 	cpu_machine_idle_init(TRUE);
+ 
+ 	PE_init_platform(TRUE, &BootCpuData);
++#if defined(LEMON_4K)
++	lemon_console_mark("LEMON STARTUP: platform initialized\n");
++#endif
+ 
+ #if __arm64__
+ 	extern bool cpu_config_correct;
+@@ -606,6 +625,9 @@
+ 	}
+ 
+ 	ml_map_cpu_pio();
++#if defined(LEMON_4K)
++	lemon_console_mark("LEMON STARTUP: CPU PIO mapped\n");
++#endif
+ 
+ #if APPLE_ARM64_ARCH_FAMILY
+ 	configure_late_apple_regs();
