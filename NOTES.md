@@ -2,6 +2,34 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: full 4K XNU boots our PID1 on QEMU Cortex-A53 (2026-11-08)
+
+CI 42449737397 SUCCESS, job 128636447719, 7m57s, source commit 280dd5e.
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/42449737397
+Build, baseline atomic assembly, RPC and ADT checks passed. Kernel in ignored
+xnu/out-lemon-combined/kernel.development.sweet; SHA256 matches SHA256SUMS:
+077246e379fa23634291be97f699b4f77ccf1c39e9faabf22eac7159298faaa9.
+Full QEMU A53 boot, 55 seconds, unmodified combined kernel and normal lemon
+QEMU ADT (kryo260, no diagnostic compatibility fallback or GDB overrides):
+BSD root md0 -> /sbin/launchd -> our static sweet-init.S prints
+"*** SWEET userspace: init running as PID 1 ***" and FOUR "still alive" lines.
+This demonstrates 4K VM, CPU0/SGI/timer/scheduler, RAMDisk/mockfs, exec,
+user/kernel transitions and console syscalls in QEMU; it is not iOS userland
+or proof of operation on physical Redmi 9T. Hardware remains untouched.
+Final whole-section disassembly has one apparent LSE opcode at 7b2c3b4,
+inside SHA-256 K256 constants (symbol starts 7b2c2d0), not executable code.
+The 12 real dependency LSE instructions are gone after Firehose A53 flags.
+Framebuffer decoder reports 5 unknown glyphs in older overwritten lines and
+returns incomplete_decode; the complete PID1 marker and all four alive lines
+decode exactly. Do not describe decoder exit status as a clean automated pass.
+WSL evidence: /home/hadirpc/lemon-qemu-combined-a53/{fb.txt,fb.png,regs.txt,
+qemu.log,result.json}; copied to ignored research/qemu-combined-a53/.
+Local PFZ, actual pmap reservation, 4K/16K constants, ADT/FDT and bootstrap
+MMU tests passed. Changes committed/pushed on lemon-bringup without force.
+Current milestone complete. Next is physical lemon loader/boot-image review
+and hardware-specific bring-up; no phone write/reboot is authorized by this
+QEMU milestone. Preserve TWRP, Android and all backups.
+
 ### Latest: minimal lemon board preparation (2026-11-08)
 
 CI 42446940840 succeeded (job 128627753961, 8m16s), including RPC/ADT checks.
