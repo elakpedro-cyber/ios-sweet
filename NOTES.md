@@ -2,7 +2,33 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### In progress: console handoff diagnostic prepared (2026-11-08)
+### Latest: console v2 built, QEMU verified, physical approval pending (2026-11-08)
+
+CI 42452145524 SUCCESS on 3b0a203, job 128643452833, 8m33s.
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/42452145524
+Build, RPC, ADT and actual framebuffer-console sanitizer checks passed.
+Kernel xnu/out-console-kernel/kernel.development.sweet SHA256 matches artifact:
+d59ad404d7760078ed7d5caf8f9d9c89f3bdbd6e9d4ca5ae59ee14edfcfb59ed.
+Real-loader A53 QEMU 55s run reaches our PID1 and FOUR alive lines, no visible
+panic; decoder has 4 unknown glyphs in older overwritten log rows.
+Time-based early capture missed markers (already overwritten); the wrapper's
+marker assertion failed, although its PID1 checks passed. A separate read-only
+GDB hardware breakpoint at machine_startup captures all FOUR exact console
+markers, without changing code/registers/mappings. Both checks now evidenced.
+WSL outputs /home/hadirpc/lemon-console-a53/ and lemon-console-markers/.
+Local copies research/console-v2/{final.txt,markers.txt,fb.png,regs.txt}.
+
+Packaged image shim/out/lemon-boot/boot-lemon-console-v2.img, 16977920 bytes,
+SHA256 e116b925c381895868bb901ee5862ae1bb8aa52cb886a72ab47db0c05a40d950.
+Image decompression, exact payload/DTB and nonoverlapping load ranges PASS.
+Old b3e70be6 image retained as boot-lemon-xnu-test-v1.img in the same directory.
+Phone checked in TWRP: full boot/recovery/dtbo hashes match known good backups.
+V2 pushed ONLY to /tmp/boot-lemon-console-v2.img and exact SHA256 verified.
+No physical writes or reboot during this phase. Next requires new specific
+approval for temporary boot replacement, followed by full original boot restore.
+Actual physical effect on the EARLY20 stall is still unverified.
+
+### Previous: console handoff diagnostic prepared (2026-11-08)
 
 Patch 0011 gives fbcon the existing sweet_early_framebuffer() permanent Normal-NC
 alias instead of creating a second ml_io_map_wcomb alias. The physical stall's
