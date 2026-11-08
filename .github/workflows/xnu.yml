@@ -59,6 +59,18 @@ jobs:
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
+          # This dependency has its own Xcode flags, independent of XNU's CFLAGS.
+          cat > dxb/lemon-firehose.xcconfig <<'EOF'
+          OTHER_CFLAGS[arch=arm64] = $(inherited) -mcpu=cortex-a53 -march=armv8-a+crypto
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('dxb/build.sh')
+          source = path.read_text()
+          old = 'xcodebuild install -target libfirehose_kernel -sdk macosx '
+          assert source.count(old) == 1
+          path.write_text(source.replace(old, old + '-xcconfig "${WORK_DIR}/lemon-firehose.xcconfig" '))
+          PY
           ls dxb/patches
 
       - name: Deps

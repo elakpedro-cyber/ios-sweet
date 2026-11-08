@@ -31,6 +31,15 @@ trylock helper contracts. No loop or general CAS emulation is introduced.
 tools/test-lemon-pfz.py executes the actual helper bodies on QEMU Cortex-A53;
 empty/two-element FIFO, both held-lock failures and release checks PASS.
 Only function prologue/epilogue macros are replaced in this freestanding test.
+Run 42448627969 (7daa382, job 128632844836) SUCCESS. Kernel SHA256
+6d83ea7904c13bf0222332644c6e9cfb8f7d49c22f6c74dcc2529c83c06fb8d9,
+stored in xnu/out-a53-kernel/. QEMU A53 now completes kmem/zone/VM bootstrap,
+then panics on CAS in __firehose_buffer_tracepoint_reserve, PC fffffff007a687fc.
+LSE scan finds 13 remaining instructions (previous kernel: 873), all still
+requiring audit. Firehose is NOT a closed KDK binary: darwin-xnu-build builds
+libdispatch/libfirehose_kernel separately with xcodebuild, without XNU CFLAGS.
+Workflow now passes an arch=arm64 xcconfig to build that dependency for A53.
+QEMU output: /home/hadirpc/lemon-qemu-a53-fixed/. No hardware activity.
 
 Found macOS CFLAGS still force ARM_LARGE_MEMORY and link at -2 TiB, outside
 4K/39-bit bootstrap TTBR1. Optional patch 0005 selects the existing mobile
