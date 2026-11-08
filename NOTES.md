@@ -2,7 +2,18 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: RPC runtime fix tested locally; new CI pending (2026-11-08)
+### Latest: RPC compatibility fix and full CI verified (2026-11-08)
+
+Pushed commit `b515ae75dfa248dc6c08ee7761fcc8c760b15d6e` without force.
+New run `42445948818`:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/42445948818
+Run completed SUCCESS, job `128624793329`, in 6m37s. Build and the new
+Verify RPC runtime compatibility step both succeeded. Log confirms all
+lemon patches 0082-0085 applied and 1109 lines contain -DLEMON_4K.
+Kernel downloaded to ignored `xnu/out-rpc-fixed/kernel.development.sweet`:
+16278960 bytes, SHA256
+`503bf1c2112e63b1b348ba7eddb45fb9745557493499e0e8b353846c37a72a44`.
+Hash matches the artifact SHA256SUMS. Full log in ignored research/ci-rpc-fixed/run.log.
 
 Continued Claude's work. Prior successful build confirmed remotely; no local
 changes were discarded. Optional patch 0004 sets kernelContent in both manually
@@ -16,7 +27,9 @@ remote, IPC, trap, instantiate, stale content, and invalid-parser-result cases.
 This does not exercise the real kernel Mach parser or prove an iOS boot.
 Workflow applies patch 0085 and runs the test after a successful kernel build.
 Repository syntax validation passed (81 base patches, 20 Python, 9 shell).
-Next: push and await full CI, inspect verification step and kernel artifact.
+RPC regression milestone complete. Next: adapt lemon RAM/ADT/GIC and isolate
+unported Sweet storage/USB/touch drivers before a minimal full-kernel QEMU boot.
+Current binary is not a validated Redmi 9T boot image; no phone test proposed.
 No device commands, writes or reboot in this work.
 
 ### Previous: kernel builds; generated RPC has an unresolved runtime defect
