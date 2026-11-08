@@ -22,7 +22,7 @@ host_source = '''#include <assert.h>
 #include "lemon_fb_map.h"
 typedef uint64_t vm_map_address_t;
 typedef uint64_t tt_entry_t;
-#define SWEET_EARLY_FB_VA 0xffffffe000200000ULL
+#define SWEET_EARLY_FB_VA 0xfffffff000200000ULL
 #define ARM_TT_L2_SIZE 0x200000
 #define ARM_TT_L1_INDEX_MASK 0x7fc0000000ULL
 #define ARM_TT_L1_SHIFT 30
@@ -34,11 +34,11 @@ typedef uint64_t tt_entry_t;
 #define ARM_TTE_TABLE_MASK 0x0000fffffffff000ULL
 #define ARM_TTE_EMPTY 0
 static tt_entry_t cpu_tte[512], l2[512] __attribute__((aligned(4096)));
-static uint64_t gVirtBase = 0xffffffe002000000ULL;
+static uint64_t gVirtBase = 0xfffffff007000000ULL;
 static uintptr_t phystokv(uint64_t address) { return address; }
 ''' + function.replace('__asm__ volatile("dsb ishst" ::: "memory");', '') + '''
 int main(void) {
-    cpu_tte[384] = (uintptr_t)l2 | 3;
+    cpu_tte[448] = (uintptr_t)l2 | 3;
     cpu_tte[2] = 0x12345603;
     sweet_early_map_final();
     assert(l2[0] == 0 && l2[6] == 0);

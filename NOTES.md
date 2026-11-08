@@ -52,6 +52,16 @@ demotion at fffffff00087e000 (FB PA block 5c600000). The alias spans lowglobals
 Patch 0010 reserves MAX(existing, ARM_TT_L2_SIZE + LEMON_FB_MAP_BYTES).
 Regression executes actual pmap_virtual_region body and checks whole alias
 coverage. This is a real permanent VA reservation fix, not a pmap panic bypass.
+Run 42449287530 was superseded/cancelled by combined fixes; current build
+42449737397 targets commit 280dd5e. A temporary GDB diagnostic on the older
+A76 binary returns the corrected 12 MiB region for pmap_virtual_region(2),
+with the temporary CPU matching ADT, and reaches BSD root md0 and exec launchd.
+This is diagnostic evidence only, not a boot of the final patched kernel.
+It then repeatedly faults in copyin at user VA 0x1000004c0; A76 PSTATE has PAN
+set while lemon is compiled without PAN support. This may be an A76-only test
+artifact; verify on A53 before changing code. Output in WSL
+/home/hadirpc/lemon-qemu-reservation-diagnostic/. No PID1 success claimed.
+Bootstrap host test now uses the actual mobile final-map VA/root slot (448).
 
 Found macOS CFLAGS still force ARM_LARGE_MEMORY and link at -2 TiB, outside
 4K/39-bit bootstrap TTBR1. Optional patch 0005 selects the existing mobile
