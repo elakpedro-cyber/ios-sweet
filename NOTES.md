@@ -17,6 +17,13 @@ Test PID1 is our own tools/sweet-init.S, packaged as a signed static Mach-O
 using mkinit.build_code after GNU cross-linking, entirely in the RAM disk.
 QEMU output uses /home/hadirpc/lemon-qemu-minimal-{a53,a76} in WSL because
 QMP sockets cannot live on /mnt/c. No device commands or writes.
+QEMU HMP inspection confirms the zones claim is 0x2000000000 (128 GiB) and
+ptr_range_size has wrapped to 0x7ff4604e0000. zalloc.c uses the macOS 128 GiB
+zone VA reservation even though lemon now uses the mobile 48 GiB heap window.
+Patch 0007 selects the existing mobile 24 GiB zone VA / 8 GiB physical cap.
+The physical cap remains further constrained to half sane_size by XNU.
+Run 42447975067 passed the ARMv8 baseline atomic assembly check; next push
+includes the concrete zone fix and supersedes its diagnostic-only build.
 
 Found macOS CFLAGS still force ARM_LARGE_MEMORY and link at -2 TiB, outside
 4K/39-bit bootstrap TTBR1. Optional patch 0005 selects the existing mobile
