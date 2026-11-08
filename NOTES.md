@@ -2,20 +2,33 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE PHYSICAL TEST: boot replaced; restoration REQUIRED (2026-11-08)
+### Latest: physical XNU reaches EARLY 20; original boot RESTORED (2026-11-08)
 
 User explicitly approved temporary write ONLY boot and restoration after test.
 Pre-write live boot/recovery/dtbo and local 134217728-byte boot backup hashes
 matched known good copies. Wrote 16977920 bytes of b3e70be6... image to boot
 using TWRP dd bs=4096 conv=fsync, then sync. Read-back image-prefix SHA256
 exactly matches b3e70be6ecabab6cd48be7aed8ce274483df096efcc9e83c1b5796a3be74998d.
-Recovery/dtbo full hashes remain unchanged. Next reboot system and get screen
-observation; the test has no USB. User must return with Power + Volume Up.
-Then push backup/boot-current.img again (TWRP /tmp is volatile), verify its
-hash and restore ALL 134217728 bytes ONLY boot; verify full boot/recovery/dtbo
-hashes. Do not leave the temporary image installed after this test.
+Recovery/dtbo full hashes remained unchanged before reboot. Rebooted system.
+User reports "SWEET EARLY 20: kprintf startup complete", unchanged after a
+further 20-30 seconds. This is a physical XNU entry/MMU/arm_vm_init/serial-init
+milestone. NO physical PID1 or complete kernel boot claimed. No USB/ADB from
+test, as expected. Observation is user-read text, not a saved screenshot.
+Source places stage20 just before sweet_early_disable and normal serial
+console setup. A console handoff/visibility issue is plausible, not confirmed;
+absence of further visible text does not prove a CPU hang.
+User returned to TWRP with buttons. Re-pushed and verified boot-current.img,
+then restored ALL 134217728 bytes to boot using dd bs=4096 conv=fsync + sync.
+Full post-restore hashes match known good backups:
+boot f5ee6f406dc2a923dae167b9d45287daa0cba3c051484ce6e03536894b6c868f
+recovery 1737005c5d9452d3238fcd0a2430956e7232937b35e9df427edc114f0dacd2eb
+dtbo 6fd8b752c9a64bc77ccb43a43834b38a2a61e0499c44de01c6d1a349d73ce9a6
+Phone left in TWRP. Temporary test boot is no longer installed. No userdata
+or other partition writes. Next investigate logging handoff after EARLY20,
+preserve early diagnostic output and test changes in QEMU before proposing
+another separately approved physical boot replacement.
 
-### Latest: physical test image prepared; waiting for boot-write approval (2026-11-08)
+### Previous: physical test image prepared; boot-write approval pending (2026-11-08)
 
 User asked to prepare the physical test. New lemon-boot.c only runs loader_boot
 then halts; it links no UFS, old 16K MMU probes, PSCI/reset or SMP test code.
