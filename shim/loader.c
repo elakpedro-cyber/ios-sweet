@@ -85,11 +85,43 @@ const char *loader_boot(uintptr_t dtb)
 		return "no initrd in /chosen";
 	con_hex2("INITRD", "lo=", rd_start, "hi=", rd_end);
 
+	if (rd_end <= rd_start || rd_end - rd_start < sizeof(struct payload))
+		return "truncated payload";
 	const struct payload *p = (const struct payload *)rd_start;
 	if (!magic_ok(p->magic))
 		return "no SWEETXNU payload";
 	if (p->version != 1 || (p->adt_off & 7) || (rd_start & 7))
 		return "bad payload header";
+	uint64_t rd_size = rd_end - rd_start;
+	if (!p->nsegs || p->nsegs > (rd_size - sizeof(*p)) / sizeof(struct payload_seg) ||
+	    p->adt_off > rd_size || p->adt_size > rd_size - p->adt_off)
+		return "payload bounds";
+	if (!p->mem_size || p->phys_base > UINT64_MAX - p->mem_size ||
+	    p->kernel_end < p->virt_base ||
+	    p->kernel_end - p->virt_base > p->mem_size ||
+	    p->entry_va < p->virt_base || p->entry_va >= p->kernel_end)
+		return "kernel bounds";
+#if defined(LEMON_BOOT)
+	if (p->phys_base != 0x100000000UL || p->mem_size != 0x1fe00000UL)
+		return "wrong lemon RAM profile";
+	extern char _head[], _end[];
+	if ((uintptr_t)_end > p->phys_base &&
+	    (uintptr_t)_head < p->phys_base + p->mem_size)
+		return "loader overlaps kernel RAM";
+#endif
+	uint64_t used = p->kernel_end - p->virt_base;
+	if ((used & 7) || p->adt_size > p->mem_size - used ||
+	    p->mem_size - used - p->adt_size < 2 * PAGE_16K)
+		return "no boot_args space";
+	for (uint32_t i = 0; i < p->nsegs; i++) {
+		const struct payload_seg *s = &p->segs[i];
+		if (s->vmaddr < p->virt_base || s->vmaddr - p->virt_base > used ||
+		    s->vmsize > used - (s->vmaddr - p->virt_base) ||
+		    s->file_size > s->vmsize || s->file_off > rd_size ||
+		    s->file_size > rd_size - s->file_off ||
+		    ((s->vmaddr | s->vmsize | s->file_off) & 7))
+			return "segment bounds";
+	}
 
 	uint64_t pa_of_va_base = p->phys_base - p->virt_base;	/* pa = va + this */
 	con_hex2("PHYS", "base=", p->phys_base, "size=", p->mem_size);

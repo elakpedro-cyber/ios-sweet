@@ -246,6 +246,7 @@ def main():
     ap.add_argument('--cpu', default='cortex-a76', help='QEMU CPU model (default: cortex-a76)')
     ap.add_argument('--kernel', help='matching unstripped kernel, for exact framebuffer text decoding')
     ap.add_argument('--lemon', action='store_true', help='Redmi 9T framebuffer address and height')
+    ap.add_argument('--shim', help='boot this Linux Image shim with a real QEMU FDT/initrd')
     ap.add_argument('--fail-on-panic', action='store_true', help='exit 2 for a visible panic, 3 for incomplete/blank decoding; requires --kernel')
     ap.add_argument('--live-serial', action='store_true', help='stream serial console output to stdout in real time')
     ap.add_argument('--check-env', action='store_true', help='check QEMU installation and dependencies without running a payload')
@@ -289,7 +290,11 @@ def main():
     ram_gib = max(4, -(-(phys_base + mem_size - 0x40000000) // (1 << 30)))
     cmd = ['qemu-system-aarch64', '-M', 'virt,gic-version=3', '-cpu', a.cpu, '-smp', '1', '-m', f'{ram_gib}G',
            '-nographic', '-nic', 'none', '-serial', f'file:{out}/serial.txt', '-qmp', f'unix:{mon},server,nowait',
-           '-d', 'int,guest_errors,unimp', '-D', f'{out}/qemu.log', '-no-reboot',
+           '-d', 'int,guest_errors,unimp', '-D', f'{out}/qemu.log', '-no-reboot']
+    if a.shim:
+        cmd += ['-kernel', a.shim, '-initrd', a.payload]
+    else:
+        cmd += [
            '-device', f'loader,file={out}/ram.bin,addr={phys_base:#x},force-raw=on',
            '-device', f'loader,file={out}/stub.bin,addr={STUB_PA:#x},force-raw=on',
            '-device', f'loader,addr={STUB_PA:#x},cpu-num=0']

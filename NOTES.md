@@ -2,6 +2,42 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: physical test image prepared; waiting for boot-write approval (2026-11-08)
+
+User asked to prepare the physical test. New lemon-boot.c only runs loader_boot
+then halts; it links no UFS, old 16K MMU probes, PSCI/reset or SMP test code.
+Loader validates source/destination/segment bounds and requires lemon RAM
+0x100000000 + 0x1fe00000, with no loader/initrd overlap. Existing 16K boot_args
+alignment is also valid for 4K and stays inside the reserved topOfKernelData.
+build/package-lemon-boot.sh produce an experimental Android boot v2 image:
+shim/out/lemon-boot/boot-lemon-xnu-test.img, 16977920 bytes, SHA256
+b3e70be6ecabab6cd48be7aed8ce274483df096efcc9e83c1b5796a3be74998d.
+Kernel is the verified 077246e3... combined kernel; phone ADT is --lemon
+without --qemu, one CPU, test init on RAMDisk. Original previously booted DTB
+is byte-identical. DTB load address moved from 31 to 48 MiB to avoid overlap
+with the 16 MiB-offset payload. Image decompression/header/load-range checks PASS.
+QEMU --shim now tests real start.S, FDT/initrd parsing and segment copies,
+not just the direct payload entry. A53 55s run prints PID1 and four alive lines.
+Evidence: /home/hadirpc/lemon-real-loader-a53/. Decoder has 4 unrelated old
+unknown glyphs; exact PID1/alive lines decode completely.
+Repository syntax: 81 base patches, 22 Python, 11 shell PASS.
+
+Phone was in TWRP, 31% Charging. All three partition hashes matched backups.
+adb reboot bootloader exposed missing Windows driver (PnP code 28). User
+manually selected existing signed Google Android Bootloader Interface.
+Fastboot reports unlocked=yes. fastboot boot sent the image successfully but
+Booting FAILED (remote: 'unknown command'). No partition was written.
+fastboot reboot recovery succeeded; ADB recovery is available again.
+After return, full boot/recovery/dtbo hashes still match the recorded backups.
+Local backup copies' full hashes also match. Image pushed to
+/tmp/boot-lemon-xnu-test.img in TWRP and SHA256 verified. Boot size 134217728.
+NEXT REQUIRES explicit approval for temporary write ONLY boot, as repo AGENTS
+requires confirmation of each destructive step. Then verify image prefix and
+unchanged recovery/dtbo before reboot. Test has no USB/ADB; user must return to
+TWRP with buttons; restore ALL boot bytes from backup/boot-current.img and
+verify full hash f5ee6f406dc2a923dae167b9d45287daa0cba3c051484ce6e03536894b6c868f.
+Do not write recovery, dtbo, userdata or other partitions. Current state TWRP.
+
 ### Latest: full 4K XNU boots our PID1 on QEMU Cortex-A53 (2026-11-08)
 
 CI 42449737397 SUCCESS, job 128636447719, 7m57s, source commit 280dd5e.

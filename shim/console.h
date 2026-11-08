@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-#ifdef LEMON_PROBE
+#if defined(LEMON_PROBE) || defined(LEMON_BOOT)
 #define FB_BASE		0x5c000000UL	/* lemon live FDT cont_splash_region */
 #define FB_W		1080
 #define FB_H		2340
