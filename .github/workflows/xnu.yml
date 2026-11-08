@@ -53,6 +53,7 @@ jobs:
           cp xnu/ports/lemon/0003-iig-kernel-content.patch dxb/patches/0084-lemon-iig-kernel-content.patch
           cp xnu/ports/lemon/0004-rpc-runtime-content.patch dxb/patches/0085-lemon-rpc-runtime-content.patch
           cp xnu/ports/lemon/0005-minimal-board.patch dxb/patches/0086-lemon-minimal-board.patch
+          cp xnu/ports/lemon/0006-kmem-trace.patch dxb/patches/0087-lemon-kmem-trace.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -72,6 +73,15 @@ jobs:
           sudo xcode-select -s "$XC"
           xcodebuild -version
           xcrun --find iig
+
+      - name: Verify ARMv8 baseline atomics
+        run: |
+          printf 'unsigned counter(_Atomic unsigned *p) { return __c11_atomic_fetch_add(p, 1, __ATOMIC_RELAXED); }\n' > atomics.c
+          xcrun clang -arch arm64 -mcpu=cortex-a53 -march=armv8-a+crypto \
+            -mmacosx-version-min=15.5 -O2 -S atomics.c -o atomics.s
+          cat atomics.s
+          grep -Eq '(ldxr|ldaxr)' atomics.s
+          grep -Eq '(stxr|stlxr)' atomics.s
 
       - name: Build
         working-directory: dxb

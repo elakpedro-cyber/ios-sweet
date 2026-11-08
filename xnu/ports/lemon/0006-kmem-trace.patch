@@ -1,0 +1,26 @@
+--- a/osfmk/vm/vm_kern.c
++++ b/osfmk/vm/vm_kern.c
+@@ -3542,6 +3542,12 @@
+ 		total_claims += kmem_claims[i].kc_size;
+ 	}
+ 	assert((total_claims & PAGE_MASK) == 0);
++#if defined(LEMON_4K)
++	printf("LEMON kmem: largest=%llx claims=%llx map=%llx..%llx\n",
++	    (unsigned long long)largest_free_size, (unsigned long long)total_claims,
++	    (unsigned long long)kernel_map->min_offset,
++	    (unsigned long long)kernel_map->max_offset);
++#endif
+ 	largest_free_size -= total_claims;
+ 
+ 	/*
+@@ -3639,6 +3645,10 @@
+ 		vm_map_offset_t end = 0;
+ 		struct kmem_range_startup_spec sp = kmem_claims[i];
+ 		struct mach_vm_range *sp_range = sp.kc_range;
++#if defined(LEMON_4K)
++		printf("LEMON claim %s: size=%llx start=%llx\n", sp.kc_name,
++		    (unsigned long long)sp.kc_size, (unsigned long long)start);
++#endif
+ 		if (vm_map_locate_space(kernel_map, sp.kc_size, 0,
+ 		    VM_MAP_KERNEL_FLAGS_ANYWHERE(), &start, NULL) != KERN_SUCCESS) {
+ 			panic("kmem_range_init: vm_map_locate_space failing for claim %s",

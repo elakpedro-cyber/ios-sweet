@@ -4,6 +4,20 @@
 
 ### Latest: minimal lemon board preparation (2026-11-08)
 
+CI 42446940840 succeeded (job 128627753961, 8m16s), including RPC/ADT checks.
+Kernel SHA256 eb0b9431afcbca75188c3d51ffede625e3fa42ac237dace7dc0651a8cb600f1d,
+stored in ignored xnu/out-minimal-kernel/. Link VA now fffffff007004000.
+Full-kernel QEMU A53 reaches arm_init, PE_init_platform, CPU bootstrap then
+panics on LSE ldadd in lck_grp_reference. Explicit cortex-a53 compiler target
+and an assembly check are added; -march alone did not exclude LSE in this build.
+A76 diagnostic run passes that point and reaches VM bootstrap (123304 pages),
+then kmem_range_init fails to place kmem_ptr_range. Patch 0006 logs claim sizes
+and addresses to diagnose this next; it does not bypass the allocator.
+Test PID1 is our own tools/sweet-init.S, packaged as a signed static Mach-O
+using mkinit.build_code after GNU cross-linking, entirely in the RAM disk.
+QEMU output uses /home/hadirpc/lemon-qemu-minimal-{a53,a76} in WSL because
+QMP sockets cannot live on /mnt/c. No device commands or writes.
+
 Found macOS CFLAGS still force ARM_LARGE_MEMORY and link at -2 TiB, outside
 4K/39-bit bootstrap TTBR1. Optional patch 0005 selects the existing mobile
 link addresses and -UARM_LARGE_MEMORY, moves final FB alias relative to

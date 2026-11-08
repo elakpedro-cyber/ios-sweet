@@ -83,7 +83,8 @@ def macho_symbol(path, name):
                 string, kind, section, desc, value = struct.unpack_from('<IBBHQ', data, symoff + 16 * index)
                 if kind & 0xe0 or not section:
                     continue
-                if strings[string:].split(b'\0', 1)[0].decode(errors='replace') == name:
+                end = strings.find(b'\0', string)
+                if strings[string:end].decode(errors='replace') == name:
                     matches.append(value)
             if len(matches) != 1:
                 raise ValueError(f'expected one defined {name}, got {len(matches)}')
