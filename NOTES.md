@@ -24,6 +24,13 @@ Patch 0007 selects the existing mobile 24 GiB zone VA / 8 GiB physical cap.
 The physical cap remains further constrained to half sane_size by XNU.
 Run 42447975067 passed the ARMv8 baseline atomic assembly check; next push
 includes the concrete zone fix and supersedes its diagnostic-only build.
+Run 42448044675 failed at two explicit CASA instructions in commpage_asm.s
+(lines 276/326). Patch 0008 substitutes a bounded LDAXR/STXR trylock for
+lemon; a lost exclusive reservation reports contention, as allowed by these
+trylock helper contracts. No loop or general CAS emulation is introduced.
+tools/test-lemon-pfz.py executes the actual helper bodies on QEMU Cortex-A53;
+empty/two-element FIFO, both held-lock failures and release checks PASS.
+Only function prologue/epilogue macros are replaced in this freestanding test.
 
 Found macOS CFLAGS still force ARM_LARGE_MEMORY and link at -2 TiB, outside
 4K/39-bit bootstrap TTBR1. Optional patch 0005 selects the existing mobile
