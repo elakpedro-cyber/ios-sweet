@@ -40,6 +40,18 @@ requiring audit. Firehose is NOT a closed KDK binary: darwin-xnu-build builds
 libdispatch/libfirehose_kernel separately with xcodebuild, without XNU CFLAGS.
 Workflow now passes an arch=arm64 xcconfig to build that dependency for A53.
 QEMU output: /home/hadirpc/lemon-qemu-a53-fixed/. No hardware activity.
+A76 run bypassing LSE reveals a separate IOCPU match issue: ADT has kryo260,
+but KernelConfigTables matches only kryo470. A temporary diagnostic ADT fallback
+to kryo470 unblocks CPU0 processor_start, SGI1 verification and BSD initialization.
+Patch 0009 fixes the personality conditionally for lemon, preserving the real
+kryo260 ADT identity. Diagnostic fallback ADT stays ignored and is not a release
+profile. Output /home/hadirpc/lemon-qemu-cpu-match-test/.
+Longer matching-CPU A76 run reaches BSD, then pmap_ttne panics on attempted L2
+demotion at fffffff00087e000 (FB PA block 5c600000). The alias spans lowglobals
++2 MiB through +12 MiB, but pmap_virtual_region reserves only the first 8 MiB.
+Patch 0010 reserves MAX(existing, ARM_TT_L2_SIZE + LEMON_FB_MAP_BYTES).
+Regression executes actual pmap_virtual_region body and checks whole alias
+coverage. This is a real permanent VA reservation fix, not a pmap panic bypass.
 
 Found macOS CFLAGS still force ARM_LARGE_MEMORY and link at -2 TiB, outside
 4K/39-bit bootstrap TTBR1. Optional patch 0005 selects the existing mobile

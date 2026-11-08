@@ -54,6 +54,44 @@ subprocess.run(['gcc', '-std=c11', '-Wall', '-Wextra', '-Werror',
                 '-o', str(out / 'final-map')], check=True)
 subprocess.run([str(out / 'final-map')], check=True)
 print('Actual XNU final-map C function: all FB blocks and adjacent slots PASS')
+region_source = (args.xnu / 'osfmk/arm/pmap/pmap.c').read_text()
+begin = region_source.index('boolean_t\npmap_virtual_region(')
+end = region_source.index('\n}\n', begin) + 3
+reservation = out / 'reserved-map.c'
+reservation.write_text('''#include <assert.h>
+#include <stdint.h>
+#include "lemon_fb_map.h"
+typedef int boolean_t;
+typedef uint64_t vm_map_offset_t, vm_map_size_t;
+#define TRUE 1
+#define FALSE 0
+#define LEMON_4K 1
+#define TEST_PAGE_SIZE_4K 1
+#define ARM_TT_L2_SIZE 0x200000ULL
+#define PAGE_MASK 4095ULL
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define VM_MIN_KERNEL_ADDRESS 0xffffffe000000000ULL
+#define LOW_GLOBAL_BASE_ADDRESS 0xfffffff000000000ULL
+#define VM_MAX_KERNEL_ADDRESS 0xfffffffbffffffffULL
+#define VREGION1_START 0xfffffffbc0000000ULL
+#define VREGION1_SIZE 0x3ffff000ULL
+static uint64_t gVirtBase = 0xfffffff007000000ULL;
+static uint64_t virtual_space_start = 0xfffffff027000000ULL;
+''' + region_source[begin:end] + '''
+int main(void) {
+    uint64_t start, size;
+    assert(pmap_virtual_region(2, &start, &size));
+    uint64_t fb_start = LOW_GLOBAL_BASE_ADDRESS + ARM_TT_L2_SIZE;
+    assert(start <= fb_start);
+    assert(start + size >= fb_start + LEMON_FB_MAP_BYTES);
+    assert(start + size <= gVirtBase);
+}
+''')
+subprocess.run(['gcc', '-std=c11', '-Wall', '-Wextra', '-Werror',
+                '-I' + str(args.xnu / 'osfmk/arm64'), str(reservation),
+                '-o', str(out / 'reserved-map')], check=True)
+subprocess.run([str(out / 'reserved-map')], check=True)
+print('Actual XNU pmap_virtual_region: permanent FB VA fully reserved PASS')
 subprocess.run(['aarch64-linux-gnu-gcc', '-c', '-DASSEMBLER',
                 '-I' + str(args.xnu / 'osfmk'), str(root / 'tools/lemon-mmu-test.S'),
                 '-o', str(out / 'test.o')], check=True)

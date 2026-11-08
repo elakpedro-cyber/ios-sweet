@@ -1,0 +1,24 @@
+--- a/osfmk/arm/pmap/pmap.c
++++ b/osfmk/arm/pmap/pmap.c
+@@ -83,6 +83,9 @@
+ #include <arm/trap.h>
+ 
+ #include <arm64/proc_reg.h>
++#if defined(LEMON_4K)
++#include <arm64/lemon_fb_map.h>
++#endif
+ #include <pexpert/arm64/boot.h>
+ #include <arm64/ppl/sart.h>
+ #include <arm64/ppl/uat.h>
+@@ -2535,6 +2538,11 @@
+ 	} else {
+ 		low_global_vr_mask = 0xFFFFFFFFFF800000;
+ 		low_global_vr_size = 0x800000;
++#if defined(LEMON_4K)
++		/* The permanent FB alias follows the first low-global L2 block. */
++		low_global_vr_size = MAX(low_global_vr_size,
++		    ARM_TT_L2_SIZE + LEMON_FB_MAP_BYTES);
++#endif
+ 	}
+ 
+ 	if (((gVirtBase & low_global_vr_mask) != LOW_GLOBAL_BASE_ADDRESS) && (region_select == 2)) {

@@ -56,6 +56,8 @@ jobs:
           cp xnu/ports/lemon/0006-kmem-trace.patch dxb/patches/0087-lemon-kmem-trace.patch
           cp xnu/ports/lemon/0007-mobile-zone-map.patch dxb/patches/0088-lemon-mobile-zone-map.patch
           cp xnu/ports/lemon/0008-pfz-baseline-atomics.patch dxb/patches/0089-lemon-pfz-baseline-atomics.patch
+          cp xnu/ports/lemon/0009-cpu-personality.patch dxb/patches/0090-lemon-cpu-personality.patch
+          cp xnu/ports/lemon/0010-framebuffer-va-reservation.patch dxb/patches/0091-lemon-framebuffer-va-reservation.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
