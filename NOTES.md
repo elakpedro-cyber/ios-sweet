@@ -17,6 +17,9 @@ newline/wrap, buffer guards and invalid-display rejection PASS on Linux.
 Workflow applies 0011 and runs this check. Next full CI and real-loader A53
 QEMU, then package a concrete new image before asking for another physical
 boot-write approval. Phone remains in TWRP with original boot restored.
+CI 42451650642 failed: pexpert/arm/pe_serial.c cannot find arm64/lemon_fb_map.h.
+The new cross-component include needs EXPORT_MD_LIST in osfmk/arm64/Makefile;
+0011 now exports it alongside sweet_early.h. No device commands this phase.
 
 ### Latest: physical XNU reaches EARLY 20; original boot RESTORED (2026-11-08)
 

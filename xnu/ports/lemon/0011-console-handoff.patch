@@ -1,3 +1,13 @@
+--- a/osfmk/arm64/Makefile
++++ b/osfmk/arm64/Makefile
+@@ -41,6 +41,7 @@
+ 	perfmon_arm64_regs.h \
+ 	proc_reg.h \
+ 	sweet_early.h \
++	lemon_fb_map.h \
+ 	asm.h \
+ 	tlb.h \
+ 	pal_hibernate.h
 --- a/osfmk/arm64/sweet_early.h
 +++ b/osfmk/arm64/sweet_early.h
 @@ -12,6 +12,9 @@
