@@ -2,7 +2,24 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: kernel builds; generated RPC has an unresolved runtime defect
+### Latest: RPC runtime fix tested locally; new CI pending (2026-11-08)
+
+Continued Claude's work. Prior successful build confirmed remotely; no local
+changes were discarded. Optional patch 0004 sets kernelContent in both manually
+constructed RPC paths (incoming IPC and trap), and normalizes it from the
+validated Mach payload in OSMetaClassBase::Invoke and IOUserServer::kernelDispatch.
+The generated modern iig dispatcher otherwise dereferences null/stale content.
+Regression test uses actual entry function bodies and actual OSObject.iig.cpp
+from CI 42411427607, with mocked IOKit/Mach parser/TLS and ASan+UBSan.
+Unpatched CI source fails with null-member access; patched source passes local,
+remote, IPC, trap, instantiate, stale content, and invalid-parser-result cases.
+This does not exercise the real kernel Mach parser or prove an iOS boot.
+Workflow applies patch 0085 and runs the test after a successful kernel build.
+Repository syntax validation passed (81 base patches, 20 Python, 9 shell).
+Next: push and await full CI, inspect verification step and kernel artifact.
+No device commands, writes or reboot in this work.
+
+### Previous: kernel builds; generated RPC has an unresolved runtime defect
 
 CI run `42411427607` succeeded on commit `6db1c4214c977b99515e20359c540c3f645d676b`.
 Job `128520207843` applied lemon patches 0082-0084, compiler commands included
