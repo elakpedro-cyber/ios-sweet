@@ -2,6 +2,19 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE PHYSICAL TEST: boot replaced; restoration REQUIRED (2026-11-08)
+
+User explicitly approved temporary write ONLY boot and restoration after test.
+Pre-write live boot/recovery/dtbo and local 134217728-byte boot backup hashes
+matched known good copies. Wrote 16977920 bytes of b3e70be6... image to boot
+using TWRP dd bs=4096 conv=fsync, then sync. Read-back image-prefix SHA256
+exactly matches b3e70be6ecabab6cd48be7aed8ce274483df096efcc9e83c1b5796a3be74998d.
+Recovery/dtbo full hashes remain unchanged. Next reboot system and get screen
+observation; the test has no USB. User must return with Power + Volume Up.
+Then push backup/boot-current.img again (TWRP /tmp is volatile), verify its
+hash and restore ALL 134217728 bytes ONLY boot; verify full boot/recovery/dtbo
+hashes. Do not leave the temporary image installed after this test.
+
 ### Latest: physical test image prepared; waiting for boot-write approval (2026-11-08)
 
 User asked to prepare the physical test. New lemon-boot.c only runs loader_boot
