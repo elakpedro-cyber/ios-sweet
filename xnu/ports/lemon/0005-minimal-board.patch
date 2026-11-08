@@ -1,0 +1,108 @@
+--- a/makedefs/MakeInc.def
++++ b/makedefs/MakeInc.def
+@@ -341,6 +341,13 @@
+ ARM64_LINK_ADDR    =0xfffffe0007004000
+ endif
+ 
++
++# 4K hardware tables use a 39-bit VA range: the macOS -2 TiB image cannot fit.
++ifeq ($(LEMON_4K),1)
++LARGE_MEMORY_DEFINE=-UARM_LARGE_MEMORY
++ARM64_PLKSEG_ADDR  =0xfffffff004004000
++ARM64_LINK_ADDR    =0xfffffff007004000
++endif
+ 
+ CFLAGS_ARM64	= -Darm64 -DARM64 -D__ARM64__ -DLP64 -DPAGE_SIZE_FIXED -DVM_KERNEL_LINK_ADDRESS=$(ARM64_LINK_ADDR) \
+ 			$(LARGE_MEMORY_DEFINE) -momit-leaf-frame-pointer -fno-strict-aliasing -D__API__=v4 -mkernel
+--- a/osfmk/arm64/arm_vm_init.c
++++ b/osfmk/arm64/arm_vm_init.c
+@@ -1834,7 +1834,11 @@
+  * Use the otherwise empty 32MB block above low globals and below gVirtBase
+  * for a Normal-NC framebuffer alias that survives bootstrap TTBR0 teardown.
+  */
++#if defined(LEMON_4K)
++#define SWEET_EARLY_FB_VA (LOW_GLOBAL_BASE_ADDRESS + ARM_TT_L2_SIZE)
++#else
+ #define SWEET_EARLY_FB_VA (VM_MIN_KERNEL_ADDRESS + ARM_TT_L2_SIZE)
++#endif
+ 
+ static void
+ sweet_early_map_final(void)
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -586,6 +586,10 @@
+ static int
+ sweet_ufs_init(void)
+ {
++#if defined(LEMON_4K)
++	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	return ENXIO;
++#endif
+ 	DTEntry node;
+ 	uintptr_t const *reg = NULL;
+ 	unsigned int size = 0;
+--- a/bsd/dev/sweet_keys.c
++++ b/bsd/dev/sweet_keys.c
+@@ -125,6 +125,10 @@
+ void
+ sweet_keys_init(void)
+ {
++#if defined(LEMON_4K)
++	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	return;
++#endif
+ 	int enabled = 1;
+ 	thread_t thread;
+ 	if (keys_started) {
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -638,6 +638,10 @@
+ void
+ sweet_touch_init(void)
+ {
++#if defined(LEMON_4K)
++	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	return;
++#endif
+ 	int enabled = 1;
+ 	thread_t thread;
+ 	if (st.started) {
+--- a/bsd/dev/sweet_usb.c
++++ b/bsd/dev/sweet_usb.c
+@@ -76,6 +76,10 @@
+ void
+ sweet_usb_probe(void)
+ {
++#if defined(LEMON_4K)
++	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	return;
++#endif
+ 	int enabled = 1;
+ 	uint32_t gdscr, cbcr[sizeof(usb_cbcr) / sizeof(usb_cbcr[0])];
+ 	bool clocks_on = true;
+--- a/bsd/dev/sweet_spmi.c
++++ b/bsd/dev/sweet_spmi.c
+@@ -54,6 +54,10 @@
+ int
+ sweet_spmi_init(void)
+ {
++#if defined(LEMON_4K)
++	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	return -1;
++#endif
+ 	if (sp_attempted) {
+ 		return sp_ready ? 0 : -1;
+ 	}
+--- a/bsd/dev/sweet_rpmh.c
++++ b/bsd/dev/sweet_rpmh.c
+@@ -327,6 +327,10 @@
+ int
+ sweet_rpmh_vreg_enable(const char *res, unsigned mv)
+ {
++#if defined(LEMON_4K)
++	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	return -1;
++#endif
+ 	/* Board-specific helper: do not apply PMIC5-LDO policy to arbitrary resources. */
+ 	if (!res || strcmp(res, "ldoc11") || mv < 2950 || mv > 3400) {
+ 		printf("SWEET RPMH: expected ldoc11 and 2950..3400 mV\n");

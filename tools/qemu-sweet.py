@@ -59,19 +59,37 @@ def check_qemu_dependency(cpu='cortex-a76'):
 
 
 def check_kernel_tools(kernel_path):
-    """Verify llvm-nm is available when --kernel is specified."""
-    if not shutil.which('llvm-nm'):
-        print('[!] Error: llvm-nm not found in PATH, required for --kernel font extraction.', file=sys.stderr)
-        print('    Install instructions:', file=sys.stderr)
-        print('      Arch Linux:    sudo pacman -S llvm', file=sys.stderr)
-        print('      Ubuntu/Debian: sudo apt install llvm', file=sys.stderr)
-        print('      Fedora:         sudo dnf install llvm', file=sys.stderr)
-        print('      macOS:          brew install llvm', file=sys.stderr)
-        return False
+    """Verify the matching kernel exists for framebuffer font extraction."""
     if not os.path.isfile(kernel_path):
         print(f'[!] Error: kernel file does not exist: {kernel_path}', file=sys.stderr)
         return False
     return True
+
+
+def macho_symbol(path, name):
+    data = open(path, 'rb').read()
+    magic, = struct.unpack_from('<I', data)
+    if magic != 0xfeedfacf:
+        raise ValueError('expected a 64-bit little-endian Mach-O')
+    ncmds, = struct.unpack_from('<I', data, 16)
+    offset = 32
+    for _ in range(ncmds):
+        cmd, size = struct.unpack_from('<2I', data, offset)
+        if cmd == 2:  # LC_SYMTAB, nlist_64
+            symoff, count, stroff, strsize = struct.unpack_from('<4I', data, offset + 8)
+            strings = data[stroff:stroff + strsize]
+            matches = []
+            for index in range(count):
+                string, kind, section, desc, value = struct.unpack_from('<IBBHQ', data, symoff + 16 * index)
+                if kind & 0xe0 or not section:
+                    continue
+                if strings[string:].split(b'\0', 1)[0].decode(errors='replace') == name:
+                    matches.append(value)
+            if len(matches) != 1:
+                raise ValueError(f'expected one defined {name}, got {len(matches)}')
+            return matches[0]
+        offset += size
+    raise ValueError('kernel has no symbol table')
 
 
 def build_image(payload):
@@ -209,6 +227,7 @@ def stream_serial_file(serial_path, file_pos, out_stream=sys.stdout):
 
 
 def main():
+    global FB_BASE, FB_H
     ap = argparse.ArgumentParser(
         description="Boot a SWEETXNU payload in QEMU's virt board.",
         epilog="Examples:\n"
@@ -224,18 +243,17 @@ def main():
     ap.add_argument('--gdb', action='store_true', help='start halted, gdb stub on :1234, no timeout')
     ap.add_argument('--hmp', action='append', default=[], help='extra monitor command run after stop (repeatable), e.g. "x /8gx 0xfffffe..."')
     ap.add_argument('--cpu', default='cortex-a76', help='QEMU CPU model (default: cortex-a76)')
-    ap.add_argument('--kernel', help='matching unstripped kernel, for exact framebuffer text decoding (uses llvm-nm)')
+    ap.add_argument('--kernel', help='matching unstripped kernel, for exact framebuffer text decoding')
+    ap.add_argument('--lemon', action='store_true', help='Redmi 9T framebuffer address and height')
     ap.add_argument('--fail-on-panic', action='store_true', help='exit 2 for a visible panic, 3 for incomplete/blank decoding; requires --kernel')
     ap.add_argument('--live-serial', action='store_true', help='stream serial console output to stdout in real time')
     ap.add_argument('--check-env', action='store_true', help='check QEMU installation and dependencies without running a payload')
     a = ap.parse_args()
+    if a.lemon:
+        FB_BASE, FB_H = 0x5c000000, 2340
 
     if a.check_env:
         ok = check_qemu_dependency(a.cpu)
-        if shutil.which('llvm-nm'):
-            print('[*] llvm-nm found in PATH', file=sys.stderr)
-        else:
-            print('[!] Optional: llvm-nm not found (needed only when using --kernel for text decoding)', file=sys.stderr)
         return 0 if ok else 1
 
     if not a.payload or not a.outdir:
@@ -253,12 +271,7 @@ def main():
     payload = open(a.payload, 'rb').read()
     font = None
     if a.kernel:
-        symbols = subprocess.check_output(['llvm-nm', '--defined-only', a.kernel], text=True)
-        fonts = [int(line.split()[0], 16) for line in symbols.splitlines()
-                 if line.split()[-1:] == ['_iso_font']]
-        if len(fonts) != 1:
-            ap.error('kernel must contain exactly one _iso_font symbol')
-        font = payload_data(payload, fonts[0], 256 * 16)
+        font = payload_data(payload, macho_symbol(a.kernel, '_iso_font'), 256 * 16)
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.abspath(a.outdir)
 
@@ -274,7 +287,7 @@ def main():
     mem_size = struct.unpack_from('<Q', payload, 0x40)[0]
     ram_gib = max(4, -(-(phys_base + mem_size - 0x40000000) // (1 << 30)))
     cmd = ['qemu-system-aarch64', '-M', 'virt,gic-version=3', '-cpu', a.cpu, '-smp', '1', '-m', f'{ram_gib}G',
-           '-nographic', '-serial', f'file:{out}/serial.txt', '-qmp', f'unix:{mon},server,nowait',
+           '-nographic', '-nic', 'none', '-serial', f'file:{out}/serial.txt', '-qmp', f'unix:{mon},server,nowait',
            '-d', 'int,guest_errors,unimp', '-D', f'{out}/qemu.log', '-no-reboot',
            '-device', f'loader,file={out}/ram.bin,addr={phys_base:#x},force-raw=on',
            '-device', f'loader,file={out}/stub.bin,addr={STUB_PA:#x},force-raw=on',

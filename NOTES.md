@@ -2,6 +2,21 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: minimal lemon board preparation (2026-11-08)
+
+Found macOS CFLAGS still force ARM_LARGE_MEMORY and link at -2 TiB, outside
+4K/39-bit bootstrap TTBR1. Optional patch 0005 selects the existing mobile
+link addresses and -UARM_LARGE_MEMORY, moves final FB alias relative to
+LOW_GLOBAL_BASE_ADDRESS, and blocks unported Sweet UFS/keys/touch/USB/SPMI/RPMh
+entry points before MMIO. This is required before a full-kernel QEMU boot.
+mkadt --lemon emits one CPU, no UFS, 510 MiB managed RAM + 2 MiB panic region
+at 0x100000000..0x120000000, display 0x5c000000/1080x2340, lemon GIC or QEMU GIC.
+Saved live FDT confirms this range is RAM and avoids fixed reservations and
+all dynamically allocated pools (whose alloc-ranges are below 4 GiB).
+QEMU tool --lemon uses matching framebuffer and reads Mach-O symbols directly,
+so llvm-nm is no longer required. No native boot image or phone command here.
+Next: complete CI, inspect linked VA, then minimal full-kernel QEMU on A53.
+
 ### Latest: RPC compatibility fix and full CI verified (2026-11-08)
 
 Pushed commit `b515ae75dfa248dc6c08ee7761fcc8c760b15d6e` without force.
