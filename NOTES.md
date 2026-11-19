@@ -2,6 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v15 RESULT: SE2 clock gated/pins unconfigured; active v16 staged (2026-11-19)
+
+User returned TWRP. Read ONLY4198400byte tail to research/lemon-v15-log.bin/.txt,
+SWEETLOG total164315, flush11. Actual LEMON TOUCH snapshot:
+vote0x4be0 rcg0x80000000 cfg0x100000 dfs0x21;
+branches1f004=0,1f008=8,1f00c=4220,1f014=4220,1f3a4=80004220.
+GPIO6/7 cfg0/io0;71 cfg200/io3;80 cfg0/io1;93 cfg1/io1.
+Driver correctly skipped SE reads because SE2 branch halted, then stopped.
+No proof yet of GENI protocol/SRAM firmware retention. SPI pins not qup2.
+Existing v16 active mode can narrow-vote clocks, require DFS level0 XO, read
+protocol/idle state, configure SPI and validate retained FW5/PID5940. It may
+stop safely if those conditions fail. No new build needed, same tested kernel.
+Staged /tmp/boot-lemon-touch-active-v16.img; SHA matches
+1839c1ec9b31e9c7ef6e88ec2a11ce5dc7709a8266080653df3202f096a44b43.
+Current full boot remains v15 c5f381ce9def49c6eb1b0bec0cc6a9c6d5822c6fe034fcd24d882d378b6c381f;
+recovery/dtbo match originals. NO partition write/reboot this turn.
+NEXT obtain concrete v16 boot-only write/reboot approval. Then readback and
+protected hashes, reboot, test swipe if UI appears. If no touch, return TWRP
+and read tail for LEMON TOUCH awake/DFS/FW/report diagnostics. No reset/upload.
+
 ### INSTALLED: v15 snapshot boot, rebooted; awaiting physical result (2026-11-19)
 
 User explicitly approved concrete v15 boot-only write/reboot: "делай".
