@@ -17,10 +17,23 @@ User returned with buttons to TWRP. Re-pushed verified original backup and
 restored ALL 134217728 bytes of boot. Full boot hash matches f5ee6f40... and
 recovery/dtbo match 1737005c... / 6fd8b752... respectively. Phone left in TWRP.
 No userdata/recovery/dtbo writes. V2 is no longer installed.
-Next diagnostic uses built-in startup_debug=1 and -enable_kprintf_spam with
-the SAME verified d59ad404... kernel. Only payload boot-argument bytes change;
-no speculative allocator changes or new kernel build needed. QEMU check in
-progress before packaging/staging and asking for a separate physical test.
+Prepared v3 diagnostic using built-in startup_debug=1 and -enable_kprintf_spam
+with the SAME verified d59ad404... kernel. Only the 608-byte payload command
+line slot changed; kernel code, ADT, test init and loader are byte-identical to
+v2. No speculative allocator changes or new kernel build needed.
+Real-loader A53 QEMU 55s reaches PID1 with THREE alive messages; no visible
+panic. Decoder reports 2 unknown glyphs in older log text. A separate read-only
+hardware breakpoint at kmem_range_init captures actual verbose startup trace
+and KMEM phase/function-pointer lines. Native outputs in WSL:
+/home/hadirpc/lemon-startup-trace-a53/ and lemon-startup-trace-markers/.
+Image shim/out/lemon-boot/boot-lemon-startup-trace-v3.img: 16977920 bytes,
+SHA256 3f707deafbc2dc15f2bb4adbcfa03a00da5c2bcd17ebca147c5b8986a3816937.
+Unpacked v3 kernel/DTB exactly match v2; payload differs ONLY in command line;
+boot load addresses/sizes unchanged and non-overlapping. Staged ONLY at
+/tmp/boot-lemon-startup-trace-v3.img in TWRP; device image SHA256 verified.
+NEXT requires specific approval for another temporary write ONLY boot, then
+screen capture, user button return to TWRP and full original boot restoration.
+Current original boot is restored; do not repeat a new write without approval.
 
 ### Previous interrupted v2 physical test (2026-11-08; restored 2026-11-19)
 
