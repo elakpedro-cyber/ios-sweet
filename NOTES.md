@@ -18,7 +18,11 @@ CS0, retainedFW-only validation, checksummed reports -> existing SweetHID.
 No firmware upload/reset/PMIC; no assumption SRAM survives ABL. HID height fixed
 to2340 for LEMON only. See docs/LEMON_TOUCH.md. Actual decoder/FIFO1..67byte,
 errors/timeouts/gates/setup/HID release tests pass ASan+UBSan on local Linux.
-Workflow applies0098 and runs tests. CI not yet launched at this note's creation.
+Workflow applies0098 and runs tests. Commit70642f3 pushed to fork; CI44609929903
+in progress (compiling). Patch dry-run against prior patched XNU passes. Full
+repo validation passes under WSL. Read-only v14 log pulled:4198400bytes,
+ring total241422bytes/flush47 to research/lemon-v14-log.bin/.txt.
+Prepared ignored research/build_touch_boot.py for v15 snapshot/v16 active packaging.
 NEXT build CI, prepare concrete v15 snapshot boot, verify layout, obtain explicit
 boot-write/reboot confirmation per AGENTS.md. Then collect LEMON TOUCH log from
 4.2MiB tail after returnTWRP; same kernel can test active mode later. Do not
