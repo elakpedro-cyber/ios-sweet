@@ -2,6 +2,16 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE V5 GIC TEST: ordered probe installed (2026-11-19)
+
+User specifically approved replacing boot with v5. Pre-write v4 full hash and
+recovery/dtbo matched recorded values; staged image verified. Wrote 315392 bytes
+ONLY boot with dd/fsync + sync; read-back prefix SHA256 exactly matches
+86cdec55cadb51219b55acea4c275a73bf8dba0742bd99b728e8bc7f53333611.
+Recovery/dtbo unchanged. Reboot and obtain SGI CNT, TMR A, TMR CNT, TMR IRQ,
+END EN, D AFTER and RESULT (or STOP/FAULT). Leave test boot installed per user
+preference. Return to TWRP with buttons after result before subsequent work.
+
 ### Latest: v4 shows no enabled IRQs; ordered GIC probe v5 prepared (2026-11-19)
 
 Physical v4 user-read results: SGI CNT=0, TMR CNT=0, OTHER=0, RESULT="IRQ
