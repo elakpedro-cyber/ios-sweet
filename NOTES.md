@@ -2,7 +2,24 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: real services running; quiet/logging v12 staged, awaiting boot approval (2026-11-19)
+### ACTIVE: quiet/logging v12 INSTALLED/VERIFIED, rebooted; awaiting display (2026-11-19)
+
+User explicitly approved "делай" for concrete v12 boot/reboot + logger proposal.
+Preflight ADB recovery, boot /dev/block/sde49 size134217728, staged v12 SHA,
+current v11/protected hashes matched. Wrote ONLY16982016 bytes to boot with
+dd4096 conv=fsync + sync. Readback prefix SHA exactly
+f9ee563f00ec0adbf0734f9925cd7e045cd4779d01a5adc220a7ecd02b44e259.
+Full boot SHA256b700159cf7c413637a530ada54cd6a3220dcd50893549b2e0c81bdea557a90ef.
+Recovery/dtbo original hashes unchanged. No manual userdata/rootfs writes;
+v12 will save logs in the approved backed-up unused tail (details below).
+Issued adb reboot successfully. NEXT wait30-60s, user reports/photo unobscured
+display (logo/progress/UI/black). Do not assume GUI success. If no UI after a
+short bounded wait, return TWRP, replug USB if needed, read ONLY last1025*4096
+bytes of userdata at byte offset50569551872 (block12346082), decode with
+tools/sweet-log.py, inspect SpringBoard/backboardd/CRASH/panic/VM pressure.
+No new kernel CI required for current flags-only v12; installed4K caches preserved.
+
+### Previous: real services running; quiet/logging v12 staged, awaiting boot approval (2026-11-19)
 
 After installed4K caches user reports Apple logo behind console, then repeated
 exec messages/slowing. Photo rotated upright in ignored research/phone-cache-boot-
