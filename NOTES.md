@@ -2,7 +2,19 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Active: v11 diagnostic ready, staged; awaiting boot-only approval (2026-11-19)
+### Active: v11 installed and rebooted; awaiting held diagnostic screen (2026-11-19)
+
+User explicitly approved "делаем" for prepared v11 boot-only write/reboot.
+Preflight TWRP, boot target /dev/block/sde49 size134217728, staged SHA and
+old v10/protected hashes matched. Wrote exactly16982016 bytes with dd4096
+conv=fsync, sync. Readback prefix SHA matches v11
+c09d893d7ada8c85676a35509e686d70326678f104bb47999cbe32320acee0c2.
+Full boot SHA7ced79c0a4d1c14e62729257a6854ef4423a39961ada7964c8516e51438269b5.
+Recovery/dtbo original hashes unchanged. No userdata write or root reinstall.
+Issued adb reboot successfully. NEXT collect photo after30-60s, especially
+messages immediately preceding LEMON PID1 HOLD; this is diagnostic, no GUI fix.
+
+### Previous: v11 diagnostic ready, staged; awaiting boot-only approval (2026-11-19)
 
 CI44555149569 for a464e2fe51271a8086d4eae6aea3713938cf6e1c succeeded.
 Matching kernel SHA256 ca32dfac654912a448ea2dbf7fa69297bfdfba11d28a2b0e4cbd256398788f22.
