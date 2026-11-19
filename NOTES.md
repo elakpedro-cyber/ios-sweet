@@ -2,18 +2,27 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Resumed interrupted v2 test (2026-11-19): restoration still REQUIRED
+### Latest: resumed v2 physical test completed; original boot RESTORED (2026-11-19)
 
 User returned and explicitly resumed work; phone already in TWRP, battery 41%.
 V2 was left installed during the pause. Prefix hash matches e116b925...;
 full boot SHA256 6dd41d973b9aa6aabb0d84038e00a4420fc28fda494ef1dab0268b9b4ae273c0
 matches an offline overlay of v2 on the verified original 128 MiB backup.
 Recovery/dtbo retain original full hashes. Local original boot and v2 hashes
-also reverified. No new partition write: resume the previously approved test
-by rebooting existing v2, obtain screen observation, return to TWRP and restore
-the entire original boot. Do not mistake current boot for the original.
+also reverified. Rebooted the existing v2 without rewriting it. User reports
+last visible line "kmem_large_ranges[3] : 0 - 0 (0B)", unchanged after another
+30 seconds. Normal console now visibly advances beyond EARLY20 into kmem;
+no panic or PID1 reported. Observation is user-read text, not a saved image.
+User returned with buttons to TWRP. Re-pushed verified original backup and
+restored ALL 134217728 bytes of boot. Full boot hash matches f5ee6f40... and
+recovery/dtbo match 1737005c... / 6fd8b752... respectively. Phone left in TWRP.
+No userdata/recovery/dtbo writes. V2 is no longer installed.
+Next diagnostic uses built-in startup_debug=1 and -enable_kprintf_spam with
+the SAME verified d59ad404... kernel. Only payload boot-argument bytes change;
+no speculative allocator changes or new kernel build needed. QEMU check in
+progress before packaging/staging and asking for a separate physical test.
 
-### ACTIVE V2 PHYSICAL TEST: temporary boot installed, MUST RESTORE (2026-11-08)
+### Previous interrupted v2 physical test (2026-11-08; restored 2026-11-19)
 
 User approved v2 temporary boot replacement and restoration. Pre-write live
 boot/recovery/dtbo hashes and local full 134217728-byte boot backup match known
