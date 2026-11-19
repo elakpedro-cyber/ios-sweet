@@ -2,6 +2,38 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Active: downloaded iOS verified, rootfs building, UFS diagnostic prepared (2026-11-19)
+
+User finished download and resumed. All four components SHA384 match Apple
+BuildManifest 20H392/d22ap erase identity. OS=4730814044 bytes,
+SystemOS=2743074816, AppOS=10485760, DeviceTree=33719. Read-only OS APFS mount
+works, real arm64 launchd/dyld present. Extracted LZFSE d22ap ADT into ignored
+research/ipsw-x/d22ap.adt, mkadt with real /product succeeds.
+TWRP ADB confirmed. READ ONLY storage facts: Micron MT064GASAO2U21, LUN0,
+4096-byte logical blocks, userdata=/dev/block/sda11. GPT header/entry CRCs
+validated against local backup/lemon-ufs-gpt.bin; userdata first0x20d918,
+12347107 blocks,47.10GiB; matches sysfs first17221824/size98776856 512b sectors.
+UFS controller live DT base0x04804000,size0x3000. No device partition writes.
+
+WSL lacks HFS+ and KVM. Installed libguestfs-tools, Linux6.8.0-149 image/modules
+and modules-extra (about212MB downloads total, no recommended firmware).
+mkiosroot.sh IOSROOT_GUESTFS=1 streams tar into appliance HFS+ instead of slow
+per-file guestmount rsync; then guestmount for existing link/metadata setup.
+Waits guestmount PID exit before fsck to avoid image flush races.
+First slow build stopped cleanly, partial kept at
+/home/hadirpc/lemon-ios16-root-initial-copy.img (~250MB allocated).
+Current build /home/hadirpc/lemon-ios16-root.img16G running, log
+/home/hadirpc/lemon-ios16-root-build.log; exec session55691. Must finish and
+fsck, then apply sweet-root-tweaks.py before declaring ready.
+
+Optional0013 adds lemonufsprobe=1 register-only CAP/VER/HCE/HCS/DBR/RSR
+diagnostic; hook in IOFindBSDRoot works even rd=md0. Default remains off,
+lemon driver still returns ENXIO before DMA/SCSI/host writes. Nonlemon unchanged.
+Actual diagnostic+hook host ASan/UBSan PASS opt-in0/2/1, no register mutations,
+mapping failure. Workflow applies0094 and runs test. Next CI, QEMU without
+physical MMIO option, then prepare concrete v7 boot for explicit approval.
+This is preparation for storage access; full iOS UI still needs storage driver.
+
 ### Latest: user-operated resumable downloader ready; NOT started (2026-11-19)
 
 User wants to change VPN server before downloading. Added download-ios.cmd

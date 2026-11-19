@@ -60,6 +60,7 @@ jobs:
           cp xnu/ports/lemon/0010-framebuffer-va-reservation.patch dxb/patches/0091-lemon-framebuffer-va-reservation.patch
           cp xnu/ports/lemon/0011-console-handoff.patch dxb/patches/0092-lemon-console-handoff.patch
           cp xnu/ports/lemon/0012-gic-affinity-order.patch dxb/patches/0093-lemon-gic-affinity-order.patch
+          cp xnu/ports/lemon/0013-ufs-readonly-probe.patch dxb/patches/0094-lemon-ufs-readonly-probe.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -121,6 +122,9 @@ jobs:
 
       - name: Verify lemon GIC initialization order
         run: python3 tools/test-lemon-xnu-gic.py --xnu dxb/xnu
+
+      - name: Verify lemon read-only UFS diagnostic
+        run: python3 tools/test-lemon-ufs-probe.py --xnu dxb/xnu
 
       - name: Package build tree for local compiles
         if: always()

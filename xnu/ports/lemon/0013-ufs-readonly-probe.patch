@@ -1,0 +1,44 @@
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -587,7 +587,22 @@
+ sweet_ufs_init(void)
+ {
+ #if defined(LEMON_4K)
+-	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	/* Read-only ABL handoff diagnostic. No host writes, DMA or SCSI commands. */
++	uint32_t probe = 0;
++	PE_parse_boot_argn("lemonufsprobe", &probe, sizeof(probe));
++	if (probe == 1) {
++		/* Physical base/size from the lemon live FDT ufshc@4804000. */
++		vm_offset_t base = ml_io_map(0x04804000, 0x3000);
++		if (base) {
++			volatile uint32_t *r = (volatile uint32_t *)base;
++			printf("LEMON UFS: CAP=0x%x VER=0x%x HCE=0x%x HCS=0x%x\n",
++			    r[REG_CAP / 4], r[0x08 / 4], r[REG_HCE / 4], r[REG_HCS / 4]);
++			printf("LEMON UFS: DBR=0x%x RSR=0x%x (register reads only)\n",
++			    r[REG_UTRLDBR / 4], r[REG_UTRLRSR / 4]);
++		} else {
++			printf("LEMON UFS: controller mapping failed\n");
++		}
++	}
+ 	return ENXIO;
+ #endif
+ 	DTEntry node;
+--- a/iokit/bsddev/IOKitBSDInit.cpp
++++ b/iokit/bsddev/IOKitBSDInit.cpp
+@@ -770,6 +770,15 @@
+ //
+ //	SWEET: root on a GPT partition of the internal UFS (bsd/dev/sweet_ufs.c)
+ //
++#if defined(LEMON_4K)
++	uint32_t lemon_probe = 0;
++	PE_parse_boot_argn("lemonufsprobe", &lemon_probe, sizeof(lemon_probe));
++	if (lemon_probe == 1) {
++		extern int sweet_ufs_rootdev(dev_t *dev);
++		dev_t unused_root;
++		(void)sweet_ufs_rootdev(&unused_root);
++	}
++#endif
+ 	if (strcmp(rdBootVar, "ufsroot0") == 0) {
+ 		extern int sweet_ufs_rootdev(dev_t *dev);
+ 		OSSafeReleaseNULL(matching);
