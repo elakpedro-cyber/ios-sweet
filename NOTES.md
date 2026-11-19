@@ -2,6 +2,55 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: ALL PREPARATION COMPLETE; wait for user's install/launch confirmation (2026-11-19)
+
+User away and explicitly wants to confirm phone launch on return. Do NOT
+write userdata/boot or reboot until that confirmation. Phone in TWRP.
+ONLY /tmp files written in this stage; current boot remains v8 full
+11abe53dc2ad5a644d709777d6f40eefa43e4593c56fec288df1fcb747b4d2c1;
+recovery/dtbo original hashes rechecked. User says phone completely empty.
+
+CI44543155402 ef6664a SUCCESS. SHA256SUMS verified kernel
+xnu/out-ufs-root-kernel/kernel.development.sweet:
+ee90c84170f9003e418d1d00e59ce6b1ca6ae10319e64ad027414962ed7a4167.
+New kernel actual HFS-root integration on real shim/Cortex-A53 QEMU55s:
+"hfs: mounted LemonTest on device b(1,0)", own PID1 + FOUR alive messages.
+No visible panic. Decoder unknown5 old glyphs, not clean-decoder pass.
+Output /home/hadirpc/lemon-hfs-root-kernel-a53. No Apple launchd run yet.
+
+V9 for REAL root (not own RAMDisk init):
+shim/out/lemon-boot/boot-lemon-ios-root-v9.img16982016 bytes SHA256
+58e6ae6a54681bd5ffb5f03431ea4cbf6d8e932ac2f66112336ac19b954dbeac.
+Staged /tmp/boot-lemon-ios-root-v9.img; device SHA matches. Known loader/DTB,
+fresh lemon-root-phone.adt with real D22AP /product. SAME510MiB managed RAM,
+one CPU, timer19. No XNU chosen/memory-map RAMDisk, payload exactly rebuilt
+from matching kernel/ADT; header/gzip/payload/DTB/ranges all validated.
+Command line: debug=0xc serial=3 cpus=1 keepsyms=1 rd=ufsroot0 lemonufsroot=1
+ufsroot=userdata ufsrw=1 rootrw=1 unentitled_ios_sim_launch=1 ignition_level=1
+launchd_unsecure_cache=1 wdt=-1 wdt_test=no_user_checkin sweetlog=0
+sweetfb_noconsole=0 sweetfb_hz=15 -enable_kprintf_spam
+Console intentionally left visible for first real Apple bootstrap diagnostics.
+
+Root image /home/hadirpc/lemon-ios16-root.img16GiB is prepared, fsck clean,
+SHA c783b998c83c0a7b3d7920fd665fdd8a84fa5b20d5165c605c633c82abb3328a.
+research/install_ios_root.py READ-ONLY preflight PASSED, --flash NOT run.
+It is the tested64MiB chunk transfer helper; do NOT use failed stdin gzip route.
+It pins userdata block/size/extent, unmounts/data and verifies before writing,
+does complete16GiB prefix hash + protected partition hashes, never reboots.
+Installer expects current v8 boot hash and therefore MUST run BEFORE boot-v9
+installation. If phone restarted TWRP, re-push volatile /tmp v9 as needed.
+
+After user's explicit approval covering userdata+boot+launch:
+1) python research/install_ios_root.py --flash (monitor until verified success).
+2) Recheck/stage v9, write ONLY boot dd4096 conv=fsync+sync, verify16982016-byte
+prefix SHA and unchanged recovery/dtbo. Record new full boot hash.
+3) Reboot, ask user for last screen lines/photo. Actual Apple launchd/dyld/
+SpringBoard first run may need fixes; UI not yet proven. No automatic restore.
+Do not widen RAM blindly: TWRP /proc/iomem shows reserved allocations around
+0x13b546000..0x13fffffff despite broad System RAM range. Kept proven510MiB.
+Some GitHub status requests had transient TLS timeouts; artifact hashes and
+final success were verified. No active local preparation process remains.
+
 ### Active: user away; finish preparation ONLY, await install/launch approval (2026-11-19)
 
 User: "я отойду от пк так что доделай там что надо и дождись меня я подтвержу
