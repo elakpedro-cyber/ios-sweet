@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Resumed interrupted v2 test (2026-11-19): restoration still REQUIRED
+
+User returned and explicitly resumed work; phone already in TWRP, battery 41%.
+V2 was left installed during the pause. Prefix hash matches e116b925...;
+full boot SHA256 6dd41d973b9aa6aabb0d84038e00a4420fc28fda494ef1dab0268b9b4ae273c0
+matches an offline overlay of v2 on the verified original 128 MiB backup.
+Recovery/dtbo retain original full hashes. Local original boot and v2 hashes
+also reverified. No new partition write: resume the previously approved test
+by rebooting existing v2, obtain screen observation, return to TWRP and restore
+the entire original boot. Do not mistake current boot for the original.
+
 ### ACTIVE V2 PHYSICAL TEST: temporary boot installed, MUST RESTORE (2026-11-08)
 
 User approved v2 temporary boot replacement and restoration. Pre-write live
