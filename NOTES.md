@@ -2,6 +2,16 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v16 RESULT: user reports no touch; waiting TWRP/log (2026-11-20)
+
+User selected "Касания не работают" after v16 swipe test. No claim of working
+physical input. Failure stage unknown until log is collected; do not guess
+DFS, GENI firmware, sensor SRAM or HID as established cause. ADB currently
+has no devices, consistent with XNU running. Asked user to return TWRP without
+formatting Data. No device write/reboot this turn. NEXT read ONLY4198400byte
+tail to research/lemon-v16-log.bin/.txt and inspect LEMON TOUCH mode2 output.
+Keep v16 installed, preserve root/recovery; new boot requires concrete approval.
+
 ### INSTALLED: v16 active touch handoff, awaiting physical result (2026-11-19)
 
 User approved concrete active v16 boot-only write/reboot: "да".
