@@ -2,6 +2,20 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE V3 TEST: v3 installed; user explicitly waived automatic boot restore (2026-11-19)
+
+User explicitly approved writing v3 and said original boot need NOT be restored
+between tests to save time. This user instruction overrides older restoration
+requirements below. Keep the verified original backup; preserve recovery/dtbo,
+userdata and every other partition. Future destructive writes still need the
+specific authorization required by AGENTS unless already authorized in session.
+Rechecked original boot/recovery/dtbo, staged v3 image and local backup hashes.
+Wrote 16977920 bytes ONLY boot with dd/fsync + sync. Read-back prefix SHA256
+matches 3f707deafbc2dc15f2bb4adbcfa03a00da5c2bcd17ebca147c5b8986a3816937.
+Recovery/dtbo hashes unchanged. Reboot system and get last startup trace lines.
+V3 remains installed after the test unless user requests restoration; returning
+to TWRP with buttons is still required for USB/ADB and subsequent work.
+
 ### Latest: resumed v2 physical test completed; original boot RESTORED (2026-11-19)
 
 User returned and explicitly resumed work; phone already in TWRP, battery 41%.
