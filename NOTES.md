@@ -2,6 +2,43 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: iOS rootfs prepared + v7 UFS register diagnostic staged (2026-11-19)
+
+Rootfs preparation COMPLETED, not XNU-boot-tested:
+/home/hadirpc/lemon-ios16-root.img, logical17179869184 bytes (16GiB), about12GiB
+allocated. SHA256 c783b998c83c0a7b3d7920fd665fdd8a84fa5b20d5165c605c633c82abb3328a
+(also adjacent .sha256). OS/SystemOS/AppOS streamed successfully into HFS+
+using IOSROOT_GUESTFS=1; script exit0, fsck clean. Applied existing
+sweet-root-tweaks.py, verified unchanged SHA256 of Apple launchd/dyld and
+root ownership, SpringBoard executable exists, SetupDone/BKNoWatchdogs and
+mobile501 ownership. Final read-only fsck clean; finish script exit0.
+Logs /home/hadirpc/lemon-ios16-root-{build,finish}.log.
+Host guestmount gives different synthetic per-path st_ino for hard links:
+initial host ino equality assertion was wrong. Appliance guestfish statns
+shows SAME inode318416,nlink2,size393216 for both shared-cache aliases.
+Host content/nlink checks pass. No actual link repair was needed.
+Ignored research/{finish_ios_root.sh,verify_prepared_root.py} reproduce finishing.
+
+CI44510231343 (66f53f0) SUCCESS including new UFS diagnostic host test.
+xnu/out-ufs-probe-kernel/kernel.development.sweet SHA256
+8f5166d1ce69fb77be876bb842e1f11419c3e9238276b95bc2622604c03d209c.
+Real-shim A53 QEMU55s, diagnostic OFF (physical MMIO absent on virt):
+PID1 and SIX still-alive messages, no visible panic. Decoder still has2unknown
+glyphs in an older line; clean-decode criterion did not pass.
+Output /home/hadirpc/lemon-xnu-ufs-probe-a53. Probe opt-in/no-write path covered
+by actual-function ASan/UBSan host test and CI; hardware result pending.
+
+Prepared shim/out/lemon-boot/boot-lemon-ufs-probe-v7.img16977920 bytes SHA256
+829a62ad4bb6873fc1af9f4ea2ea4cdf43abee44e02099bd886b82ae4828615f.
+Same loader, DTB, v6 phone ADT and own test init; only new kernel and added
+lemonufsprobe=1 command line. Validated v2/gzip/payload/DTB/ranges/timer19.
+Staged ONLY /tmp/boot-lemon-ufs-probe-v7.img; device SHA matches.
+Current TWRP boot remains v6 full hash0ca20d0b...; recovery/dtbo original.
+NO partition writes during rootfs stage. NEXT specific v7 boot-only approval,
+then verified write/reboot and collect LEMON UFS CAP/VER/HCE/HCS/DBR/RSR.
+Do NOT write userdata yet: UFS driver still disabled before DMA/SCSI and
+register-only diagnostic is the next physical step. Rootfs is PC-only.
+
 ### Active: downloaded iOS verified, rootfs building, UFS diagnostic prepared (2026-11-19)
 
 User finished download and resumed. All four components SHA384 match Apple
