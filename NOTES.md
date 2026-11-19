@@ -34,7 +34,13 @@ Patch0018 adds bounded20x100ms readiness, reset-state/short+full metadata/PID lo
 keeps strict FW5/complement/PID/geometry gates, requires short/full agreement,
 stops immediately on SPI error. No reset/power/upload. Actual helper tests pass
 ASan/UBSan: delayed readiness, disagreement, wrong PID/geometry/complement,
-bounded invalid state, transport error, restored event page. CI not yet launched.
+bounded invalid state, transport error, restored event page. Whole worker also
+passes native syntax/type check with kernel interface stubs. Final14ce591 CI
+44617296656 in progress; supersedes cancelled547e156 run44617175805 (caught
+removed report-loop err declaration locally before the first build completed).
+Packaging prepared: research/build_touch_boot.py ready, kernel expected in
+xnu/out-touch-ready-kernel. Produces boot-lemon-touch-ready-v17.img and
+payload-touch-ready-phone.bin with unchanged identityADT/settings +lemontouch2.
 NEXT push/build, package same v14 ADT with new kernel+lemontouch2 as v17, verify,
 stage /tmp then obtain explicit boot-only write/reboot approval. Installed v16
 full boot remains e975d1e1...; recovery/root preserved. No new boot written.
