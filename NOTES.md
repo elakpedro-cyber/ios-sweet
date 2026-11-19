@@ -2,7 +2,59 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Active: v11 exposes 16K signature rejection; prepare 4K cache update (2026-11-19)
+### PAUSED BY USER: no phone writes; 4K cache fix prepared locally (2026-11-19)
+
+User explicitly requested stop now, continue later: "ладно всё закончи быстро
+вот прям щас быстро закончи потом продолжим". Stopped phone preparation/checksum
+processes (session24172, Python2233, guestfish3420/3441, NBD2231 SIGTERM).
+Phone remains TWRP, installed v11 boot, ORIGINAL installed16K-signature root cache.
+NO userdata/boot writes this turn, no flashing/reboot approved for cache update.
+
+Original full-cache phone checksum pass was too slow (~6MiB/s). User asked for
+faster file identity checks: on resume compare sizes/headers/signature tables
+instead of re-reading all file payloads (we already verified pristine source
+and original installation readback). Explain this is narrower than full integrity
+verification. Local converted43 files, full independent hashes and QEMU/HFS tests
+already PASS; do not repeat them unnecessarily.
+
+IMPORTANT NEW SAFETY FINDING: phone HFS journal pending (raw journal0x82000,
+start0x1c200,end0x1f200, volume attrs0x80002000). Must replay/checkpoint in LOCAL
+phone-backed overlay BEFORE Linux force RW edits, then ensure journal empty
+before applying sectors, or stale replay can overwrite filesystem edits.
+research/probe_hfs_journal.py reads/prints and currently ASSERTS empty (fails on
+untouched phone, expected). guestfish appliance CAN run host /usr/sbin/fsck.hfsplus:
+run; debug-upload /usr/sbin/fsck.hfsplus /tmp/fsck.hfsplus 0755;
+debug sh "/tmp/fsck.hfsplus -f -y /dev/sda". Use --rw LOCAL qcow2 only, backing
+NBD stays read-only. NO need install packages. Then -f -n check after edits.
+Confirmed fsck -fn on PC test overlay: volume appears OK. Phone-v2 fsck -fy
+also says volume appears OK, but journal header after replay NOT YET verified.
+
+Local phone overlays: /home/hadirpc/lemon-cache-4k-phone.qcow2 (read-only attempt,
+no cache edits); /home/hadirpc/lemon-cache-4k-phone-v2.qcow2 (~324KiB after fsck,
+no cache edits). Backing nbd+unix:///?socket=/home/hadirpc/lemon-cache-phone.sock.
+These require restarting read-only NBD server; stale socket may remain after
+shutdown, remove only socket after confirming no server/fuser. Never apply PC
+test-overlay sectors to phone. User pause overrides pending preparation.
+
+Optimized tools/lemon-adb-nbd.py to8MiB reads,8-entryLRU (still64MiB total).
+Actual8MiB binary read matches independently read first+last1MiB,0.74s for3reads.
+Change not yet committed at pause. New server was restarted with8MiB reads.
+
+Ignored helper scripts now available: research/test_cache_overlay.py (optional
+--base,--overlay,--existing-overlay,--replay-journal; BEFORE full source hashes,
+then tail/size writes ONLY local overlay, then full86 path hashes and hardlink
+checks, fsck -fn), prepare_phone_cache_overlay.sh wrapper, export_cache_overlay.py,
+install_cache_update.py. Exporter NOT successfully run; no bundle/staging exists.
+BUG TO FIX BEFORE USING EXPORTER: qemu-img dd -f qcow2 if=... of=... bs=4096
+skip=130 count=1 FAILED "cannot skip to specified offset". Do not trust range
+extraction until tested (use qemu-io read export or NBD client/libnbd instead).
+Also add explicit post-fsck journal-empty check to preparation/export before
+any approval/write. install_cache_update.py default only preflight+/tmp staging,
+--flash writes bounded exact userdata sectors with preimage/protected/readback
+checks, then journal-empty assertion. Script NOT run, requires review/completed
+export first and explicit user approval. Do not execute while paused.
+
+### Previous: v11 exposes 16K signature rejection; prepare 4K cache update (2026-11-19)
 
 Physical v11 photo finally preserves the actual error: libignition opens
 /System/Library/Caches/com.apple.dyld, then kernel says "disallowing unsupported

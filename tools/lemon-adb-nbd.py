@@ -9,7 +9,7 @@ import subprocess
 
 API_VERSION = 2
 SIZE = 16 << 30
-BLOCK = 1 << 20
+BLOCK = 8 << 20
 ADB = str(Path(__file__).resolve().parents[2] / 'platform-tools/adb.exe')
 
 
@@ -34,10 +34,11 @@ def get_size(handle):
     return SIZE
 
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=8)
 def block(serial, index):
+    sectors = BLOCK // 4096
     data = command(serial, 'exec-out',
-                   f'dd if=/dev/block/sda11 bs=4096 skip={index*256} count=256 status=none')
+                   f'dd if=/dev/block/sda11 bs=4096 skip={index*sectors} count={sectors} status=none')
     if len(data) != BLOCK:
         raise RuntimeError(f'Short binary ADB read: {len(data)} bytes')
     return data
