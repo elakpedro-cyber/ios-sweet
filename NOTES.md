@@ -2,6 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### INSTALLED: v15 snapshot boot, rebooted; awaiting physical result (2026-11-19)
+
+User explicitly approved concrete v15 boot-only write/reboot: "делай".
+Preflight recovery, boot link /dev/block/sde49 size134217728, staged SHA,
+old v14 full boot and original recovery/dtbo hashes all matched.
+Wrote ONLY16998400bytes boot via dd4096 conv=fsync+sync. Prefix4150blocks SHA
+3d607568355c7dd577cb7cac703b9b2701f3daff2e65b63d8b9e07364576c104 matches.
+New full boot SHA256
+c5f381ce9def49c6eb1b0bec0cc6a9c6d5822c6fe034fcd24d882d378b6c381f.
+Recovery/dtbo full hashes remain original. No manual userdata writes.
+Issued adb reboot successfully. v15 lemontouch=1 is read-only hardware snapshot;
+physical touch is still disabled. NEXT user allow normal GUI boot, return TWRP
+via Power+VolumeUp, then read small persistent4.2MiB tail and LEMON TOUCH lines.
+Do not flash active v16 before interpreting clock/protocol snapshot and obtaining
+separate concrete boot-write approval. Keep installed root/recovery intact.
+
 ### READY: touch CI SUCCESS; v15 snapshot staged, awaiting boot approval (2026-11-19)
 
 CI44609929903 for70642f3 SUCCESS, including full XNU link and actual touch
