@@ -2,6 +2,23 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Paused by explicit user STOP during iOS rootfs preparation (2026-11-19)
+
+User requested actual iOS screen next, then explicitly STOP. Download process
+and child curl terminated, verified absent. No device writes in this stage;
+phone last known running successful v6 test init. Do not resume until asked.
+WSL /home/hadirpc/lemon-ios16-source contains BuildManifest, components.json,
+complete AppOS/SystemOS/DeviceTree with ZIP CRC checks, partial OS dmg (.part).
+Ignored research/ios-firmware.json and fetch_ios_components.py hold exact Apple
+CDN URL and resumable extraction. iPhone X 16.7.16/20H392 manifest verified.
+apfs-fuse built at /home/hadirpc/lemon-apfs-fuse commit66b86bd525e8cb90f9012543be89b1f092b75cf3
+and installed /usr/local/bin/apfs-fuse. Root-owned read-only FUSE mounts remain
+at lemon-ios16-source/mount-system and mount-app (host paths only).
+Installed cmake/pkg-config/libfuse-dev/libbz2-dev/libattr1-dev/hfsprogs.
+Host WSL kernel lacks CONFIG_HFSPLUS_FS; mkiosroot.sh cannot mount target HFS+
+as-is. guestfs alternative only simulated, NOT installed (882MB packages).
+No root image created, Apple launchd/SpringBoard not yet attempted.
+
 ### Latest: PHYSICAL XNU v6 reaches test userspace and stays alive (2026-11-19)
 
 User read on phone: "SWEET CPU: cpu=0 mpidr=0x0 came alive; SGI1 OK",
