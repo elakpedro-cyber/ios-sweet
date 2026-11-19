@@ -2,7 +2,31 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: identity v14 INSTALLED/VERIFIED, rebooted; awaiting screen/log (2026-11-19)
+### MILESTONE: v14 user reports iOS LOCK SCREEN; physical touch disabled (2026-11-19)
+
+Physical v14: user reported Apple logo disappeared very slowly (~1fps), black
+screen, then "ЕСТЬ ЕСТЬ Я ВИЖУ ЧАСЫ ВРЕМЯ 4:04 ДЕКАБРЬ 31". This is reported
+iOS lock-screen UI after identity fix, NOT yet verified by a new photo/log pull.
+No home-screen navigation established. Wrong date consistent with unset RTC/
+epoch0 seen in prior boot logs. Current phone still running v14, not in TWRP.
+
+Assistant prematurely asked user to swipe; user reports no response, suspects
+lag. Corrected that request: physical touch is NOT ported/enabled. Confirmed
+0005-minimal-board.patch makes sweet_touch_init() and sweet_keys_init() return
+immediately under LEMON_4K. SweetHIDTouch/Buttons IOKit services can register
+without actual hardware events. Do NOT attribute no swipe response solely to
+lag or enable the Sweet Goodix/PM6150 path on lemon blindly.
+Saved live lemon DTS has focaltech@0 and novatek@1 (NVT-ts-spi) alternatives;
+active boot panel nt36672d_xinli_v2 suggests Novatek, but actual bound controller
+MUST be confirmed in TWRP /proc/bus/input/devices/sysfs before driver work.
+No MMIO/driver/partition write this turn. Performance still oneCPU + CPU display
+copy, but actual lag cause not measured yet. Need photo of first lock screen,
+then collect v14 small tail log when user returns TWRP; preserve running UI for
+photo first. Future stages: input port and measured performance work. Could use
+existing sweethidtest fake-Home for a bounded diagnostic if separately approved;
+that would not be real touch support. Don't promise touch/USB/Wi-Fi functioning.
+
+### Previous: identity v14 INSTALLED/VERIFIED, rebooted; awaiting screen/log (2026-11-19)
 
 User explicitly approved "делаем" for concrete v14 boot-only write/reboot.
 Preflight ADB recovery, boot /dev/block/sde49 size134217728, staged SHA, old v13
