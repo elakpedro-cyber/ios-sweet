@@ -28,6 +28,9 @@ macos-15-intel as x64; the Intel macOS15 image still includes Xcode16.4 at the
 same path. Switched ONLY runs-on to macos-15-intel to try its separate queue.
 Kernel target remains ARM64/SWEET/LEMON_4K and all checks remain enabled.
 Reference: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
+Intel run 44501956040 (af86cea00b3f90687f4b45bce09cc163a8ef96de)
+started successfully; dependency setup and ARMv8 atomics check passed, kernel
+build in progress. Superseded ARM run 44500809386 was cancelled. No device write.
 
 ### Previous: ordered GIC probe v5 installed (2026-11-19)
 
