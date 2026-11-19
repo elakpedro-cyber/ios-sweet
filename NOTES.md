@@ -22,6 +22,12 @@ mock DT/sysregs and architectural GICR RAZ/WI behavior; actual probe NS readback
 bit0=0 is modeled. Reset states 0/0x10/0x12 and stuck-RWP timeout PASS.
 Workflow applies patch0093 and runs this test. Next full CI and real-loader
 A53 QEMU, then prepare a concrete new XNU image before another boot-write.
+Run 44500809386 remained queued on macos-15 with no assigned runner/steps.
+Official runner-images currently identifies macos-15 as arm64 and the standard
+macos-15-intel as x64; the Intel macOS15 image still includes Xcode16.4 at the
+same path. Switched ONLY runs-on to macos-15-intel to try its separate queue.
+Kernel target remains ARM64/SWEET/LEMON_4K and all checks remain enabled.
+Reference: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
 
 ### Previous: ordered GIC probe v5 installed (2026-11-19)
 
