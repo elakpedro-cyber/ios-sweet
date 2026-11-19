@@ -1,0 +1,85 @@
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -148,6 +148,12 @@
+ static int
+ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ {
++#if defined(LEMON_4K)
++	/* Bring-up may issue only TEST UNIT READY and READ(10), never data-out. */
++	if (write || !cdb_len || (cdb[0] != 0x00 && cdb[0] != 0x28)) {
++		return EROFS;
++	}
++#endif
+ 	struct utrd *utrd = (struct utrd *)(su.dma + DMA_UTRL);
+ 	struct ucd *ucd = (struct ucd *)(su.dma + DMA_UCD);
+ 	uint64_t ucd_pa = su.dma_pa + DMA_UCD, bounce_pa = su.dma_pa + DMA_BOUNCE;
+@@ -316,7 +322,7 @@
+ 	memcpy(&entry_lba, b + 72, 8);
+ 	memcpy(&nent, b + 80, 4);
+ 	memcpy(&esz, b + 84, 4);
+-	if (esz != 128 || nent == 0 || nent * esz > BOUNCE_SIZE) {
++	if (esz != 128 || nent == 0 || nent > BOUNCE_SIZE / esz) {
+ 		printf("SWEET UFS: unsupported GPT entries %u x %u\n", nent, esz);
+ 		return ENXIO;
+ 	}
+@@ -603,20 +609,32 @@
+ 			printf("LEMON UFS: controller mapping failed\n");
+ 		}
+ 	}
+-	return ENXIO;
++	uint32_t readtest = 0;
++	PE_parse_boot_argn("lemonufsread", &readtest, sizeof(readtest));
++	if (readtest != 1) {
++		return ENXIO;
++	}
+ #endif
++#if !defined(LEMON_4K)
+ 	DTEntry node;
++	unsigned int size = 0;
++#endif
+ 	uintptr_t const *reg = NULL;
+-	unsigned int size = 0;
+ 	char want[64] = "userdata";
+ 	int error;
+ 
++#if defined(LEMON_4K)
++	/* Same verified register range as the v7 handoff diagnostic. */
++	const uintptr_t lemon_reg[2] = { 0x04804000, 0x3000 };
++	reg = lemon_reg;
++#else
+ 	if (SecureDTLookupEntry(NULL, "/sweet-ufs", &node) != kSuccess ||
+ 	    SecureDTGetProperty(node, "reg", (void const **)&reg, &size) != kSuccess ||
+ 	    size < 2 * sizeof(uintptr_t)) {
+ 		printf("SWEET UFS: no /sweet-ufs node in the device tree\n");
+ 		return ENXIO;
+ 	}
++#endif
+ 	PE_parse_boot_argn("ufsroot", want, sizeof(want));
+ 	uint32_t rw = 0;
+ 	PE_parse_boot_argn("ufsrw", &rw, sizeof(rw));
+@@ -652,6 +670,12 @@
+ 		error = ufs_find_partition(want);
+ 	}
+ 	lck_mtx_unlock(&sweet_ufs_lock);
++#if defined(LEMON_4K)
++	printf("LEMON UFS READ: result=%d LUN=%u first=0x%llx blocks=%llu\n",
++	    error, su.lun, su.first_block, su.nblocks);
++	/* Report only. Do not register a root disk or enable any writable services. */
++	return error ? error : ENXIO;
++#endif
+ 	if (error) {
+ 		return error;
+ 	}
+--- a/iokit/bsddev/IOKitBSDInit.cpp
++++ b/iokit/bsddev/IOKitBSDInit.cpp
+@@ -773,7 +773,9 @@
+ #if defined(LEMON_4K)
+ 	uint32_t lemon_probe = 0;
+ 	PE_parse_boot_argn("lemonufsprobe", &lemon_probe, sizeof(lemon_probe));
+-	if (lemon_probe == 1) {
++	uint32_t lemon_read = 0;
++	PE_parse_boot_argn("lemonufsread", &lemon_read, sizeof(lemon_read));
++	if (lemon_probe == 1 || lemon_read == 1) {
+ 		extern int sweet_ufs_rootdev(dev_t *dev);
+ 		dev_t unused_root;
+ 		(void)sweet_ufs_rootdev(&unused_root);

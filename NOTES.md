@@ -2,6 +2,27 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Active: physical v7 UFS ready; opt-in GPT read test prepared (2026-11-19)
+
+Photo clearly shows CAP=0x1587031f, VER=0x300, HCE=1, HCS=0x10f,
+DBR=0, RSR=1 and PID1/still-alive. CAP bit24 supports64-bit DMA;
+HCS DP/UTRLRDY set, no outstanding transfer doorbell. This verifies register
+handoff only; no XNU DMA/SCSI read has yet run. User returned to TWRP ("готово").
+
+Optional0014 enables existing host takeover + TUR/READ(10) GPT lookup ONLY
+when lemonufsread=1. Uses verified0x04804000 MMIO base; LUN0, known4KiB blocks.
+LEMON build command guard permits ONLY TUR/READ(10) with data-in/no-data;
+all data-out and other opcodes return EROFS before descriptor/MMIO access.
+After reporting result/LUN/first/blocks it returns BEFORE disk registration,
+writable enable, log/input/USB services. rd=md0 test init remains root.
+GPT count bounds changed to division to avoid uint32 multiplication overflow.
+Actual guard/parser ASan/UBSan: all256 opcodes/data-out, known partition,
+missing partition, invalid extent/count, overflow count and read-error PASS.
+Existing0013 diagnostic/hook test updated for read-test-off default, PASS.
+Repo syntax29Python/12shell/81basepatches PASS. Next full CI, A53 QEMU default
+OFF, concrete v8 phone image with explicit approval before boot-only write.
+Rootfs remains PC-only; no userdata writes. Existing v7 remains installed.
+
 ### Latest: v7 written and verified; collect physical UFS registers (2026-11-19)
 
 Physical user report: some "framework" startup text, then repeating

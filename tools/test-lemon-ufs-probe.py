@@ -30,7 +30,9 @@ typedef int dev_t;
 static uint32_t regs[0x3000/4], saved[0x3000/4], option;
 static int maps, calls, fail_mapping;
 static void PE_parse_boot_argn(const char *key, uint32_t *p, unsigned size) {
-    assert(!strcmp(key, "lemonufsprobe") && size == 4); *p = option;
+    assert(size == 4);
+    if (!strcmp(key, "lemonufsread")) { *p = 0; return; }
+    assert(!strcmp(key, "lemonufsprobe")); *p = option;
 }
 static vm_offset_t ml_io_map(uintptr_t base, unsigned size) {
     assert(base == 0x04804000 && size == 0x3000);
@@ -38,6 +40,7 @@ static vm_offset_t ml_io_map(uintptr_t base, unsigned size) {
 }
 static int probe(void) {
 BODY
+    return 0;
 }
 int sweet_ufs_rootdev(dev_t *unused) { (void)unused; calls++; return probe(); }
 static void root_hook(void) {
