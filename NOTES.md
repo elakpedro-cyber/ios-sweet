@@ -2,7 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: v13 pinpoints missing Wi-Fi identity; ADT-only v14 staged (2026-11-19)
+### ACTIVE: identity v14 INSTALLED/VERIFIED, rebooted; awaiting screen/log (2026-11-19)
+
+User explicitly approved "делаем" for concrete v14 boot-only write/reboot.
+Preflight ADB recovery, boot /dev/block/sde49 size134217728, staged SHA, old v13
+and protected hashes matched. Wrote16982016 bytes ONLY boot, dd4096 conv=fsync
+and sync. Readback prefix SHA exactly
+ccafcfa6f5827861163ef4265196f3362e04be3c24342f8393adf6426413863e.
+Full boot SHA256cf01389ba2e079701fba9fc6e9e55025b1cf457ca809b83096d375c19b6e5f25.
+Recovery/dtbo original hashes unchanged. No manual userdata/cache/persist write.
+Issued adb reboot successfully. NEXT allow~2min and collect display result;
+if still logo, return TWRP and read ONLY4.2MiB tail to research/lemon-v14-log.bin
+and decode .txt. Check lsd seeding/MobileGestalt wait resolved versus new blocker,
+SpringBoard/backboardd exec/crash/sample state and framebuffer swaps. Keep root.
+This is the physical test of ADT identity fix; GUI success not assumed yet.
+
+### Previous: v13 pinpoints missing Wi-Fi identity; ADT-only v14 staged (2026-11-19)
 
 User returned TWRP after same logo/static tiny line. Read ONLY4.2MiB tail to
 research/lemon-v13-log.bin/.txt: SWEETLOG v1,total148895,flush30,no wrap.
