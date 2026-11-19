@@ -2,6 +2,21 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### INSTALLED: v16 active touch handoff, awaiting physical result (2026-11-19)
+
+User approved concrete active v16 boot-only write/reboot: "да".
+Preflight recovery, boot sde49/134217728bytes, staged v16 SHA, current v15 full
+boot and original recovery/dtbo hashes matched. Wrote ONLY16998400bytes boot
+using dd4096 conv=fsync+sync. Readback4150block prefix SHA matched
+1839c1ec9b31e9c7ef6e88ec2a11ce5dc7709a8266080653df3202f096a44b43.
+Full boot SHA256 now
+e975d1e1bc7f3b61db84da6f388745659c2d17fe5b3b457ddbf068d5284a1739.
+Recovery/dtbo unchanged. No manual userdata write. Issued adb reboot successfully.
+v16 lemontouch=2 attempts narrow SPI setup and retainedFW validation; actual
+input NOT yet confirmed. NEXT allow UI to load and user try swipe-up. If no
+response, return TWRP and pull ONLY4.2MiB log tail, inspect LEMON TOUCH lines
+for DFS/protocol/FW/report result. No reset/power/firmware upload implemented.
+
 ### v15 RESULT: SE2 clock gated/pins unconfigured; active v16 staged (2026-11-19)
 
 User returned TWRP. Read ONLY4198400byte tail to research/lemon-v15-log.bin/.txt,
