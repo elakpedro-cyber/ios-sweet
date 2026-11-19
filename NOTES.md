@@ -2,6 +2,21 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: user-operated resumable downloader ready; NOT started (2026-11-19)
+
+User wants to change VPN server before downloading. Added download-ios.cmd
+for double-click on this Windows PC, invoking tools/download-lemon-ios.py.
+Uses existing WSL source folder via UNC so complete AppOS/SystemOS/DeviceTree
+and manifest are CRC-checked and skipped. Fetches only selected ZIP members
+from pinned Apple CDN IPSW, not whole archive. Shows percent/MiB/s/ETA.
+Compressed .zip.part cache allows resume even for ZIP_DEFLATED; final files
+are extracted and CRC/size verified. Old downloader's decompressed OS .part
+cannot supply compressed resume state; first OS run with new script starts
+from zero, but subsequent interruptions resume. Existing .part left intact.
+Offline stored/deflated half-download resume + output integrity + skip tests
+passed (research/test_ios_download.py); help and UNC directory checked.
+No new download started, no phone operations. User will run after VPN switch.
+
 ### Paused by explicit user STOP during iOS rootfs preparation (2026-11-19)
 
 User requested actual iOS screen next, then explicitly STOP. Download process
