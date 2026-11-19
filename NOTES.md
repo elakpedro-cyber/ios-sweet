@@ -2,6 +2,30 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: v8 read-only GPT test built/checked/staged, approval pending (2026-11-19)
+
+CI44514064375 (051b6ed) SUCCESS, including actual command guard/GPT parser
+ASan/UBSan and prior diagnostic tests. Kernel artifact SHA256SUMS verified:
+xnu/out-ufs-read-kernel/kernel.development.sweet SHA256
+1433d24419ac89128a095e1a474224d57d653203699dff252ea6786edca61cac.
+Real-shim A53 QEMU55s, physical UFS options OFF: PID1 and SIX still-alive
+messages, no visible panic. Two unknown old glyphs remain; automated clean
+decode criterion did not pass. /home/hadirpc/lemon-xnu-ufs-read-a53.
+This does not test physical DMA; next phone run is the first such test.
+
+shim/out/lemon-boot/boot-lemon-ufs-read-v8.img16977920 bytes, SHA256
+4cb98e0e4bf09b3034ce67119a519b39fa78fb610ab68164c2031f1d13dc0b68.
+Same v6/v7 ADT/loader/DTB/test init/RAM, new kernel and command line includes
+lemonufsprobe=1 lemonufsread=1, still rd=md0 sweetlog=0. Validated header,
+gzip Image, payload, DTB, load ranges, timer19. Staged ONLY
+/tmp/boot-lemon-ufs-read-v8.img; device SHA matches.
+Current TWRP boot remains v7 full6137965e...; recovery/dtbo original.
+No device partition write this turn. NEXT explicit v8 boot-only approval,
+verified dd/fsync/readback then reboot and photograph LEMON UFS READ line.
+Success must show result=0,LUN=0,first=0x20d918,blocks=12347107 matching
+TWRP GPT/sysfs. Test returns before disk registration, forbids all data-out
+and non-TUR/READ10 SCSI commands. No userdata write/rootfs install yet.
+
 ### Active: physical v7 UFS ready; opt-in GPT read test prepared (2026-11-19)
 
 Photo clearly shows CAP=0x1587031f, VER=0x300, HCE=1, HCS=0x10f,
