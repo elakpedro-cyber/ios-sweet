@@ -2,6 +2,47 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: v9 Apple dyld fails shared-cache load; v10 cache-path test staged (2026-11-19)
+
+Physical photo v9: initproc failed to start, exit namespace6/subcode1,
+Library not loaded /usr/lib/libSystem.B.dylib, referenced /sbin/launchd,
+reason no such file/no dyld cache. This is real Apple launchd/dyld reaching
+loader, NOT proof of GUI. Cache failure cause not yet established.
+User returned TWRP, replugged USB when ADB absent; recovery now connected.
+Do NOT reinstall root image: it is intact and writable HFS state changed normally.
+
+Added tools/lemon-adb-nbd.py, read-only nbdkit Python2 API proxy of first16GiB
+userdata through adb exec-out1MiB reads,64-block cache. Requires TWRP and exact
+userdata device/size, rejects non-readonly opens, no pwrite callback. Installed
+nbdkit + python plugin (8.8MB downloads), server socket only in WSL home.
+Actual Windows binary capture returned1MiB with HFSX header; guestfish --ro
+--format=raw via NBD mounted PHONE filesystem. /cores empty. ALL44 cache files
+exist at /System/Library/Caches/com.apple.dyld. Main384KiB cache: UID0,GID80,
+mode0755,nlink2,inode318416, SHA256
+76874e8375252ee643011ff8063f0cce12355f05cf5f9897a34e5679667a65aa.
+No partition writes. Stopped nbdkit PID719 after clients closed; discard cache
+between boots. Reproduce command in tool docstring, use --format=raw (initial
+automatic format probe failed). Read-only proxy useful for future logs/files.
+
+Read Apple dyld1066.10 source at /home/hadirpc/lemon-dyld-1066,
+commit3e5ba1a2d04c3a221eab66b99e0e0dd90a470150. DyldDelegates.h bits:
+forceCustomerCache1,skipIgnition8,useSystemCache0x10. v10 adds dyld_flags=0x19
+to test direct system-cache lookup, bypass ignition directory selection.
+This is a bounded TEST, not a confirmed fix. No kernel patch or FS change.
+Kernel/ADT/loader/DTB match v9; payload byte comparison verifies ONLY608-byte
+command-line field differs. Header/payload/ranges/timer19/root flags validated.
+No repeated QEMU needed: unchanged kernel passed HFS test already.
+shim/out/lemon-boot/boot-lemon-cache-path-v10.img16982016 bytes SHA256
+3cbf15273f788a0959c556b6dc6d970d8b5aac20f249021c61161613d859cdde.
+Staged ONLY /tmp/boot-lemon-cache-path-v10.img; device SHA matches.
+Current boot remains v9 fullcf155ee3...; recovery/dtbo original hashes.
+Syntax30Python/12shell/81basepatches PASS. NEXT approval for v10 boot-only
+write/reboot; preserve existing rootfs. If cache still fails, obtain earlier
+dyld/cache diagnostic (e.g. PID1-exit hold before panic wipes console), do not
+assume a 4K/16K fix: PAGE_SIZE_FOR_SR_SLIDE is fixed4096 even upstreamSweet.
+Upstream ignition cache failure history saved research/upstream-notes-current.md;
+v9 ADT already has /chosen/asmb lp-sip0=0x6f,lp-sip1=1, so don't blindly repeat SIP.
+
 ### Latest: REAL ROOTFS + V9 INSTALLED AND VERIFIED; next first boot (2026-11-19)
 
 User explicitly said "запускай" after reviewing userdata+boot+launch proposal.
