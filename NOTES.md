@@ -2,7 +2,42 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE V4 GIC TEST: standalone probe installed (2026-11-19)
+### Latest: v4 shows no enabled IRQs; ordered GIC probe v5 prepared (2026-11-19)
+
+Physical v4 user-read results: SGI CNT=0, TMR CNT=0, OTHER=0, RESULT="IRQ
+delivery missing". D CTLR(before setup)=0; D TYPER=0x7904f4; R EN=0;
+R PEND=0x08200002; R ACTIVE=0; ICC PMR=0xf0; ICC GRP1=1; TMR CTL=5.
+User separately confirmed R GROUP=0, R EN=0 (not PRE EN), PRE PEND=0.
+Thus SGI1 becomes pending and CNTV expires, but interrupt forwarding is not
+enabled. Cause of zero enable is consistent with an actual ordering bug:
+both probe v4 and XNU configure GICR before enabling GICD ARE_NS. GICR SGI/PPI
+enable writes are RAZ/WI when affinity routing is off. QEMU masked this case.
+Primary architecture source: Arm IHI0069C,
+https://documentation-service.arm.com/static/6012f442773bb020e3de7aa5 .
+Linux driver reference: android.googlesource.com/kernel/msm/+/866b728388bc6a1d774e8433482a08f11e8245d4/drivers/irqchip/irq-gic-v3.c
+(gic_dist_init precedes CPU/redistributor config). No secure-world changes.
+
+User returned to TWRP, v4 still installed by request. Current full boot hash
+aef97b71958b53dace14d73b5912d8ef0c7dc64d691c10aeacc639abb2c71781;
+recovery/dtbo retain original hashes. No original boot restore performed.
+V5 masks distributor group enables while preserving an already-set ARE bit,
+enables ARE_NS, verifies it, THEN programs GICR and enables groups. Never
+transitions ARE 1->0. New post-setup CTLR/enable prints provide readback.
+Phone-only second phase tests IRQ27 only when IRQ19 delivered no timer and
+CNTV caused pending bit27 before the timer was disabled; ISR follows chosen ID.
+Do not change XNU's timer ID based only on pending state; await physical counts.
+tools/test-lemon-gic-order.py executes actual setup against architectural
+ARE-off RAZ/WI semantics. Old v4 source FAILS ignored-write assertion; new
+code PASSES reset states 0/0x10/0x13. A53 QEMU SGI1=1, timer27=19 PASS;
+alternate candidate19->27 path: first phase=0, then timer27=19 PASS.
+Phone build and Image/gzip/cpio/DTB/load-range checks PASS. Syntax: 25 Python,
+12 shell, 81 base patches PASS. XNU kernel not changed yet.
+shim/out/lemon-gic/boot-lemon-gic-probe-v5.img: 315392 bytes, SHA256
+86cdec55cadb51219b55acea4c275a73bf8dba0742bd99b728e8bc7f53333611.
+Staged ONLY /tmp/boot-lemon-gic-probe-v5.img, device hash verified.
+NEXT requires approval for replacing ONLY boot with v5; no automatic restore.
+
+### Previous: standalone GIC probe v4 installed (2026-11-19)
 
 User specifically approved writing v4. Verified staged image and current v3
 boot/recovery/dtbo hashes before write. Wrote 315392 bytes ONLY boot with

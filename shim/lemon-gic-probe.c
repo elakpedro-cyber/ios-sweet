@@ -3,7 +3,11 @@
 #ifdef LEMON_GIC_QEMU
 #define GICD 0x08000000UL
 #define GICR 0x080a0000UL
+#ifdef LEMON_GIC_TEST_PPI19
+#define VTIMER 19
+#else
 #define VTIMER 27
+#endif
 #else
 #define GICD 0x0f200000UL
 #define GICR 0x0f300000UL
@@ -13,9 +17,10 @@
 #define rsr(r) ({ uint64_t v; __asm__ volatile("mrs %0, " r : "=r"(v)); v; })
 #define wsr(r, v) __asm__ volatile("msr " r ", %0" : : "r"((uint64_t)(v)))
 
-volatile uint64_t lemon_gic_result[8];
+volatile uint64_t lemon_gic_result[10];
 static uintptr_t redistributor;
 static const char *stage;
+static volatile unsigned active_timer = VTIMER;
 
 static uint32_t rd32(uintptr_t address) { return *(volatile uint32_t *)address; }
 static uint64_t rd64(uintptr_t address) { return *(volatile uint64_t *)address; }
@@ -46,7 +51,7 @@ void exc_handler(uint64_t slot, uint64_t *regs)
 		if (id >= 1020 && id <= 1023) return;
 		lemon_gic_result[5] = id;
 		if (id == SGI) lemon_gic_result[3]++;
-		else if (id == VTIMER) {
+		else if (id == active_timer) {
 			lemon_gic_result[2]++;
 			wsr("cntv_tval_el0", rsr("cntfrq_el0") / 100);
 		} else {
@@ -94,6 +99,14 @@ void shim_main(uint64_t dtb)
 	con_hex("PRE PEND", rd32(redistributor + 0x10200));
 	con_hex("PRE ACT", rd32(redistributor + 0x10300));
 	stage = "GIC setup";
+	/* GICR SGI/PPI controls are RAZ/WI until affinity routing is enabled. */
+	uint32_t control = rd32(GICD) & ~3U;
+	wr32(GICD, control);
+	if (!wait_clear(GICD, 0x80000000)) { con_str("STOP", "GICD disable timeout"); halt(); }
+	wr32(GICD, control | 0x10);
+	if (!wait_clear(GICD, 0x80000000)) { con_str("STOP", "GICD ARE timeout"); halt(); }
+	__asm__ volatile("dsb sy; isb" ::: "memory");
+	if (!(rd32(GICD) & 0x10)) { con_str("STOP", "ARE did not enable"); halt(); }
 	wr32(redistributor + 0x14, rd32(redistributor + 0x14) & ~2U);
 	if (!wait_clear(redistributor + 0x14, 4)) { con_str("STOP", "GICR wake timeout"); halt(); }
 	/* Same Group 1 NS setup as the Sweet XNU platform path. */
@@ -111,6 +124,7 @@ void shim_main(uint64_t dtb)
 	__asm__ volatile("dsb sy; isb" ::: "memory");
 	con_hex("R GROUP", rd32(redistributor + 0x10080));
 	con_hex("R EN", rd32(redistributor + 0x10100));
+	con_hex("D AFTER", rd32(GICD));
 	con_hex("ICC CTLR", rsr("icc_ctlr_el1"));
 	con_hex("ICC PMR", rsr("icc_pmr_el1"));
 	con_hex("ICC GRP1", rsr("icc_igrpen1_el1"));
@@ -127,12 +141,36 @@ void shim_main(uint64_t dtb)
 	while (now() < deadline) __asm__ volatile("yield");
 	__asm__ volatile("msr daifset, #2" ::: "memory");
 	lemon_gic_result[6] = rsr("cntv_ctl_el0");
+#if VTIMER != 27
+	uint32_t timer_pending = rd32(redistributor + 0x10200);
+#endif
 	wsr("cntv_ctl_el0", 0);
+	lemon_gic_result[8] = lemon_gic_result[2];
+	con_hex("TMR A", lemon_gic_result[2]);
+#if VTIMER != 27
+	/* Only test IRQ27 if CNTV asserted that pending bit and IRQ19 did not fire. */
+	if (!lemon_gic_result[2] && (timer_pending & (1U << 27))) {
+		stage = "timer IRQ27 test";
+		active_timer = 27;
+		wr32(redistributor + 0x10100, 1U << 27);
+		wsr("cntv_tval_el0", rsr("cntfrq_el0") / 100);
+		wsr("cntv_ctl_el0", 1);
+		__asm__ volatile("dsb sy; isb; msr daifclr, #2" ::: "memory");
+		deadline = now() + rsr("cntfrq_el0") / 5;
+		while (now() < deadline) __asm__ volatile("yield");
+		__asm__ volatile("msr daifset, #2" ::: "memory");
+		lemon_gic_result[6] = rsr("cntv_ctl_el0");
+		wsr("cntv_ctl_el0", 0);
+	}
+#endif
 	lemon_gic_result[1] = mpidr;
 	lemon_gic_result[7] = now() - begin;
+	lemon_gic_result[9] = active_timer;
 	lemon_gic_result[0] = 0x4c454d4f4e474943UL;
 	con_hex("SGI CNT", lemon_gic_result[3]);
 	con_hex("TMR CNT", lemon_gic_result[2]);
+	con_hex("TMR IRQ", active_timer);
+	con_hex("END EN", rd32(redistributor + 0x10100));
 	con_hex("OTHER", lemon_gic_result[4]);
 	con_hex("LAST IRQ", lemon_gic_result[5]);
 	con_hex("R PEND", rd32(redistributor + 0x10200));
