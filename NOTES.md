@@ -2,7 +2,28 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE V5 GIC TEST: ordered probe installed (2026-11-19)
+### Latest: physical v5 confirms SGI1 + IRQ19; XNU order fix prepared (2026-11-19)
+
+User-read v5: SGI CNT=1; TMR A=0x13; TMR CNT=0x13; TMR IRQ=0x13;
+END EN=0x80002; D AFTER=0x12; RESULT="both IRQs delivered".
+Hex 0x13 is decimal 19: 19 timer deliveries on INTID19, no IRQ27 fallback.
+This confirms ordered affinity setup fixes hardware delivery; leave timer19.
+User returned to TWRP. V5 left installed per preference; full boot hash
+6bd4276e4bbbe62d6072f159505a6583b1f55fb0a43a984cbc4e4935a879f1fd;
+recovery/dtbo still original. No restore or further device write.
+
+Optional XNU patch 0012 initializes distributor ARE_NS before GICR configuration
+on lemon only, preserving already-set ARE and disabling group forwarding during
+the mode transition. Adds bounded distributor RWP waits and verifies ARE_NS.
+Existing tail then enables groups after per-CPU setup. No timer, ASID, RAM or
+allocator changes. Non-lemon Sweet path remains unchanged.
+tools/test-lemon-xnu-gic.py compiles actual pe_init_fiq plus its helper with
+mock DT/sysregs and architectural GICR RAZ/WI behavior; actual probe NS readback
+bit0=0 is modeled. Reset states 0/0x10/0x12 and stuck-RWP timeout PASS.
+Workflow applies patch0093 and runs this test. Next full CI and real-loader
+A53 QEMU, then prepare a concrete new XNU image before another boot-write.
+
+### Previous: ordered GIC probe v5 installed (2026-11-19)
 
 User specifically approved replacing boot with v5. Pre-write v4 full hash and
 recovery/dtbo matched recorded values; staged image verified. Wrote 315392 bytes

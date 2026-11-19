@@ -1,0 +1,58 @@
+--- a/pexpert/arm/pe_fiq.c
++++ b/pexpert/arm/pe_fiq.c
+@@ -49,6 +49,23 @@
+ #define gicr_read32(offset) (_gic_read32(gicr_pe_base + (offset)))
+ #define gicr_write32(offset, data) (_gic_write32(gicr_pe_base + (offset), (data)))
+ #define gicr_read64(offset) (_gic_read64(gicr_pe_base + (offset)))
++
++#if defined(LEMON_4K)
++static void
++lemon_gicd_write_ctlr(uint32_t value)
++{
++	gicd_write32(GICD_CTLR, value);
++	uint64_t deadline;
++	nanoseconds_to_deadline(GICR_WAKE_TIMEOUT_NS, &deadline);
++	while (gicd_read32(GICD_CTLR) & GICD_CTLR_RWP) {
++		if (mach_absolute_time() > deadline) {
++			panic("%s: distributor RWP timeout", __func__);
++		}
++	}
++	__builtin_arm_dsb(DSB_SY);
++	__builtin_arm_isb(ISB_SY);
++}
++#endif
+ 
+ static vm_offset_t
+ find_gicr_pe_base()
+@@ -141,6 +158,16 @@
+ 		}
+ 
+ 		gicr_size = gicr_size_prop;
++#if defined(LEMON_4K)
++		/* ABL leaves ARE_NS off on lemon: GICR enables would be RAZ/WI. */
++		uint32_t ctl = gicd_read32(GICD_CTLR) &
++		    ~(GICD_CTLR_ENABLEGRP1A | GICD_CTLR_ENABLEGRP1);
++		lemon_gicd_write_ctlr(ctl);
++		lemon_gicd_write_ctlr(ctl | GICD_CTLR_ARE_NS);
++		if (!(gicd_read32(GICD_CTLR) & GICD_CTLR_ARE_NS)) {
++			panic("%s: distributor affinity routing unavailable", __func__);
++		}
++#endif
+ 	}
+ 
+ 	// Find the redistributor for this processor
+@@ -207,10 +234,14 @@
+ 	// ABL leaves only ARE_NS set; Linux writes ARE_NS | EnableGrp1A | EnableGrp1
+ 	uint32_t gicd_ctlr = gicd_read32(GICD_CTLR);
+ 	gicd_ctlr |= GICD_CTLR_ARE_NS | GICD_CTLR_ENABLEGRP1A | GICD_CTLR_ENABLEGRP1;
++#if defined(LEMON_4K)
++	lemon_gicd_write_ctlr(gicd_ctlr);
++#else
+ 	gicd_write32(GICD_CTLR, gicd_ctlr);
+ 	while (gicd_read32(GICD_CTLR) & GICD_CTLR_RWP) {
+ 		;
+ 	}
++#endif
+ 	__builtin_arm_wsr64("ICC_IGRPEN1_EL1", 1);
+ 	__builtin_arm_isb(ISB_SY);
+ #else
