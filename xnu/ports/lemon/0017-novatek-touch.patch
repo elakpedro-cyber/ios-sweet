@@ -1,0 +1,474 @@
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -639,7 +639,8 @@
+ sweet_touch_init(void)
+ {
+ #if defined(LEMON_4K)
+-	/* Sweet hardware is not part of the minimal lemon bring-up. */
++	extern void lemon_touch_init(void);
++	lemon_touch_init();
+ 	return;
+ #endif
+ 	int enabled = 1;
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -108,6 +108,7 @@
+ bsd/dev/sweet_sample.c			standard
+ bsd/dev/sweet_keys.c			standard
+ bsd/dev/sweet_touch.c			standard
++bsd/dev/lemon_touch.c			standard
+ bsd/dev/sweet_rpmh.c			standard
+ bsd/dev/sweet_spmi.c			standard
+ bsd/dev/sweet_usb.c			standard
+--- a/iokit/Kernel/arm/hid/SweetHID.cpp
++++ b/iokit/Kernel/arm/hid/SweetHID.cpp
+@@ -425,6 +425,12 @@
+ 	}
+ }
+ 
++#if defined(LEMON_4K)
++#define SWEET_PANEL_HEIGHT 2340
++#else
++#define SWEET_PANEL_HEIGHT 2400
++#endif
++
+ bool
+ SweetHIDTouch::start(IOService *provider)
+ {
+@@ -435,9 +441,9 @@
+ 	int native = 0;
+ 	PE_parse_boot_argn("sweetfb_native", &native, sizeof(native));
+ 	fLogicalW = native ? 1080 : 1125;
+-	fLogicalH = native ? 2400 : 2436;
++	fLogicalH = native ? SWEET_PANEL_HEIGHT : 2436;
+ 	fOffX = (fLogicalW - 1080) / 2;
+-	fOffY = (fLogicalH - 2400) / 2;
++	fOffY = (fLogicalH - SWEET_PANEL_HEIGHT) / 2;
+ 	/* The digitizer covers the main display (backboardd maps it 1:1). */
+ 	setProperty("DisplayIntegrated", kOSBooleanTrue);
+ 	setProperty("SurfaceWidth", (unsigned long long)(68 << 16), 32);	/* mm, 16.16 */
+@@ -459,7 +465,7 @@
+ 		return;
+ 	}
+ 	x = x < 0 ? 0 : (x > 1079 ? 1079 : x);
+-	y = y < 0 ? 0 : (y > 2399 ? 2399 : y);
++	y = y < 0 ? 0 : (y >= SWEET_PANEL_HEIGHT ? SWEET_PANEL_HEIGHT - 1 : y);
+ 
+ 	IOLockLock(fLock);
+ 	bool was = fDown[finger];
+@@ -473,7 +479,7 @@
+ 	}
+ 	if (!was && down) {
+ 		fEdge[finger] = x < SWEET_TOUCH_EDGE_PX || x > 1079 - SWEET_TOUCH_EDGE_PX ||
+-		    y < SWEET_TOUCH_EDGE_PX || y > 2399 - SWEET_TOUCH_EDGE_PX;
++		    y < SWEET_TOUCH_EDGE_PX || y > SWEET_PANEL_HEIGHT - 1 - SWEET_TOUCH_EDGE_PX;
+ 	}
+ 
+ 	collection = IOHIDEvent::digitizerEvent(now, 0, kIOHIDDigitizerTransducerTypeHand, false, 0, 0, 0);
+--- /dev/null
++++ b/bsd/dev/lemon_touch.c
+@@ -0,0 +1,404 @@
++/* Redmi 9T NT36672A: retained-firmware SPI handoff, no reset or power votes. */
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <sys/errno.h>
++#include <kern/clock.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++extern kern_return_t thread_terminate(thread_t);
++extern void sweet_hid_touch(int finger, int down, int x, int y);
++void lemon_touch_init(void);
++
++#define LT_GCC 0x01400000u
++#define LT_WEST 0x00500000u
++#define LT_SE 0x04a88000u
++#define LT_VOTE 0x7900cu
++#define LT_RCG 0x1f3a8u
++#define LT_EVENT 0x21c00u
++#define LT_ERRORS (0x3eu | (0x3fu << 9) | (3u << 24) | (3u << 28))
++#define LT_EVENTS (1u | LT_ERRORS | (3u << 26) | (1u << 30))
++
++static struct {
++	vm_offset_t gcc, gpio, se;
++	bool started;
++	unsigned depth, active;
++	uint32_t irq;
++	int x[10], y[10];
++} lt;
++static int lt_wait_chan;
++
++static uint32_t
++lt_rd(vm_offset_t base, unsigned off)
++{
++	uint32_t value = *(volatile uint32_t *)(base + off);
++	__asm__ volatile("dmb oshld" ::: "memory");
++	return value;
++}
++
++static void
++lt_wr(vm_offset_t base, unsigned off, uint32_t value)
++{
++	__asm__ volatile("dmb oshst" ::: "memory");
++	*(volatile uint32_t *)(base + off) = value;
++	__asm__ volatile("dsb osh" ::: "memory");
++}
++
++static void
++lt_wait(unsigned ms)
++{
++	uint64_t deadline;
++	clock_interval_to_deadline(ms, NSEC_PER_MSEC, &deadline);
++	(void)assert_wait_deadline(&lt_wait_chan, THREAD_UNINT, deadline);
++	thread_block(THREAD_CONTINUE_NULL);
++}
++
++static bool
++lt_clear(vm_offset_t base, unsigned off, uint32_t mask)
++{
++	for (unsigned i = 0; i < 5000; i++) {
++		if (!(lt_rd(base, off) & mask)) {
++			return true;
++		}
++		delay(1);
++	}
++	return false;
++}
++
++/* Snapshot must not access a clock-gated serial engine, or write any register. */
++static bool
++lt_snapshot(void)
++{
++	const unsigned branches[] = {0x1f004, 0x1f008, 0x1f00c, 0x1f014, 0x1f3a4};
++	bool running = true;
++	printf("LEMON TOUCH: vote=%#x rcg=%#x cfg=%#x dfs=%#x\n",
++	    lt_rd(lt.gcc, LT_VOTE), lt_rd(lt.gcc, LT_RCG),
++	    lt_rd(lt.gcc, LT_RCG + 4), lt_rd(lt.gcc, LT_RCG + 0x14));
++	for (unsigned i = 0; i < 5; i++) {
++		uint32_t value = lt_rd(lt.gcc, branches[i]);
++		printf("LEMON TOUCH: branch=%#x value=%#x\n", branches[i], value);
++		running &= !(value & (1u << 31));
++	}
++	const unsigned pins[] = {6, 7, 71, 80, 93};
++	for (unsigned i = 0; i < 5; i++) {
++		printf("LEMON TOUCH: gpio%u cfg=%#x io=%#x\n", pins[i],
++		    lt_rd(lt.gpio, pins[i] * 0x1000), lt_rd(lt.gpio, pins[i] * 0x1000 + 4));
++	}
++	if (running) {
++		printf("LEMON TOUCH: fw=%#x status=%#x dma=%#x clk=%#x tx=%#x rx=%#x\n",
++		    lt_rd(lt.se, 0x68), lt_rd(lt.se, 0x40), lt_rd(lt.se, 0x258),
++		    lt_rd(lt.se, 0x48), lt_rd(lt.se, 0xe24), lt_rd(lt.se, 0xe28));
++	} else {
++		printf("LEMON TOUCH: serial engine clock gated; snapshot skips SE\n");
++	}
++	return running;
++}
++
++static bool
++lt_setup(void)
++{
++	/* SM6115 wrapper0 + SE2 only. No reset, PMIC, shared display rail or PLL. */
++	lt_wr(lt.gcc, LT_VOTE, lt_rd(lt.gcc, LT_VOTE) | 0x13c0u);
++	if (lt_rd(lt.gcc, LT_RCG + 0x14) & 1u) {
++		if ((lt_rd(lt.gcc, LT_RCG + 0x1c) & 0x371fu) != 1u) {
++			printf("LEMON TOUCH: DFS level0 is not XO; stopping\n");
++			return false;
++		}
++	} else {
++		lt_wr(lt.gcc, LT_RCG + 4, (lt_rd(lt.gcc, LT_RCG + 4) & ~0x10371fu) | 1u);
++		lt_wr(lt.gcc, LT_RCG, lt_rd(lt.gcc, LT_RCG) | 1u);
++		if (!lt_clear(lt.gcc, LT_RCG, 1u)) {
++			return false;
++		}
++	}
++	const unsigned branches[] = {0x1f004, 0x1f008, 0x1f00c, 0x1f014, 0x1f3a4};
++	for (unsigned i = 0; i < 5; i++) {
++		if (!lt_clear(lt.gcc, branches[i], 1u << 31)) {
++			printf("LEMON TOUCH: clock %#x did not start\n", branches[i]);
++			return false;
++		}
++	}
++	uint32_t fw = lt_rd(lt.se, 0x68), status = lt_rd(lt.se, 0x40);
++	printf("LEMON TOUCH: awake fw=%#x status=%#x\n", fw, status);
++	if (((fw >> 8) & 0xff) != 1 || (status & 0x1001u)) {
++		return false; /* Firmware must already be SPI and both sequencers idle. */
++	}
++	uint32_t tx = lt_rd(lt.se, 0xe24), rx = lt_rd(lt.se, 0xe28);
++	lt.depth = (tx >> 16) & 0x3f;
++	if (lt.depth < 2 || lt.depth > 64 || ((tx >> 24) & 0x3f) != 32 ||
++	    ((rx >> 24) & 0x3f) != 32 || ((rx >> 16) & 0x3f) < 2 ||
++	    lt_rd(lt.se, 0x800) || lt_rd(lt.se, 0x804)) {
++		printf("LEMON TOUCH: unsupported/nonempty FIFO tx=%#x rx=%#x\n", tx, rx);
++		return false;
++	}
++	const unsigned pins[] = {6, 7, 71, 80};
++	for (unsigned i = 0; i < 4; i++) {
++		unsigned off = pins[i] * 0x1000;
++		lt_wr(lt.gpio, off, (lt_rd(lt.gpio, off) & ~0x3ffu) |
++		    (1u << 2) | (2u << 6) | (pins[i] == 80 ? 3u : 1u));
++	}
++	lt_wr(lt.se, 0x28, lt_rd(lt.se, 0x28) | 0x7fu);
++	lt_wr(lt.se, 0xe30, lt_rd(lt.se, 0xe30) | 0xfu);
++	lt_wr(lt.se, 0x24, 0x7fu);
++	lt_wr(lt.se, 0x20, 1u);
++	lt_wr(lt.se, 0xe18, 0); /* Poll FIFO, no DMA or GIC handler. */
++	lt_wr(lt.se, 0xe1c, 0);
++	lt_wr(lt.se, 0x258, lt_rd(lt.se, 0x258) & ~1u);
++	lt_wr(lt.se, 0x614, LT_EVENTS);
++	lt_wr(lt.se, 0x618, 0xffffffffu);
++	lt_wr(lt.se, 0x260, 0x0007f8feu);
++	lt_wr(lt.se, 0x264, 0x000ffefeu);
++	lt_wr(lt.se, 0x284, 0x0007f8feu);
++	lt_wr(lt.se, 0x288, 0x000ffefeu);
++	lt_wr(lt.se, 0x268, (lt_rd(lt.se, 0x268) & ~0x3ffu) | 4u); /* 8-bit words */
++	lt_wr(lt.se, 0x224, lt_rd(lt.se, 0x224) & ~1u); /* mode0 */
++	lt_wr(lt.se, 0x230, lt_rd(lt.se, 0x230) & ~4u);
++	lt_wr(lt.se, 0x22c, lt_rd(lt.se, 0x22c) & ~3u);
++	lt_wr(lt.se, 0x24c, lt_rd(lt.se, 0x24c) & ~0xfu);
++	lt_wr(lt.se, 0x250, lt_rd(lt.se, 0x250) & ~0xfu); /* runtime CS0 */
++	lt_wr(lt.se, 0x25c, lt_rd(lt.se, 0x25c) & ~1u);
++	lt_wr(lt.se, 0x278, (lt_rd(lt.se, 0x278) & ~0xfffffu) | (200u << 10));
++	lt_wr(lt.se, 0x7c, 0);
++	lt_wr(lt.se, 0x48, (16u << 4) | 1u); /* XO19.2M /16, below9.6M maximum */
++	lt_wr(lt.se, 0x80c, 1);
++	lt_wr(lt.se, 0x810, 1);
++	lt_wr(lt.se, 0x814, ((rx >> 16) & 0x3f) - 2);
++	return true;
++}
++
++/* One complete CS transaction, including the final partial RX FIFO word. */
++static int
++lt_transfer(const uint8_t *tx, uint8_t *rx, unsigned len)
++{
++	if (!len || len > 67 || (lt_rd(lt.se, 0x40) & 0x1001u) ||
++	    lt_rd(lt.se, 0x800) || lt_rd(lt.se, 0x804)) {
++		return EBUSY;
++	}
++	unsigned sent = 0, got = 0;
++	lt.irq = 0;
++	lt_wr(lt.se, 0x618, 0xffffffffu);
++	lt_wr(lt.se, 0x26c, len);
++	if (rx) {
++		lt_wr(lt.se, 0x270, len);
++	}
++	lt_wr(lt.se, 0x600, (rx ? 3u : 1u) << 27);
++	int error = ETIMEDOUT;
++	for (unsigned tick = 0; tick < 20000; tick++) {
++		uint32_t irq = lt_rd(lt.se, 0x610);
++		lt.irq |= irq;
++		if (irq & LT_ERRORS) {
++			error = EIO;
++			break;
++		}
++		unsigned count = lt_rd(lt.se, 0x804) & 0x1ffffffu;
++		if ((!rx && count) || count > (len - got + 3u) / 4u) {
++			error = EIO;
++			break;
++		}
++		while (count--) {
++			uint32_t word = lt_rd(lt.se, 0x780);
++			for (unsigned j = 0; j < 4 && got < len; j++) {
++				rx[got++] = (uint8_t)(word >> (8 * j));
++			}
++		}
++		/* DONE can precede observing the final RX word; drain on the next tick. */
++		if (irq & 1u) {
++			if (sent == len && (!rx || got == len) &&
++			    !(lt_rd(lt.se, 0x40) & 1u) && !lt_rd(lt.se, 0x800)) {
++				uint32_t final = lt_rd(lt.se, 0x610);
++				lt.irq |= final;
++				lt_wr(lt.se, 0x618, 0xffffffffu);
++				return (final & LT_ERRORS) ? EIO : 0;
++			}
++		} else {
++			unsigned queued = lt_rd(lt.se, 0x800) & 0xfffffffu;
++			if (queued > lt.depth) {
++				error = EIO;
++				break;
++			}
++			while (sent < len && queued++ < lt.depth) {
++				uint32_t word = 0;
++				for (unsigned j = 0; j < 4 && sent < len; j++) {
++					word |= (uint32_t)tx[sent++] << (8 * j);
++				}
++				lt_wr(lt.se, 0x700, word);
++			}
++		}
++		delay(1);
++	}
++	/* Only abort our own command; stop this driver after any transport failure. */
++	if (lt_rd(lt.se, 0x40) & 1u) {
++		lt_wr(lt.se, 0x604, 2);
++		(void)lt_clear(lt.se, 0x40, 1u);
++	}
++	return error;
++}
++
++static int
++lt_page(unsigned address)
++{
++	uint8_t tx[] = {0xff, (uint8_t)(address >> 15), (uint8_t)(address >> 7)};
++	if (address != LT_EVENT && address != LT_EVENT + 0x78 && address != LT_EVENT + 0x9a) {
++		return EINVAL;
++	}
++	return lt_transfer(tx, NULL, sizeof(tx));
++}
++
++static int
++lt_read(unsigned offset, uint8_t *data, unsigned len)
++{
++	uint8_t tx[67] = {0}, rx[67];
++	if (len > 65) {
++		return EINVAL;
++	}
++	tx[0] = offset & 0x7f;
++	int err = lt_transfer(tx, rx, len + 2);
++	if (!err) {
++		memcpy(data, rx + 2, len);
++	}
++	return err;
++}
++
++static int
++lt_decode(const uint8_t data[66], unsigned *mask, int x[10], int y[10])
++{
++	bool watchdog = true, handshake = true;
++	uint8_t sum = 0;
++	unsigned active = 0;
++	for (unsigned i = 1; i <= 6; i++) {
++		watchdog &= data[i] == 0xfd || data[i] == 0xfe;
++		handshake &= data[i] == 0x77;
++	}
++	if (watchdog || handshake) {
++		return EAGAIN;
++	}
++	for (unsigned i = 1; i < 66; i++) {
++		sum += data[i];
++	}
++	if (sum || (data[1] >> 3) == 30) {
++		return EINVAL;
++	}
++	for (unsigned i = 0; i < 10; i++) {
++		const uint8_t *p = data + 1 + 6 * i;
++		unsigned id = p[0] >> 3, status = p[0] & 7;
++		if (status != 1 && status != 2) {
++			continue;
++		}
++		if (!id || id > 10 || (active & (1u << (id - 1)))) {
++			return EINVAL;
++		}
++		int px = (p[1] << 4) | (p[3] >> 4);
++		int py = (p[2] << 4) | (p[3] & 15);
++		if (px >= 1080 || py >= 2340) {
++			return ERANGE;
++		}
++		x[id - 1] = px;
++		y[id - 1] = py;
++		active |= 1u << (id - 1);
++	}
++	*mask = active; /* Do not publish any part of an invalid frame. */
++	return 0;
++}
++
++static void
++lt_report(unsigned mask, const int x[10], const int y[10])
++{
++	for (unsigned i = 0; i < 10; i++) {
++		if ((mask | lt.active) & (1u << i)) {
++			sweet_hid_touch(i, (mask >> i) & 1u,
++			    (mask & (1u << i)) ? x[i] : lt.x[i],
++			    (mask & (1u << i)) ? y[i] : lt.y[i]);
++		}
++	}
++	memcpy(lt.x, x, sizeof(lt.x));
++	memcpy(lt.y, y, sizeof(lt.y));
++	lt.active = mask;
++}
++
++static void
++lt_thread(void *arg, wait_result_t result)
++{
++	(void)result;
++	int mode = (int)(uintptr_t)arg;
++	lt.gcc = ml_io_map(LT_GCC, 0x80000);
++	lt.gpio = ml_io_map(LT_WEST, 0x60000);
++	lt.se = ml_io_map(LT_SE, 0x4000);
++	if (!lt.gcc || !lt.gpio || !lt.se) {
++		goto out;
++	}
++	(void)lt_snapshot();
++	if (mode == 1 || !lt_setup()) {
++		goto out;
++	}
++	uint8_t info[16] = {0}, pid[2] = {0};
++	int err = lt_page(LT_EVENT + 0x78);
++	if (!err) err = lt_read(0x78, info, sizeof(info));
++	if (!err) err = lt_page(LT_EVENT + 0x9a);
++	if (!err) err = lt_read(0x9a, pid, sizeof(pid));
++	if (!err) err = lt_page(LT_EVENT);
++	printf("LEMON TOUCH: retained FW err=%d version=%u complement=%#x pid=%02x%02x size=%ux%u irq=%#x\n",
++	    err, info[0], info[1], pid[1], pid[0], (info[4] << 8) | info[5],
++	    (info[6] << 8) | info[7], lt.irq);
++	if (err || info[0] != 5 || (unsigned)info[0] + info[1] != 255 ||
++	    pid[0] != 0x40 || pid[1] != 0x59 ||
++	    ((info[4] << 8) | info[5]) != 1080 || ((info[6] << 8) | info[7]) != 2340) {
++		printf("LEMON TOUCH: no validated firmware handoff; no reset/upload attempted\n");
++		goto out;
++	}
++	printf("LEMON TOUCH: NT36672A ready CS0 poll=20ms 1080x2340\n");
++	unsigned frames = 0, bad = 0, changes = 0;
++	for (;;) {
++		uint8_t report[66] = {0};
++		int x[10] = {0}, y[10] = {0};
++		unsigned mask = 0;
++		err = lt_read(0, report + 1, 65);
++		if (err) {
++			printf("LEMON TOUCH: SPI stopped err=%d irq=%#x\n", err, lt.irq);
++			lt_report(0, x, y);
++			break;
++		}
++		err = lt_decode(report, &mask, x, y);
++		if (err) {
++			if ((bad++ % 500) == 0) {
++				printf("LEMON TOUCH: invalid report err=%d first=%02x:%02x bad=%u\n",
++				    err, report[1], report[2], bad);
++			}
++			lt_report(0, x, y);
++		} else {
++			if (mask != lt.active && changes++ < 20) {
++				printf("LEMON TOUCH: frame=%u active=%#x\n", frames, mask);
++			}
++			lt_report(mask, x, y);
++			frames++;
++		}
++		/* Initial stale reports after firmware upload do not permanently disable input. */
++		lt_wait(20);
++	}
++out:
++	printf("LEMON TOUCH: worker stopped\n");
++	(void)thread_terminate(current_thread());
++	thread_block(THREAD_CONTINUE_NULL);
++}
++
++void
++lemon_touch_init(void)
++{
++	int mode = 0;
++	thread_t thread;
++	if (lt.started) return;
++	lt.started = true;
++	(void)PE_parse_boot_argn("lemontouch", &mode, sizeof(mode));
++	if (mode != 1 && mode != 2) return;
++	printf("LEMON TOUCH: mode=%d (1=snapshot,2=retained firmware)\n", mode);
++	kern_return_t kr = kernel_thread_start(lt_thread, (void *)(uintptr_t)mode, &thread);
++	if (kr == KERN_SUCCESS) {
++		thread_deallocate(thread);
++	} else {
++		printf("LEMON TOUCH: thread failed %d\n", kr);
++	}
++}
++#endif

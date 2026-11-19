@@ -64,6 +64,7 @@ jobs:
           cp xnu/ports/lemon/0014-ufs-readonly-gpt.patch dxb/patches/0095-lemon-ufs-readonly-gpt.patch
           cp xnu/ports/lemon/0015-ufs-root-device.patch dxb/patches/0096-lemon-ufs-root-device.patch
           cp xnu/ports/lemon/0016-pid1-failure-hold.patch dxb/patches/0097-lemon-pid1-failure-hold.patch
+          cp xnu/ports/lemon/0017-novatek-touch.patch dxb/patches/0098-lemon-novatek-touch.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -133,6 +134,9 @@ jobs:
 
       - name: Verify optional PID1 diagnostic hold
         run: python3 tools/test-lemon-pid1-hold.py --xnu dxb/xnu
+
+      - name: Verify lemon Novatek touch handoff
+        run: python3 tools/test-lemon-touch.py --xnu dxb/xnu
 
       - name: Package build tree for local compiles
         if: always()

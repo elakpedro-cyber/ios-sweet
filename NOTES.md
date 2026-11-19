@@ -2,6 +2,28 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE: NT36672A touch driver prepared; phone in TWRP (2026-11-19)
+
+User requested actual touchscreen after v14 lock-screen success, returned TWRP.
+ADB connected. Fresh recovery input/sysfs/dmesg confirms NT36672A, SPI1.1 NVT-ts,
+FW5/PID5940, 1080x2340, ten slots. Stock runtime CS0, despite DT address1.
+Read local primary Xiaomi/mainline sources and sibling corrected stage1-r2 notes.
+GCC0x01400000, GENI SE2 0x04a88000, TLMM WEST0x00500000 (GPIO6/7/71/80/93).
+Reset103 and display-shared regulators deliberately untouched. No device writes,
+reboots, raw SPI commands or new boot flashed during preparation.
+
+Patch0017 adds lemon_touch.c, guarded default-off lemontouch=0. Mode1 snapshots
+GCC/pins and clock-safe SE without writes. Mode2 narrow clock/pin/FIFO setup,
+CS0, retainedFW-only validation, checksummed reports -> existing SweetHID.
+No firmware upload/reset/PMIC; no assumption SRAM survives ABL. HID height fixed
+to2340 for LEMON only. See docs/LEMON_TOUCH.md. Actual decoder/FIFO1..67byte,
+errors/timeouts/gates/setup/HID release tests pass ASan+UBSan on local Linux.
+Workflow applies0098 and runs tests. CI not yet launched at this note's creation.
+NEXT build CI, prepare concrete v15 snapshot boot, verify layout, obtain explicit
+boot-write/reboot confirmation per AGENTS.md. Then collect LEMON TOUCH log from
+4.2MiB tail after returnTWRP; same kernel can test active mode later. Do not
+claim working touch before a physical successful test. Installed boot remainsv14.
+
 ### MILESTONE: v14 iOS LOCK SCREEN CONFIRMED BY PHOTO; touch disabled (2026-11-19)
 
 User supplied clear photo: Wednesday, December31,4:06, charging battery icon,
