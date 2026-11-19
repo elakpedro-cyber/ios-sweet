@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: v7 written and verified; collect physical UFS registers (2026-11-19)
+
+User explicitly approved v7 boot-only write. Staged image and current v6
+boot/recovery/dtbo hashes rechecked before writing. Wrote16977920 bytes ONLY
+boot using dd conv=fsync + sync. Prefix SHA256 matches
+829a62ad4bb6873fc1af9f4ea2ea4cdf43abee44e02099bd886b82ae4828615f.
+Full boot SHA256 6137965e4b0c2df85da9143511c9a820b3791c441564904b7a139806eddce419.
+Recovery/dtbo hashes unchanged. No userdata write or original boot restore.
+Next reboot and read LEMON UFS CAP/VER/HCE/HCS plus DBR/RSR, or panic/last line.
+Probe only reads controller registers; no DMA/SCSI/controller writes enabled.
+
 ### Latest: iOS rootfs prepared + v7 UFS register diagnostic staged (2026-11-19)
 
 Rootfs preparation COMPLETED, not XNU-boot-tested:
