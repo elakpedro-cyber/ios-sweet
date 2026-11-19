@@ -2,7 +2,49 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: 4K cache update INSTALLED/VERIFIED, rebooted; awaiting screen (2026-11-19)
+### ACTIVE: real services running; quiet/logging v12 staged, awaiting boot approval (2026-11-19)
+
+After installed4K caches user reports Apple logo behind console, then repeated
+exec messages/slowing. Photo rotated upright in ignored research/phone-cache-boot-
+upright.png: repeated bluetoothd/fairplayd.H2/xpcproxy; other processes contactsd,
+privacyaccountingd,suggestd,assetsd,adid,medialibraryd. SWEET AKS (NOT RAS/RMS)
+selector17/0/7 calls return0x0 success; "suggestd" was initially misread as
+"suppressed". This photo has no panic/CRASH or proof SpringBoard/backboardd died.
+Peripheral loops alone do NOT establish GUI failure; upstream Sweet also saw
+bluetoothd/fairplayd.H2 relaunch with working GUI. Apple logo is user's observation,
+not visible in supplied photo. Need unobscured image and full log next.
+
+Prepared boot-lemon-quiet-log-v12.img16982016 bytes, SHA256
+f9ee563f00ec0adbf0734f9925cd7e045cd4779d01a5adc220a7ecd02b44e259.
+Same matching ca32dfac... v11 kernel/real-product ADT/loader/DTB/510MiB/oneCPU.
+Byte comparison proves ONLY608-byte payload command-line field changes:
+sweetfb_noconsole0->1 (mute panel text after first graphics presentation),
+sweetlog0->1, explicit ufslogsecs=10; removed -enable_kprintf_spam. Keeps root
+flags, sweetfb_hz15 and lemonpid1hold1. Header/layout/load addresses and known
+gzipImage/payload/DTB/timer19 tests PASS. No new kernel build/QEMU required:
+unchanged kernel already tested, hardware currently executing actual iOS services.
+Build reproducible ignored research/build_quiet_boot_v12.py.
+
+Logger is existing sweet_log_thread: writes ring+header ONLY last4198400 bytes
+of userdata, offset50569551872 (device block12346082), every10sec under UFS lock.
+Pinned userdata50573750272 bytes; HFS volume header confirms logical16GiB.
+Log area is beyond HFS, within existing userdata, no GPT/partition geometry change.
+Saved exact ORIGINAL area to ignored backup/lemon-pre-v12-log-tail.bin, SHA256
+06955cde7f98b9503653b906e9634732d59a17a6dc2cb1a0e453fbdd4adaab86.
+If needed, after next return TWRP read ONLY that4.2MiB and decode with
+tools/sweet-log.py (no full filesystem scan needed). Console muting does not
+disable ring append, and logger starts for lemon root mode when su.writable=true.
+
+User returned TWRP on request; ADB recovery connected without replug this time.
+research/stage_quiet_v12.py exit0: staged ONLY /tmp/boot-lemon-quiet-log-v12.img,
+device SHA matches; current v11 full boot7ced79c0... and original recovery/dtbo
+hashes verified. NO partition write/reboot in this preparation. Installed4K caches
+preserved. NEXT explicit approval for v12 boot write/reboot + enabling logger in
+unused userdata tail (AGENTS each-step rule). Verify boot prefix/protected hashes
+then reboot. Await unobscured image; if still logo, return TWRP and retrieve small
+saved log to locate actual SpringBoard/backboardd faults. Do NOT reinstall root.
+
+### Previous: 4K cache update INSTALLED/VERIFIED, rebooted; awaiting screen (2026-11-19)
 
 User explicitly approved "да" after reviewing21MiB userdata-cache update/reboot.
 Ran python research/install_cache_update.py --flash, exit0. Before ANY write:
