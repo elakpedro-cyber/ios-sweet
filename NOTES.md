@@ -2,7 +2,28 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: 4K cache update staged/verified, awaiting userdata-write approval (2026-11-19)
+### ACTIVE: 4K cache update INSTALLED/VERIFIED, rebooted; awaiting screen (2026-11-19)
+
+User explicitly approved "да" after reviewing21MiB userdata-cache update/reboot.
+Ran python research/install_cache_update.py --flash, exit0. Before ANY write:
+all113 exact physical preimages, backup/replacement hashes, TWRP, unmounted Data,
+userdata device/size and boot/recovery/dtbo hashes matched. Staged bundle SHA
+729bd5940ed5a64ae92171fbdb2786fa9d68b843e60eda2a5ff760f4d757d08d matched.
+Wrote ONLY113 bounded existing userdata ranges, total21573632 bytes (4K aligned),
+dd skip/seek/count conv=notrunc,fsync + sync. EACH range readback SHA matched;
+second COMPLETE113-range readback verification also passed. Original rollback
+bundle research/cache-phone-update/before.bin + manifest retained unchanged.
+Boot remains v11 full7ced79c0a4d1c14e62729257a6854ef4423a39961ada7964c8516e51438269b5;
+recovery/dtbo original hashes unchanged. No boot image replaced or recovery write.
+Physical HFSX attributes0x80002100, free4637523968 bytes, journal0x82000,
+start=end0x1f200 EMPTY verified. Root cache now has4K signatures.
+Issued adb reboot successfully after ALL checks. NEXT photo/last lines after
+30-60s, especially dyld/shared cache, launchd, panic or PID1 HOLD. This fixes
+the observed signature-registration blocker; GUI/next-stage success NOT assumed.
+DO NOT rerun installer (preimages now intentionally differ), format Data or
+restore original root. TWRP remains available via Power+VolumeUp if next boot fails.
+
+### Previous: 4K cache update staged/verified, awaiting userdata-write approval (2026-11-19)
 
 User resumed: "давай делай новый boot я вернул телефон в тврп", then replugged
 USB on request. ADB recovery connected. Explained current v11 boot/kernel already
