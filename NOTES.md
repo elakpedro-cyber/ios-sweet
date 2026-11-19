@@ -33,6 +33,13 @@ Actual diagnostic+hook host ASan/UBSan PASS opt-in0/2/1, no register mutations,
 mapping failure. Workflow applies0094 and runs test. Next CI, QEMU without
 physical MMIO option, then prepare concrete v7 boot for explicit approval.
 This is preparation for storage access; full iOS UI still needs storage driver.
+CI44510231343 (66f53f0) now building0013 on macos-15-intel.
+OS tar import completed; SystemOS import in progress, image~9.4GiB allocated.
+Apparent source sizes: OS7937213671, SystemOS3359797050, AppOS7846405 bytes
+(~10.53GiB before HFS allocation/metadata). No need to fill entire16GiB image.
+Standalone actual Apple launchd scan: no LSE opcodes in instruction sections;
+dyld scan's sole match0x66274 is SHA256 constant0x78a5636f, verified nearby K
+constants. This is static inspection only, not proof of runtime compatibility.
 
 ### Latest: user-operated resumable downloader ready; NOT started (2026-11-19)
 

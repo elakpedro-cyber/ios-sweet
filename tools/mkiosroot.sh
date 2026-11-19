@@ -3,6 +3,7 @@
 # root filesystem plus its cryptexes, for the userdata partition (rd=ufsroot0).
 #
 #   mkiosroot.sh OS.dmg SYSTEMOS.dmg APPOS.dmg OUT.img [SIZE]     (SIZE default 16G)
+# Set IOSROOT_GUESTFS=1 on hosts without a kernel HFS+ driver (e.g. WSL).
 #
 # The IPSW images are raw APFS with LZBITMAP-compressed files: they are read
 # through apfs-fuse (decompressing), so the HFS+ copy is uncompressed. On a
@@ -24,7 +25,11 @@ os=$(realpath "$1") sysos=$(realpath "$2") appos=$(realpath "$3") out=$4 size=${
 
 # Pre-flight tool check
 missing_tools=()
-for tool in apfs-fuse mkfs.hfsplus rsync; do
+required_tools=(apfs-fuse mkfs.hfsplus rsync)
+if [[ ${IOSROOT_GUESTFS:-0} == 1 ]]; then
+	required_tools+=(guestmount guestunmount guestfish tar)
+fi
+for tool in "${required_tools[@]}"; do
 	command -v "$tool" >/dev/null 2>&1 || missing_tools+=("$tool")
 done
 
@@ -39,17 +44,38 @@ fi
 
 work=$(mktemp -d)
 mounts=()
+unmount_root() {
+	if [[ ${IOSROOT_GUESTFS:-0} == 1 ]]; then
+		local pid i
+		pid=$(cat "$work/guestmount.pid")
+		sudo guestunmount "$work/root"
+		# guestunmount returns before the appliance finishes flushing the image.
+		for ((i=0; i<60; i++)); do
+			sudo kill -0 "$pid" 2>/dev/null || return 0
+			sleep 1
+		done
+		echo 'guestmount is still flushing; do not use the image yet' >&2
+		return 1
+	else
+		sudo umount "$work/root"
+	fi
+}
 cleanup() {
 	local busy=0
 	for m in "${mounts[@]}"; do
 		if mountpoint -q "$m"; then
-			sudo umount "$m" 2>/dev/null || true
+			if [[ $m == "$work/root" ]]; then
+				unmount_root || true
+			else
+				sudo umount "$m" 2>/dev/null || true
+			fi
 		fi
 		mountpoint -q "$m" && busy=1
 	done
 	# Never recurse into a directory that is still mounted (the root is writable).
 	if [[ $busy == 0 ]]; then
 		rm -f "$work"/*.dmg
+		rm -f "$work/guestmount.pid"
 		rmdir "$work"/* "$work" 2>/dev/null || true
 	else
 		echo "still mounted under $work: left in place" >&2
@@ -74,17 +100,34 @@ apfs_mount "$appos" appos
 truncate -s "$size" "$out"
 mkfs.hfsplus -s -J -v iOSRoot "$out"
 mkdir "$work/root"
-sudo mount -t hfsplus -o loop,force "$out" "$work/root"
-mounts=("$work/root" "${mounts[@]}")
+if [[ ${IOSROOT_GUESTFS:-0} != 1 ]]; then
+	sudo mount -t hfsplus -o loop,force "$out" "$work/root"
+	mounts=("$work/root" "${mounts[@]}")
+fi
 
 copy() {
 	echo "copying $1 -> ${2#"$work/root"}"
-	sudo mkdir -p "$2"
-	sudo rsync -aH --numeric-ids "$1/" "$2/"
+	if [[ ${IOSROOT_GUESTFS:-0} == 1 ]]; then
+		local destination=${2#"$work/root"}
+		destination=${destination:-/}
+		# Stream into the appliance instead of one FUSE round-trip per file operation.
+		sudo tar --numeric-owner -C "$1" -cpf - . |
+			sudo guestfish --rw --format=raw -a "$out" -m /dev/sda:/:force:hfsplus \
+			mkdir-p "$destination" : tar-in - "$destination"
+	else
+		sudo mkdir -p "$2"
+		sudo rsync -aH --numeric-ids "$1/" "$2/"
+	fi
 }
 copy "$work/os/root" "$work/root"
 copy "$work/sysos/root" "$work/root/private/preboot/Cryptexes/OS"
 copy "$work/appos/root" "$work/root/private/preboot/Cryptexes/App"
+
+if [[ ${IOSROOT_GUESTFS:-0} == 1 ]]; then
+	sudo guestmount --format=raw -a "$out" -m /dev/sda:/:force:hfsplus \
+		--pid-file "$work/guestmount.pid" "$work/root"
+	mounts=("$work/root" "${mounts[@]}")
+fi
 
 # Shared cache where dyld looks at ignition level 1: hard links, no extra space.
 dsc=private/preboot/Cryptexes/OS/System/Library/Caches/com.apple.dyld
@@ -128,7 +171,7 @@ printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
 	sudo install -m 0600 -o 0 -g 0 /dev/stdin "$work/root/private/var/keybags/systembag.kb"
 
 df -h "$work/root"
-sudo umount "$work/root"
+unmount_root
 # Linux hfsplus decomposes some non-ASCII names (localized Shortcuts examples)
 # differently from Apple's tables; let fsck_hfs rewrite them, then verify.
 fsck.hfsplus -f -y "$out" | grep -v 'Illegal name' || true
