@@ -2,7 +2,18 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: full XNU v6 built, QEMU PID1 verified, staged pending approval (2026-11-19)
+### Latest: XNU v6 written and verified; next reboot/read screen (2026-11-19)
+
+User explicitly approved v6. Rechecked staged image and v5/current boot,
+recovery/dtbo before writing. Wrote 16977920 bytes ONLY boot, dd conv=fsync
+and sync. Read-back image prefix SHA256 matches exactly
+7e0846f3385edc533aee0a0ed71d5ba662ba4b650c80439d961136a1e652b323.
+Full boot SHA256 0ca20d0bca5a202e3a42f38e7530aa580777f8190978e71368fe4cb1acb0cd93.
+Recovery/dtbo retain original hashes. No original restore per user preference.
+Next reboot, collect latest screen lines after 30 seconds, especially SGI1,
+CPUs initialized, PID1 or panic. Physical full XNU result not yet observed.
+
+### Previous: full XNU v6 built, QEMU PID1 verified, staged pending approval (2026-11-19)
 
 CI44501956040 (af86cea) completed SUCCESS, including actual GIC order test.
 Downloaded xnu/out-gic-fixed-kernel/kernel.development.sweet; SHA256SUMS OK.
