@@ -2,7 +2,18 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### MILESTONE: v14 user reports iOS LOCK SCREEN; physical touch disabled (2026-11-19)
+### MILESTONE: v14 iOS LOCK SCREEN CONFIRMED BY PHOTO; touch disabled (2026-11-19)
+
+User supplied clear photo: Wednesday, December31,4:06, charging battery icon,
+camera affordance, actual iOS lock-screen layout. First GUI on Redmi9TNFC now
+VISUALLY CONFIRMED, beyond earlier user report. Preserved original unedited photo
+in ignored research/lemon-v14-lockscreen-confirmed.png (not committed/published).
+This milestone validates real Apple userspace/display after4K cache signatures
+and chosen MAC identity properties; does NOT establish home navigation or input.
+Phone still running v14. No device reads/writes/reboots this photo-confirmation
+turn. Touch hardware polling remains disabled; performance and RTC still pending.
+
+### Previous: v14 user reports iOS LOCK SCREEN; physical touch disabled (2026-11-19)
 
 Physical v14: user reported Apple logo disappeared very slowly (~1fps), black
 screen, then "ЕСТЬ ЕСТЬ Я ВИЖУ ЧАСЫ ВРЕМЯ 4:04 ДЕКАБРЬ 31". This is reported
