@@ -2,7 +2,28 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Active: v10 same dyld cache failure; prepare PID1 pre-panic hold diagnostic (2026-11-19)
+### Active: v11 diagnostic ready, staged; awaiting boot-only approval (2026-11-19)
+
+CI44555149569 for a464e2fe51271a8086d4eae6aea3713938cf6e1c succeeded.
+Matching kernel SHA256 ca32dfac654912a448ea2dbf7fa69297bfdfba11d28a2b0e4cbd256398788f22.
+QEMU Cortex-A53 real-shim deliberately-exiting PID1: option0 gives original
+initproc panic, exit status0; option1 preserves exit message and LEMON PID1 HOLD
+marker with no panic string. Snapshot decoder reports5 unknown glyphs on ON
+screen (incomplete_decode), so this is targeted marker verification, not a
+claim of clean full-screen decode. Outputs /home/hadirpc/lemon-pid1-hold-{0,1}.
+
+Prepared boot-lemon-pid1-hold-v11.img16982016 bytes, SHA256
+c09d893d7ada8c85676a35509e686d70326678f104bb47999cbe32320acee0c2.
+Baselinev9 root flags plus lemonpid1hold=1; unsuccessful v10 dyld_flags removed.
+Matching kernel/payload/ADT/root flags and boot header/load ranges validated.
+Staged only /tmp/boot-lemon-pid1-hold-v11.img; device SHA matches local.
+ADB sees TWRP. Boot remains v10 full SHA4c4d7e70419b4a0e270685be9131acd2c2d8934e12859082fd6f8571be3e1bed;
+recovery/dtbo original hashes verified unchanged. NO boot/userdata writes.
+Next: obtain explicit approval for v11 boot-only write/reboot, verify readback
+and protected hashes, then collect preceding dyld cache error from held screen.
+Preserve existing iOS root; do not run root installer or format Data.
+
+### Previous: v10 same dyld cache failure; prepare PID1 pre-panic hold diagnostic (2026-11-19)
 
 Photo v10 repeats namespace6/subcode1 Library not loaded libSystem.B.dylib,
 no such file/no dyld cache. dyld_flags0x19 did NOT resolve it. Root intact;
