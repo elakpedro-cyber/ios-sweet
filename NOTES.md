@@ -2,6 +2,45 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Active: user away; finish preparation ONLY, await install/launch approval (2026-11-19)
+
+User: "я отойду от пк так что доделай там что надо и дождись меня я подтвержу
+запуск на телефоне". Agreed: prepare/verify PC artifacts, leave phone in TWRP;
+NO userdata/boot writes or reboot until user returns and confirms.
+CI44543155402 (ef6664a) building0015; full result pending.
+
+Meaningful HFS integration test with EXISTING v8 kernel: built32MiB case-sensitive
+journaled HFS+ in guestfish containing our static init at /sbin/launchd + /dev.
+Booted real shim/A53 QEMU55s: "hfs: mounted LemonTest on device b(1,0)",
+PID1 + FOUR still-alive messages. No visible panic. Decoder unknown4glyphs in
+older text, not clean-decoder pass. Output /home/hadirpc/lemon-hfs-a53;
+image /home/hadirpc/lemon-test-hfs.img; ignored research/make_hfs_test.sh.
+Thus actual HFS mount + exec works on4K, independently of physical UFS DMA.
+
+Prepared ignored research/install_ios_root.py: default READ-ONLY preflight
+passes original16GiB SHA/HFSX signature, current v8 boot+recovery+dtbo hashes,
+pinned userdata device /dev/block/sda11 size50573750272 and sysfs extent.
+--flash intentionally NOT run. It would unmount /data via TWRP and verify,
+copy64MiB raw chunks via adb push + bounded dd seek/notrunc/fsync, then verify
+full16GiB prefix SHA and unchanged protected partitions; never reboots.
+--flash needs explicit user authorization for rootfs install.
+Actual transfer helper tested with binary1MiB+7bytes at two offsets into
+/tmp ONLY: SHA readback exact, seek/notrunc/short-final-write pass. Cleaned temp.
+research/test_root_stream.py reproduces. No user partition writes.
+An attempted stdin gzip/exec-in route failed TEMP-only tests (empty/short data,
+gzip Illegal seek); abandoned. Do NOT reuse it for installation. Chunked
+adb push helper is the verified path. /data currently mounted f2fs in TWRP;
+must unmount and verify immediately before any explicitly approved root write.
+
+Optional host backup compressed (not used by installer):
+/home/hadirpc/lemon-ios16-root.img.gz,~5.8GiB, gzip-t passed, SHA256
+6d310b1605ed24609dc206b08cf3422decf3c92195dfb63181a8b1fbcf75d3da.
+Raw SHA remains c783b998...; host~46GiB free. No extra network download.
+Next await CI; repeat actual HFS QEMU on new kernel; build real-product ADT
+and boot-v9 ROOT payload (NO RAMDisk/init, rd=ufsroot0 lemonufsroot=1,
+ufsroot=userdata ufsrw=1 rootrw=1 sweetlog=0 etc). Validate/stage ONLY /tmp,
+record exact checksums and ask concrete userdata+boot installation approval.
+
 ### Active: PHYSICAL v8 reads correct GPT; preparing real UFS root mode (2026-11-19)
 
 Photo v8: LEMON UFS READ result=0,LUN=0,first=0x20d918,blocks=12347107,
