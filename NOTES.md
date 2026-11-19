@@ -2,7 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: physical v5 confirms SGI1 + IRQ19; XNU order fix prepared (2026-11-19)
+### Latest: full XNU v6 built, QEMU PID1 verified, staged pending approval (2026-11-19)
+
+CI44501956040 (af86cea) completed SUCCESS, including actual GIC order test.
+Downloaded xnu/out-gic-fixed-kernel/kernel.development.sweet; SHA256SUMS OK.
+Kernel SHA256 c3311f0e7a518928af2b24b0e0a06eab66846bf299e51de07f6c4374e735feaa.
+Real-shim Cortex-A53 QEMU 55s: PID1 + two still-alive messages, SGI1 verified,
+no visible panic. Decoder reports two unknown glyphs in an older overwritten
+network-init line; automated clean-decode criterion did not pass. Exact PID1
+and liveness messages decoded fully. Output /home/hadirpc/lemon-xnu-gic-fixed-a53.
+Phone image uses same loader/known DTB, timer19 and verbose v3 command line.
+shim/out/lemon-boot/boot-lemon-gic-fixed-v6.img: 16977920 bytes, SHA256
+7e0846f3385edc533aee0a0ed71d5ba662ba4b650c80439d961136a1e652b323.
+Verified v2 header, decompressed Image, payload identity, DTB, load ranges,
+managed RAM and embedded timer19 (research/verify_v6.py, ignored).
+Staged ONLY /tmp/boot-lemon-gic-fixed-v6.img; device SHA matches.
+TWRP current boot remains v5 hash6bd4276e...; recovery/dtbo original hashes.
+NEXT: specific approval for v6 boot-only write, then dd/fsync readback and reboot.
+No automatic original restoration per user. Physical full XNU v6 untested.
+
+### Previous: physical v5 confirms SGI1 + IRQ19; XNU order fix prepared (2026-11-19)
 
 User-read v5: SGI CNT=1; TMR A=0x13; TMR CNT=0x13; TMR IRQ=0x13;
 END EN=0x80002; D AFTER=0x12; RESULT="both IRQs delivered".
