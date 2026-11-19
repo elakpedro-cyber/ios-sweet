@@ -2,6 +2,36 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: physical v3 reaches CPU0 init; GIC probe v4 prepared (2026-11-19)
+
+User-read final lines: "cpu_start() cpu:0" and
+"SWEET CPU: cpu=0 entered initCPU mpidr=0x0 EL1 IRQs=1"; unchanged after a
+further 20-30s. No SGI1 OK, CPU initialized, timeout/panic or PID1 reported.
+Thus the older kmem[3] line was not the full progress observable with verbose
+logging. This narrows attention to CPU start / IRQ delivery; cause unproven.
+User returned to TWRP. Per explicit preference v3 remains installed; no restore.
+Full current boot hash cf2334b8bb20a49963c7d322037af915b4db2e9c77efe76c9d0080c4bc82708e;
+recovery/dtbo remain original 1737005c... / 6fd8b752... .
+Live TWRP DT confirms arm,gic-v3, GICD f200000+10000, GICR f300000+100000,
+timer interrupts PPIs 1/2/3/0 and frequency 19200000. Virtual PPI3 => INTID19.
+
+Prepared standalone shim/lemon-gic-probe.c; no XNU, storage, PSCI or extra CPUs.
+Uses same Group1 NS/SRE/PMR/BPR/EOI setup as XNU, bounded GIC wake/RWP waits,
+self SGI1 and 200ms periodic CNTV test. Displays pre/post pending/active/enable,
+CPU interface and IRQ counters. Unexpected inherited sources are disabled in
+GIC before EOI to prevent a level-triggered interrupt storm in the probe.
+MMU stays off. No persistent device state or partition writes by probe code.
+Separate --qemu build substitutes virt GIC bases and INTID27 only.
+tools/test-lemon-gic.py executes actual vectors/ISR on Cortex-A53: SGI1=1,
+timer IRQ27=19, other=0 PASS; raw Image header/size and position independence PASS.
+Phone probe package Image/empty cpio/unchanged DTB/load-range checks PASS.
+Repository validation: 81 base patches, 24 Python, 12 shell PASS.
+shim/out/lemon-gic/boot-lemon-gic-probe-v4.img: 315392 bytes, SHA256
+2a4a408911658dcf8d643f3277f543bc55a49a2122573ea99f6c6f2624c6c267.
+Staged ONLY at /tmp/boot-lemon-gic-probe-v4.img; device SHA256 verified.
+NEXT needs specific approval for writing this new diagnostic to ONLY boot.
+Keep v3 installed until approval; do not restore original automatically.
+
 ### ACTIVE V3 TEST: v3 installed; user explicitly waived automatic boot restore (2026-11-19)
 
 User explicitly approved writing v3 and said original boot need NOT be restored
