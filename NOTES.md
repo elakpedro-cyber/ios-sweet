@@ -2,6 +2,19 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: v8 installed and verified; next reboot/read GPT result (2026-11-19)
+
+After reviewing prepared v8, user instructed "продолжи". Continued with v8
+boot-only installation. TWRP ADB confirmed, current v7 boot/recovery/dtbo
+hashes matched. Volatile /tmp image was absent; re-pushed exact local v8,
+verified SHA before write. Wrote16977920 bytes ONLY boot, dd conv=fsync+sync.
+Read-back prefix SHA256 matches
+4cb98e0e4bf09b3034ce67119a519b39fa78fb610ab68164c2031f1d13dc0b68.
+Full boot SHA256 11abe53dc2ad5a644d709777d6f40eefa43e4593c56fec288df1fcb747b4d2c1.
+Recovery/dtbo unchanged; no userdata write and no original boot restore.
+Next reboot/read LEMON UFS READ result/LUN/first/blocks or timeout/panic.
+Expected result0,LUN0,first0x20d918,blocks12347107. No physical DMA result yet.
+
 ### Latest: v8 read-only GPT test built/checked/staged, approval pending (2026-11-19)
 
 CI44514064375 (051b6ed) SUCCESS, including actual command guard/GPT parser
