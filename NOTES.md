@@ -2,7 +2,63 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### PAUSED BY USER: no phone writes; 4K cache fix prepared locally (2026-11-19)
+### ACTIVE: 4K cache update staged/verified, awaiting userdata-write approval (2026-11-19)
+
+User resumed: "давай делай новый boot я вернул телефон в тврп", then replugged
+USB on request. ADB recovery connected. Explained current v11 boot/kernel already
+supports verified4K signatures; the observed failure requires CACHE update,
+not another kernel build. NO new boot image/build needed for this fix.
+No userdata cache-write approval yet: current request explicitly names boot.
+
+Completed FAST identity checks: ALL43 phone files match pristine PC root in
+size, full4096-byte header and complete original signature table. No repeated
+2.6GiB body checksum scans. This verifies identity metadata/signature hashes,
+not complete integrity of every phone payload byte (user requested faster checks).
+ALL86 canonical/preboot-alias paths in local phone-backed overlay have exact
+expected new sizes, headers and signature tables. Full local converter4K hashes
+and QEMU/HFS tests from d6ecb65 remain valid; not repeated unnecessarily.
+
+Corrected journal handling: Linux fsck540.1 -fy does NOT checkpoint it. Actual
+pending journal consists of ONE transaction, one4096-byte block at root offset0,
+and that data ALREADY MATCHES physical phone disk byte-for-byte. Validated Apple
+journal header44-byte and transaction32-byte checksums, descriptor/data bounds;
+only then changed LOCAL overlay journal start to end and recalculated checksum.
+No transaction payload replay or phone write. New journal start=end0x1f200.
+research/checkpoint_journal.py refuses any unapplied block or corrupt checksum;
+test_checkpoint_journal.py PASS read-only planning + positive/corrupt/unapplied
+cases. Actual checkpoint validated independently by reading updated journal.
+After cache edits fsck -fn says iOSRoot appears OK, journal still empty.
+
+Successful overlay: /home/hadirpc/lemon-cache-phone-next2.qcow2 (~27MiB), backed
+by read-only phone nbd+unix:///?socket=/home/hadirpc/lemon-cache-next2.sock.
+Preparation research/prepare_cache_fast.py completed exit0; all servers stopped
+and its socket cleaned. Do NOT rerun preparation over completed overlay.
+Metadata snapshots /home/hadirpc/lemon-cache-fast2/{original,phone-original,
+updated-canonical,updated-alias}. Source phone remains untouched v11/old caches.
+
+Fixed range export: research/nbd_read.py is a read-only fixed-newstyle NBD client,
+tested against4MiB random raw image (whole, offset130, unaligned and first reads
+match exactly). Export uses read-only qemu-nbd instead of broken qemu-img dd.
+Successful research/export_cache_overlay.py exported exact changed4K sectors,
+FRESH original preimages from phone, bounded to first16GiB userdata only.
+Ignored research/cache-phone-update/: 113 ranges,21573632 bytes (~20.57MiB).
+before.bin SHA2561b48566ff67f56b2be0fab32ddeafe696aa4b4d52a63d3fa0497792092b3e10a
+after.bin SHA256729bd5940ed5a64ae92171fbdb2786fa9d68b843e60eda2a5ff760f4d757d08d
+manifest.json SHA25608593cf70901ba1aa2bc9d9074be9cf21d5a0f675125b498655098dbf0daf110.
+
+Ran research/install_cache_update.py WITHOUT --flash, exit0: validated local
+backup/replacement hashes, sorted/bounded/aligned113 ranges, userdata geometry,
+TWRP+unmounted Data, ALL fresh physical preimage hashes, v11 boot/original recovery
+and dtbo hashes. Staged ONLY /tmp/lemon-cache-update.bin, device SHA matches
+after.bin. NO userdata/boot writes, NO reboot. This is concrete and ready.
+NEXT obtain explicit approval for userdata cache+completed-journal update and
+reboot (AGENTS rule). Then python research/install_cache_update.py --flash;
+it rechecks all originals before writing, writes only bounded sectors with fsync,
+verifies readback+protected hashes+empty journal. Reboot only after success.
+After installation DO NOT rerun installer: preimages intentionally no longer match.
+Keep v11 boot; preserve TWRP and full rootfs, no formatting/reinstallation.
+
+### Previous pause: no phone writes; 4K cache fix prepared locally (2026-11-19)
 
 User explicitly requested stop now, continue later: "ладно всё закончи быстро
 вот прям щас быстро закончи потом продолжим". Stopped phone preparation/checksum
@@ -38,7 +94,7 @@ test-overlay sectors to phone. User pause overrides pending preparation.
 
 Optimized tools/lemon-adb-nbd.py to8MiB reads,8-entryLRU (still64MiB total).
 Actual8MiB binary read matches independently read first+last1MiB,0.74s for3reads.
-Change not yet committed at pause. New server was restarted with8MiB reads.
+Change committed with pause notes in1a4fc48. New server was restarted with8MiB reads.
 
 Ignored helper scripts now available: research/test_cache_overlay.py (optional
 --base,--overlay,--existing-overlay,--replay-journal; BEFORE full source hashes,
