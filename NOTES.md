@@ -2,7 +2,61 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Active: v11 installed and rebooted; awaiting held diagnostic screen (2026-11-19)
+### Active: v11 exposes 16K signature rejection; prepare 4K cache update (2026-11-19)
+
+Physical v11 photo finally preserves the actual error: libignition opens
+/System/Library/Caches/com.apple.dyld, then kernel says "disallowing unsupported
+code signature page shift: 14", "unable to create a validated cs_blob object: 85",
+dyld reports shared-cache signature registration failure and missing libSystem.
+PID1 HOLD works physically. This is NOT a missing cache/directory or GUI success.
+ubc_subr.c accepts PAGE_SHIFT_4K or PAGE_SHIFT (both12 here). Simply accepting14
+is unsafe: cs_validate_hash hashes16K from a4K page and asserts on other offsets.
+Do not implement that blind kernel acceptance or fake successful validation.
+
+Added tools/lemon-cache-4k.py: SOURCE read-only, OUTPUT separate; limited to
+the actual ad-hoc SHA256 v0x20400 cache format with empty CMS and no scatter.
+Verifies ALL original page hashes and requirements special hash, rebuilds4K
+CodeDirectory, changes ONLY header codeSignatureSize8 bytes and signature tail.
+UUID/mappings/library payload preserved. Rejects real CMS instead of stripping it.
+Unit tests verify hashes, unchanged source/body, idempotence, corrupt payload,
+CMS rejection and existing output preservation. Syntax/diff checks PASS.
+
+Prepared ALL43 non-symbol cache files in /home/hadirpc/lemon-cache-4k (~2.6GiB).
+Original source /home/hadirpc/lemon-ios16-root.img was mounted read-only only.
+Independent full4K hash + payload-byte digest checks PASS for all43.
+Manifest SHA256 fb089409647b9319a1b98c9b9fc6011d83de5a2037b07b13b4b1a4eda6f74a58.
+Signature/8-byte-size patches /home/hadirpc/lemon-cache-4k-patches (~22MiB),
+total file growth16039936 bytes. Original main SHA76874e83... matches phone.
+
+Actual unchanged v11 XNU/QEMU Cortex-A53 + HFS test of REAL main cache:
+original16K returns EBADEXEC85 (negative control), converted4K F_ADDFILESIGS_RETURN
+succeeds with correct full coverage, executable mmap succeeds, reads ALL signed
+pages: "LEMON CACHE4K: ALL SIGNED PAGES READ OK". No panic/fail markers.
+Framebuffer decoder incomplete_decode/4 unknown old glyphs; targeted markers
+verified, not a clean entire-screen claim. /home/hadirpc/lemon-cache-sign-test.
+Fixture research/cache-sign-probe.S built with aarch64-linux-gnu-as, no relocations,
+objcopy .text, mkinit.build_code (no clang present in current WSL).
+
+Local filesystem integration /home/hadirpc/lemon-cache-4k-root-test.qcow2 backed
+by pristine PC root: only signature tails/size uploaded in-place, hard links
+preserved. ALL86 canonical/preboot-alias paths match new full-file checksums;
+main inode identical,nlink2. PC source image NOT modified. This overlay is ONLY
+a test: NEVER apply its sectors to the phone (phone HFS metadata differs).
+
+User returned TWRP then replugged USB; ADB recovery connected, userdata unmounted,
+boot remains v11 full7ced79c0..., recovery/dtbo originals verified. No phone write.
+Preparing FRESH phone-backed read-only NBD + LOCAL qcow2 overlay using
+research/prepare_phone_cache_overlay.sh (exec session4058). It checks all original
+file hashes before local overlay writes, then all86 updated path checksums,
+hard links. research/export_cache_overlay.py will export ONLY changed4K sectors
+with exact preimages in ignored research/cache-phone-update/{before,after}.bin
+and manifest.json. NBD server auto-stops after export. Phone always read-only.
+NEXT collect preparation result, inspect/verify bounded sector bundle + backup,
+then request explicit approval for userdata cache update/reboot (AGENTS rule).
+Boot/kernel/recovery unchanged; no new CI needed for this rootfs-only solution.
+Do NOT format Data or rerun entire root installer. No phone cache write approved yet.
+
+### Previous: v11 installed and rebooted; awaiting held diagnostic screen (2026-11-19)
 
 User explicitly approved "делаем" for prepared v11 boot-only write/reboot.
 Preflight TWRP, boot target /dev/block/sde49 size134217728, staged SHA and
