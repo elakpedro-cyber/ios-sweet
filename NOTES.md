@@ -2,6 +2,18 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE V4 GIC TEST: standalone probe installed (2026-11-19)
+
+User specifically approved writing v4. Verified staged image and current v3
+boot/recovery/dtbo hashes before write. Wrote 315392 bytes ONLY boot with
+dd bs=4096 conv=fsync + sync. Read-back prefix hash matches
+2a4a408911658dcf8d643f3277f543bc55a49a2122573ea99f6c6f2624c6c267.
+Recovery/dtbo remain original. Boot tail still contains v3/original bytes;
+header sizes select only the v4 probe. Reboot and collect SGI CNT, TMR CNT,
+OTHER, RESULT plus fault/status registers if either interrupt is missing.
+Per user preference leave test boot installed, no automatic original restore.
+User button return to TWRP is necessary after probe halts.
+
 ### Latest: physical v3 reaches CPU0 init; GIC probe v4 prepared (2026-11-19)
 
 User-read final lines: "cpu_start() cpu:0" and
