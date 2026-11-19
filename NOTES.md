@@ -2,6 +2,24 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Active: v10 same dyld cache failure; prepare PID1 pre-panic hold diagnostic (2026-11-19)
+
+Photo v10 repeats namespace6/subcode1 Library not loaded libSystem.B.dylib,
+no such file/no dyld cache. dyld_flags0x19 did NOT resolve it. Root intact;
+no GUI/main launchd reached. User returned TWRP ("вернуо"), device check next.
+
+Optional0016 adds lemonpid1hold=1 to preserve preceding dyld/kernel messages
+instead of overwriting screen with panic dump. Hook in proc_handle_critical_exit
+AFTER existing sync(), only p==initproc; helper defaultoff/2 returns normally,
+exact1 prints marker and loops delay1s (no device IO). Original panic unchanged
+when off or for other critical processes. Not a fix or continuation after failure.
+Actual helper/hook ASan/UBSan PASS option0/2/1, onlyPID1, delayiteration.
+Workflow applies0097 and tests helper. Repo31Python/12shell/81basepatches PASS.
+Next full CI, QEMU own deliberately-exiting PID1 with hold ON/OFF to verify
+preserved marker versus original panic, then root v11 with baselinev9 command
+line plus lemonpid1hold=1 (remove unsuccessfuldyld_flags0x19), no rootfs change.
+Before new boot write get approval for concrete image. Preserve installed HFS.
+
 ### Latest: v10 boot-only installed/verified; next cache-path boot result (2026-11-19)
 
 User approved "делаем" for staged v10 boot-only retry. TWRP/staged v10 and

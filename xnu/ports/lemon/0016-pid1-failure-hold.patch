@@ -1,0 +1,38 @@
+--- a/bsd/kern/kern_exit.c
++++ b/bsd/kern/kern_exit.c
+@@ -1772,6 +1772,23 @@
+ #endif /* (DEVELOPMENT || DEBUG) && CONFIG_COREDUMP */
+ }
+ 
++#if defined(LEMON_4K)
++static void
++lemon_hold_pid1_failure(void)
++{
++	uint32_t hold = 0;
++	PE_parse_boot_argn("lemonpid1hold", &hold, sizeof(hold));
++	if (hold != 1) {
++		return;
++	}
++	/* Keep early dyld diagnostics visible instead of overwriting them with panic. */
++	printf("\nLEMON PID1 HOLD: preceding failure messages preserved\n");
++	for (;;) {
++		delay(1000000);
++	}
++}
++#endif
++
+ static void
+ proc_handle_critical_exit(proc_t p, int rv)
+ {
+@@ -1821,6 +1838,11 @@
+ 
+ 	sync(p, (void *)NULL, (int *)NULL);
+ 
++#if defined(LEMON_4K)
++	if (p == initproc) {
++		lemon_hold_pid1_failure();
++	}
++#endif
+ 	if (p->p_exit_reason == OS_REASON_NULL) {
+ 		panic_with_options(0, NULL, DEBUGGER_OPTION_INITPROC_PANIC, "%s -- no exit reason available -- (signal %d, exit status %d %s)",
+ 		    prefix_str, WTERMSIG(rv), WEXITSTATUS(rv), ((proc_getcsflags(p) & CS_KILLED) ? "CS_KILLED" : ""));
