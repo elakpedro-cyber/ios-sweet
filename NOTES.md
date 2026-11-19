@@ -2,6 +2,37 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: REAL ROOTFS + V9 INSTALLED AND VERIFIED; next first boot (2026-11-19)
+
+User explicitly said "запускай" after reviewing userdata+boot+launch proposal.
+Completed python research/install_ios_root.py --flash, exit0. Unmounted/data,
+wrote exactly16GiB to verified /dev/block/sda11 in64MiB chunks with fsync.
+FULL16GiB device prefix SHA matched original root image
+c783b998c83c0a7b3d7920fd665fdd8a84fa5b20d5165c605c633c82abb3328a.
+Script rechecked unchanged v8 boot + original recovery/dtbo, then cleaned temps.
+No GPT/bootloader/modem/persist write. Userdata NOW CONTAINS HFS+ iOS root;
+old Android/data filesystem replaced as explicitly authorized (phone empty).
+
+Then checked local/staged v9 SHA and v8/protected hashes again. Wrote ONLY
+boot16982016 bytes, dd4096 conv=fsync+sync. Read-back prefix SHA matches
+58e6ae6a54681bd5ffb5f03431ea4cbf6d8e932ac2f66112336ac19b954dbeac.
+Full boot SHA cf155ee3fe372b61014ac0ee234e741bd1fa3fafc9d30c5f79df4de81b3425cb.
+Recovery/dtbo retain original hashes. No original boot restoration.
+NEXT reboot to first REAL Apple userspace attempt, ask screen/photo after30-60s;
+if text continues, allow boot more time. Actual Apple launchd/UI still unobserved.
+Do not run initial installer again merely because HFS hash changes after RW boot;
+normal journal/daemon writes will change image. TWRP/data is no longer F2FS;
+do NOT format it if recovery cannot mount it. Preserve installed root for debugging.
+
+### Previous: user authorized installation; transfer started (2026-11-19)
+
+User replied "запускай" to concrete userdata+boot+launch proposal. Previous
+wait-for-confirmation boundary is revoked for these reviewed actions.
+Started python research/install_ios_root.py --flash, exec session57553.
+Preflight passed source SHA/HFSX, device/extent and protected hashes; /data
+unmounted and checked by script. Transfer subsequently completed and verified
+as recorded above. No new approval needed for the already-authorized first launch.
+
 ### Latest: ALL PREPARATION COMPLETE; wait for user's install/launch confirmation (2026-11-19)
 
 User away and explicitly wants to confirm phone launch on return. Do NOT
