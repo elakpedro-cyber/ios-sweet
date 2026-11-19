@@ -2,7 +2,60 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: quiet/logging v12 INSTALLED/VERIFIED, rebooted; awaiting display (2026-11-19)
+### ACTIVE: v12 log identifies LaunchServices wait; v13 lsd sampler staged (2026-11-19)
+
+User saw Apple logo with tiny stationary element, waited, returned TWRP.
+ADB recovery connected. Read ONLY4198400 bytes userdata tail block12346082;
+ignored research/lemon-v12-log.bin + .txt. SWEETLOG v1, ring4MiB, total152707,
+flush51, NO wrap: full saved log. Kernel remained alive ~510s; samples0..3.
+exec counts: SpringBoard1,backboardd1,lsd1,cfprefsd1,datamigrator3,installd0;
+bluetoothd49,fairplayd.H2 50. No CRASH SpringBoard/backboardd or panic/OOM in log.
+Only reported CRASH is driverkitd sig9. Actual backboardd IOSurface2/3 created
+1125x2436,BGRA,bpr4608,4 framebuffer swaps (2..5), then static display.
+Thus graphics pipeline works, but no home screen observed.
+
+Read phone preferences via READ-ONLY NBD (research/read_v12_prefs.py), no writes:
+/home/hadirpc/lemon-v12-prefs/{migration,springboard,purplebuddy,SystemVersion}.plist.
+Migration file uid/gid501,mode0600, LastSystemVersion20H392, disposition build20H392,
+SyntheticDidUpgradeFalse. SystemVersion20H392/16.7.16, SetupDone/etc true,
+BKNoWatchdogs true, migration sentinel /private/var/datamigrator/migrate ABSENT.
+ADT already includes synthetic unique-chip-id/chip-id and display-scale3.
+Do NOT blindly repeat old upstream migration fixes or add com.apple.DataMigration
+domain: old notes explicitly say that domain did not work; com.apple.migration
+is correct and present. Current stack gate is LaunchServices, not proven migration.
+
+Extracted .symbols592101376 bytes from pristine PC root READ-ONLY into
+/home/hadirpc/lemon-cache-4k/dyld_shared_cache_arm64.symbols. No downloads required.
+research/symbolicate_v12.py uses mmap/nlist64/strings, validates symbolFileUUID
+against main header offset400, resolves nearest local symbols (global syscall
+symbols absent: large-offset syscall names are approximate, don't overinterpret).
+Exact relevant SpringBoard t0 frames (subtract slide0x33238000):
+0x181cb0f34 ___LAUNCH_SERVICES_WAS_ASKED_TO_PERFORM_BLOCKING_IO_ON_THE_MAIN_QUEUE__+0x10
+0x181bf98d8 __LSCopyServerStore+0x300
+0x181c898e4 _LSContextInitCommon+0x200
+0x181bdfbb8 -[LSApplicationRecord _initWithNode:...]+0x8c.
+backboardd t2: 0x181cb0f4c ___LAUNCH_SERVICES_IS_RESEEDING_ITS_DATABASE_AND_MAY_BLOCK__+0x10,
+__LSCopyServerStore+0x310. Both wait synchronous XPC; lsd launched once but default
+sampler only collected SpringBoard/backboardd, so lsd internal blocker unknown.
+Do NOT call lsd corrupt or delete its database without evidence.
+
+Prepared v13 SAME kernel/ADT/boot layout as v12, only adds:
+sweetsample=lsd,SpringBoard,backboardd,cfprefsd,installd
+sweetnull=lsd,SpringBoard,backboardd (stderr/stdout null tee diagnostics).
+Keeps quiet graphics, tail logger10s,4K caches,root flags,510MiB and oneCPU.
+shim/out/lemon-boot/boot-lemon-lsd-sample-v13.img16982016 bytes SHA256
+85e89ee91d2f9ff3aeb4c3acb1c4619f53d63087277d1d1fd9fd5cb0d961c652.
+Payload payload-lsd-sample-phone.bin; build research/build_lsd_boot_v13.py.
+Matching mkpayload rebuild + byte comparison outside608-byte cmdline PASS;
+v2 header/gzip/known DTB/load ranges/timer19 validation PASS. No kernel CI needed.
+Staged ONLY /tmp/boot-lemon-lsd-sample-v13.img, device SHA matches.
+Current boot still v12 fullb700159c..., recovery/dtbo original hashes verified.
+NO partition write/reboot this turn. Tail log v12 preserved on PC before next boot.
+NEXT explicit approval for boot-only v13 write/reboot, then wait~120s (sampler
+first90s + next10s log flush), return TWRP, read same small tail, inspect lsd
+and cfprefsd stacks. This is targeted diagnostic, not a claimed fix. Keep root.
+
+### Previous: quiet/logging v12 INSTALLED/VERIFIED, rebooted; awaiting display (2026-11-19)
 
 User explicitly approved "делай" for concrete v12 boot/reboot + logger proposal.
 Preflight ADB recovery, boot /dev/block/sde49 size134217728, staged v12 SHA,
