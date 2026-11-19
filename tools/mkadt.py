@@ -30,6 +30,11 @@ GICD, GICD_SIZE = 0x17a00000, 0x10000
 GICR, GICR_SIZE = 0x17a60000, 0x100000
 FB, FB_SIZE = 0x9c000000, 0x1700000
 SWEET_ECID = 0x5357454554000001  # 'SWEET' + 1, synthetic
+# Locally administered identities for bring-up; these do not enable networking.
+LEMON_MACS = {
+    'mac-address-wifi0': bytes.fromhex('025357454501'),
+    'mac-address-bluetooth0': bytes.fromhex('025357454502'),
+}
 FB_W, FB_H, FB_STRIDE = 1080, 2400, 1080 * 4
 # Internal UFS host (ufshc@1d84000 "ufs_mem"); QEMU virt has none
 UFS, UFS_SIZE = 0x01d84000, 0x3000
@@ -138,6 +143,10 @@ def build(seed=None, qemu=False, highmem=False, lemon=False):
         # The iOS shared cache is in no trust cache, so dyld can only map it
         # with CSR_ALLOW_UNRESTRICTED_FS (vm_unix.c shared region checks).
         node('asmb', [ph(), ('lp-sip0', u64(0x6f)), ('lp-sip1', u32(1))])])
+
+    if lemon:
+        # MobileGestalt reads these before waiting for unported network drivers.
+        chosen.props.extend((key, 0, value) for key, value in LEMON_MACS.items())
 
     # SWEET SMP: all eight cores in physical-core order (0-5 Cortex-A55,
     # 6-7 Cortex-A76), one homogeneous cluster. The kernel defaults to one

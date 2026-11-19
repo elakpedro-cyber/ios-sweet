@@ -2,7 +2,57 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: v13 lsd sampler INSTALLED/VERIFIED, rebooted; wait120s then collect log (2026-11-19)
+### ACTIVE: v13 pinpoints missing Wi-Fi identity; ADT-only v14 staged (2026-11-19)
+
+User returned TWRP after same logo/static tiny line. Read ONLY4.2MiB tail to
+research/lemon-v13-log.bin/.txt: SWEETLOG v1,total148895,flush30,no wrap.
+Samples0/1 have same lsd wait; no new core crashes (only driverkitd sig9 again).
+Genericized ignored research/symbolicate_v12.py to accept log path/regex and
+infer cache slide; v13 slide0x4b0c4000, lsd99 mh0x100308000.
+lsd t0 _LSInstallProgressService performJournalRecovery -> dispatch_sync,
+t2 restoreInactiveInstalls -> dispatch_group_wait, t4 clients waiting DB seeding.
+Worker t1: MIInstalledInfoGatherer -> MIExecutableBundle installationIdentity ->
+MIInstallationIdentity -> _GenerateBuiltInAppInstallSessionID+0x30 -> MobileGestalt
+deep callbacks -> dispatch_semaphore_wait forever. cfprefsd idle, not blocker.
+
+Disassembled exact PC cache (read-only) with aarch64 objdump, helper cache_read.py:
+InstalledContentLibrary _GenerateBuiltInAppInstallSessionID at0x1b11b9ee0 passes
+CFString0x1d8bc7708 to MGCopyAnswer: "re6Zb+zwFKJNlkQTUeT+/w" = UniqueDeviceID.
+Confirmed MD5/Base64("MGCopyAnswer"+"UniqueDeviceID") and primary key table
+https://github.com/PoomSmart/MGKeys/blob/master/deobfuscated.py .
+MG UniqueDeviceID callback then requests WifiAddress (hashgI6iODv8MZuiP0IA+efJCw),
+which requests WifiAddressData (hasheZS2J+wspyGxqNYZeZ/sbA). Current stack contains
+0x19c568938,0x19c571770,0x19c57c0f8,0x19c57c6e8,0x19c57c4bc (unslid).
+MGIOKitSupport.c worker is waiting for IOServiceMatched IONetworkController,
+walking IOService parents looking for local-mac-address. No networking driver.
+Read actual getter0x19c5716e8: BEFORE network-controller fallback it reads
+IODeviceTree:/chosen "mac-address-wifi0". BluetoothAddressData getter0x19c56883c
+likewise first reads chosen "mac-address-bluetooth0". Both absent in our ADT.
+Thus a minimal ADT identity supply can avoid hardware-service wait, no kernel patch.
+
+tools/mkadt.py now adds TWO6-byte locally administered unicast TEST identities
+to chosen for LEMON ONLY (including its QEMU profile), analogous to synthetic ECID.
+They are placeholders for userspace identity, NOT real Redmi MACs or network
+drivers; no Wi-Fi/BT hardware support claimed. Sweet profile unchanged.
+test-lemon-adt.py PASS6-byte binary type/length, unicast+local bits, distinctness,
+lemon hardware/QEMU profiles and no change to Sweet; existing RAM/GIC/etc PASS.
+
+Prepared boot-lemon-identity-v14.img16982016 bytes SHA256
+ccafcfa6f5827861163ef4265196f3362e04be3c24342f8393adf6426413863e.
+ADT shim/out/lemon-boot/lemon-identity-phone.adt (cloned OLD exact real-product
+ADT, appends only2 properties), payload-identity-phone.bin. Kernel SAME ca32...,
+v13 command line unchanged (keeps lsd sampler/null tee/quiet display/tail log).
+research/build_identity_boot_v14.py proves pruning2 properties restores exact
+old ADT; all kernel segments and cmdline unchanged. Boot header differs only
+payload size/Android checksum. Existing v2/gzip/DTB/load ranges/timer19 PASS.
+No kernel rebuild/CI needed for this ADT-only change. No actual phone success yet.
+Staged ONLY /tmp/boot-lemon-identity-v14.img, device SHA matches. Current v13 full
+boot9e4ace85... and original recovery/dtbo hashes verified. NO partition writes
+or reboot this turn. NEXT explicit approval for v14 boot-only write/reboot;
+collect screen and then tail log to see whether lsd passes identity/seeding.
+Keep4K root caches; do not reinstall root or change real network/persist data.
+
+### Previous: v13 lsd sampler INSTALLED/VERIFIED, rebooted; wait120s then collect log (2026-11-19)
 
 User explicitly approved "делай" for reviewed v13 boot-only write/reboot.
 Preflight TWRP, boot /dev/block/sde49 size134217728, staged SHA and old v12/

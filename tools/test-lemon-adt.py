@@ -33,7 +33,13 @@ for qemu in [False, True]:
     expected = (0x08000000, 0x080a0000) if qemu else (0x0f200000, 0x0f300000)
     assert (regs[0] + mkadt.SOC_BASE, regs[2] + mkadt.SOC_BASE) == expected
     assert gic.prop('virtual-timer-intid') == mkadt.u32(27 if qemu else 19)
+    macs = [chosen.prop(key) for key in ('mac-address-wifi0', 'mac-address-bluetooth0')]
+    assert all(value is not None and len(value) == 6 and value[0] & 3 == 2 for value in macs)
+    assert macs[0] != macs[1]
+assert all(child(mkadt.build(seed=b'\0' * 64), 'chosen').prop(key) is None
+           for key in ('mac-address-wifi0', 'mac-address-bluetooth0'))
 print('Minimal lemon ADT: RAM, panic region, one CPU, display, GIC and no UFS PASS')
+print('Lemon-only MobileGestalt identity: distinct six-byte locally administered unicast MACs PASS')
 
 if args.fdt:
     def get(path, property):
