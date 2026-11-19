@@ -10,6 +10,34 @@ parser.add_argument('--xnu', type=Path, required=True)
 args = parser.parse_args()
 source = (args.xnu / 'bsd/dev/lemon_touch.c').read_text()
 
+# Check the whole worker too: the executable MMIO mocks below test selected functions.
+syntax_header = r'''
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#define ARM64_BOARD_CONFIG_SWEET 1
+#define LEMON_4K 1
+#define KERN_SUCCESS 0
+#define NSEC_PER_MSEC 1000000
+#define THREAD_UNINT 0
+#define THREAD_CONTINUE_NULL 0
+typedef uintptr_t vm_offset_t, vm_size_t;
+typedef void *thread_t;
+typedef int kern_return_t, wait_result_t;
+extern void delay(unsigned), clock_interval_to_deadline(unsigned,unsigned,uint64_t *);
+extern int assert_wait_deadline(void *,int,uint64_t);
+extern void thread_block(void *), thread_deallocate(thread_t);
+extern thread_t current_thread(void);
+extern kern_return_t kernel_thread_start(void (*)(void *,wait_result_t),void *,thread_t *);
+extern int PE_parse_boot_argn(const char *,void *,unsigned);
+'''
+with tempfile.TemporaryDirectory() as folder:
+    c = Path(folder) / 'syntax.c'
+    c.write_text(syntax_header + re.sub(r'^#include <[^>]+>\n', '', source, flags=re.M))
+    subprocess.run(['cc','-std=c11','-fsyntax-only','-Wall','-Wextra','-Werror',str(c)],check=True)
+
 def function(name):
     match = re.search(r'(?:static )?(?:int|bool|void)\n' + name + r'\(', source)
     assert match, name

@@ -63,3 +63,12 @@
  		goto out;
  	}
  	printf("LEMON TOUCH: NT36672A ready CS0 poll=20ms 1080x2340\n");
+@@ -355,7 +378,7 @@
+ 		uint8_t report[66] = {0};
+ 		int x[10] = {0}, y[10] = {0};
+ 		unsigned mask = 0;
+-		err = lt_read(0, report + 1, 65);
++		int err = lt_read(0, report + 1, 65);
+ 		if (err) {
+ 			printf("LEMON TOUCH: SPI stopped err=%d irq=%#x\n", err, lt.irq);
+ 			lt_report(0, x, y);
