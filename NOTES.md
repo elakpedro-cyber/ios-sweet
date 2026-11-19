@@ -4,6 +4,12 @@
 
 ### Latest: v7 written and verified; collect physical UFS registers (2026-11-19)
 
+Physical user report: some "framework" startup text, then repeating
+SWEET init: still alive. Kernel/test userspace survived v7, but no UFS
+register values transcribed yet. Do NOT infer controller readiness from this.
+Hook is before rd=md0 branch in IOFindBSDRoot; inspect screen/photo first,
+lines may have been overwritten by repeated init output. No new write planned.
+
 User explicitly approved v7 boot-only write. Staged image and current v6
 boot/recovery/dtbo hashes rechecked before writing. Wrote16977920 bytes ONLY
 boot using dd conv=fsync + sync. Prefix SHA256 matches
