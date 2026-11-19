@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Latest: v10 boot-only installed/verified; next cache-path boot result (2026-11-19)
+
+User approved "делаем" for staged v10 boot-only retry. TWRP/staged v10 and
+current v9 boot/protected hashes matched. Wrote16982016 bytes ONLY boot,
+dd4096 conv=fsync+sync. Read-back prefix SHA exactly
+3cbf15273f788a0959c556b6dc6d970d8b5aac20f249021c61161613d859cdde.
+Full boot SHA256 4c4d7e70419b4a0e270685be9131acd2c2d8934e12859082fd6f8571be3e1bed.
+Recovery/dtbo original hashes unchanged. Existing iOS rootfs preserved;
+no userdata write this step. Next reboot, photo/last lines after30-60s;
+look for dyld/cache failure versus launchd progress. No assumed fix yet.
+
 ### Latest: v9 Apple dyld fails shared-cache load; v10 cache-path test staged (2026-11-19)
 
 Physical photo v9: initproc failed to start, exit namespace6/subcode1,
