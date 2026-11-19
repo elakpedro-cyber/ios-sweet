@@ -2,7 +2,20 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### Latest: XNU v6 written and verified; next reboot/read screen (2026-11-19)
+### Latest: PHYSICAL XNU v6 reaches test userspace and stays alive (2026-11-19)
+
+User read on phone: "SWEET CPU: cpu=0 mpidr=0x0 came alive; SGI1 OK",
+copyright lines, then repeating "SWEET init: still alive".
+This is the first physical full XNU success on lemon: the bundled test init
+runs beyond the former initCPU hang and repeatedly resumes after sleep.
+It is our small test userspace, not an iOS UI/root filesystem. No physical
+PID1 banner was transcribed, but repeating text comes from our test init.
+Phone currently running v6; no TWRP return requested, no further device write.
+Recovery remains preserved by pre/post-write hash checks. Keep v6 installed
+per user preference. Next port milestone: assess real userspace/rootfs and
+remaining unimplemented hardware drivers; do not infer those work from init.
+
+### Previous: XNU v6 written and verified (2026-11-19)
 
 User explicitly approved v6. Rechecked staged image and v5/current boot,
 recovery/dtbo before writing. Wrote 16977920 bytes ONLY boot, dd conv=fsync
@@ -10,8 +23,7 @@ and sync. Read-back image prefix SHA256 matches exactly
 7e0846f3385edc533aee0a0ed71d5ba662ba4b650c80439d961136a1e652b323.
 Full boot SHA256 0ca20d0bca5a202e3a42f38e7530aa580777f8190978e71368fe4cb1acb0cd93.
 Recovery/dtbo retain original hashes. No original restore per user preference.
-Next reboot, collect latest screen lines after 30 seconds, especially SGI1,
-CPUs initialized, PID1 or panic. Physical full XNU result not yet observed.
+Reboot completed; physical result recorded above.
 
 ### Previous: full XNU v6 built, QEMU PID1 verified, staged pending approval (2026-11-19)
 
