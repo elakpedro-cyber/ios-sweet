@@ -2,6 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### Active: PHYSICAL v8 reads correct GPT; preparing real UFS root mode (2026-11-19)
+
+Photo v8: LEMON UFS READ result=0,LUN=0,first=0x20d918,blocks=12347107,
+then own PID1/still-alive. EXACT match to TWRP GPT/sysfs. XNU DMA/SCSI READ
+on this phone is now proven. User returned to TWRP and clarified phone is
+completely empty (no Android personal data to preserve). No userdata write yet.
+
+Optional0015 prepares root on verified userdata, gated lemonufsroot=1.
+Default/diagnostic stays read-only. Kernel permits WRITE10 + SYNCHRONIZE_CACHE
+only in root mode AND after su.writable enabled with exact ufsrw=1, after disk
+registration and pinned LUN0/first0x20d918/count12347107 geometry check.
+Any other named partition rejected before controller use; existing writer
+checks all write ranges against partition bounds. Nonlemon behavior preserved.
+Actual-function ASan/UBSan tests PASS: opt-in0/2/1, all256 command opcodes and
+directions in diagnostic/RO/RW modes, wrong LUN/extent, valid first/last writes,
+outside/crossing/zero/oversized/overflow writes rejected without mock transport,
+rootmode/ufsrw0/1/2 gating. Full CI next. Prepare actual HFS-root QEMU test
+and a concrete PC rootfs installation script before asking approval to write
+userdata + new boot. Do not write until that explicit confirmation.
+
 ### Latest: v8 installed and verified; next reboot/read GPT result (2026-11-19)
 
 After reviewing prepared v8, user instructed "продолжи". Continued with v8

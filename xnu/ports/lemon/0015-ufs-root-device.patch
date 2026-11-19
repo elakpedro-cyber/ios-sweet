@@ -1,0 +1,94 @@
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -114,6 +114,10 @@
+ 	bool ready;
+ } su;
+ 
++#if defined(LEMON_4K)
++static bool lemon_ufs_root;
++#endif
++
+ static LCK_GRP_DECLARE(sweet_ufs_grp, "sweet_ufs");
+ static LCK_MTX_DECLARE(sweet_ufs_lock, &sweet_ufs_grp);
+ 
+@@ -149,8 +153,21 @@
+ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ {
+ #if defined(LEMON_4K)
+-	/* Bring-up may issue only TEST UNIT READY and READ(10), never data-out. */
+-	if (write || !cdb_len || (cdb[0] != 0x00 && cdb[0] != 0x28)) {
++	/* Diagnostics remain read-only. Root writes require a validated writable disk. */
++	if (!cdb_len) {
++		return EROFS;
++	}
++	if (cdb[0] == 0x00 || cdb[0] == 0x28) {
++		if (write) {
++			return EROFS;
++		}
++	} else if (!lemon_ufs_root || !su.writable) {
++		return EROFS;
++	} else if (cdb[0] == 0x2a) {
++		if (!write) {
++			return EROFS;
++		}
++	} else if (cdb[0] != 0x35 || write) {
+ 		return EROFS;
+ 	}
+ #endif
+@@ -611,7 +628,10 @@
+ 	}
+ 	uint32_t readtest = 0;
+ 	PE_parse_boot_argn("lemonufsread", &readtest, sizeof(readtest));
+-	if (readtest != 1) {
++	uint32_t rootmode = 0;
++	PE_parse_boot_argn("lemonufsroot", &rootmode, sizeof(rootmode));
++	lemon_ufs_root = (rootmode == 1);
++	if (readtest != 1 && !lemon_ufs_root) {
+ 		return ENXIO;
+ 	}
+ #endif
+@@ -636,6 +656,11 @@
+ 	}
+ #endif
+ 	PE_parse_boot_argn("ufsroot", want, sizeof(want));
++#if defined(LEMON_4K)
++	if (strcmp(want, "userdata") != 0) {
++		return EINVAL;
++	}
++#endif
+ 	uint32_t rw = 0;
+ 	PE_parse_boot_argn("ufsrw", &rw, sizeof(rw));
+ 	uint32_t cache = 0, wait = 0;
+@@ -671,10 +696,18 @@
+ 	}
+ 	lck_mtx_unlock(&sweet_ufs_lock);
+ #if defined(LEMON_4K)
++	/* Pin this phone's verified userdata extent before exposing a writable disk. */
++	if (!error && (su.lun != 0 || su.first_block != 0x20d918ULL ||
++	    su.nblocks != 12347107ULL)) {
++		printf("LEMON UFS: unexpected userdata geometry\n");
++		error = ENXIO;
++	}
+ 	printf("LEMON UFS READ: result=%d LUN=%u first=0x%llx blocks=%llu\n",
+ 	    error, su.lun, su.first_block, su.nblocks);
+-	/* Report only. Do not register a root disk or enable any writable services. */
+-	return error ? error : ENXIO;
++	if (!lemon_ufs_root) {
++		/* Diagnostic only: no disk registration or writable services. */
++		return error ? error : ENXIO;
++	}
+ #endif
+ 	if (error) {
+ 		return error;
+@@ -692,7 +725,11 @@
+ 	devfs_make_node(su.bdev, DEVFS_BLOCK, UID_ROOT, GID_OPERATOR, 0640, "ufsroot0");
+ 	devfs_make_node(makedev(su.cmajor, 0), DEVFS_CHAR, UID_ROOT, GID_OPERATOR, 0640, "rufsroot0");
+ 	/* Only now, with the partition bounds known, can writes be allowed. */
++#if defined(LEMON_4K)
++	su.writable = lemon_ufs_root && (rw == 1);
++#else
+ 	su.writable = (rw != 0);
++#endif
+ 	su.ready = true;
+ 	printf("SWEET UFS: \"%s\" on LUN %u: first block 0x%llx, %llu MiB, %s, DMA at 0x%llx\n",
+ 	    want, su.lun, su.first_block, su.nblocks * UFS_BLOCK >> 20,

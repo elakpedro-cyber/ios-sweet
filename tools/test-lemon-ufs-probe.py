@@ -15,6 +15,7 @@ start = io.index('#if defined(LEMON_4K)', io.index('//\tSWEET: root on a GPT'))
 hook = io[start:io.index('#endif', start)] + '#endif\n'
 test = r'''
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,11 +28,13 @@ test = r'''
 #define REG_UTRLRSR 0x60
 typedef uintptr_t vm_offset_t;
 typedef int dev_t;
-static uint32_t regs[0x3000/4], saved[0x3000/4], option;
+static uint32_t regs[0x3000/4], saved[0x3000/4], option, read_option, root_option;
 static int maps, calls, fail_mapping;
+static bool lemon_ufs_root;
 static void PE_parse_boot_argn(const char *key, uint32_t *p, unsigned size) {
     assert(size == 4);
-    if (!strcmp(key, "lemonufsread")) { *p = 0; return; }
+    if (!strcmp(key, "lemonufsread")) { *p = read_option; return; }
+    if (!strcmp(key, "lemonufsroot")) { *p = root_option; return; }
     assert(!strcmp(key, "lemonufsprobe")); *p = option;
 }
 static vm_offset_t ml_io_map(uintptr_t base, unsigned size) {
@@ -55,6 +58,10 @@ int main(void) {
     assert(!memcmp(regs, saved, sizeof(regs)));
     fail_mapping=1; root_hook(); assert(maps==2 && calls==2);
     assert(!memcmp(regs, saved, sizeof(regs)));
+    option=0; root_option=2; assert(probe()==ENXIO && !lemon_ufs_root);
+    root_option=1; assert(probe()==0 && lemon_ufs_root);
+    root_option=0; read_option=1; assert(probe()==0 && !lemon_ufs_root);
+    assert(maps==2 && !memcmp(regs, saved, sizeof(regs)));
     puts("PASS: opt-in hook, exact MMIO range, no register writes, mapping failure");
 }
 '''.replace('BODY', body).replace('HOOK', hook)
