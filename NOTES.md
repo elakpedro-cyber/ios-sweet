@@ -2,7 +2,23 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: v12 log identifies LaunchServices wait; v13 lsd sampler staged (2026-11-19)
+### ACTIVE: v13 lsd sampler INSTALLED/VERIFIED, rebooted; wait120s then collect log (2026-11-19)
+
+User explicitly approved "делай" for reviewed v13 boot-only write/reboot.
+Preflight TWRP, boot /dev/block/sde49 size134217728, staged SHA and old v12/
+protected hashes matched. Wrote16982016 bytes ONLY boot, dd4096 conv=fsync+sync.
+Readback prefix SHA exactly85e89ee91d2f9ff3aeb4c3acb1c4619f53d63087277d1d1fd9fd5cb0d961c652.
+Full boot SHA2569e4ace850d6f4c26dc09fce9a3aa2430fca004674c788393fd795ac3db45b088.
+Recovery/dtbo original hashes unchanged. No manual rootfs/cache/userdata writes.
+Issued adb reboot successfully. NEXT wait~120s (first sampler90s + logger10s),
+then if still Apple logo return TWRP, replug only if ADB absent. Read ONLY tail
+4198400 bytes (skip12346082 count1025 bs4096) into research/lemon-v13-log.bin,
+decode to .txt with tools/sweet-log.py. Inspect SMP lsd/cfprefsd/installd along
+with SpringBoard/backboardd, then symbolicate using matching cache .symbols.
+v12 complete log retained in research; v13 will overwrite device tail normally.
+No GUI fix claimed: this run diagnoses observed LaunchServices synchronous wait.
+
+### Previous: v12 log identifies LaunchServices wait; v13 lsd sampler staged (2026-11-19)
 
 User saw Apple logo with tiny stationary element, waited, returned TWRP.
 ADB recovery connected. Read ONLY4198400 bytes userdata tail block12346082;
