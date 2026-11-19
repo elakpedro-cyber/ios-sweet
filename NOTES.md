@@ -22,6 +22,7 @@ Existing0013 diagnostic/hook test updated for read-test-off default, PASS.
 Repo syntax29Python/12shell/81basepatches PASS. Next full CI, A53 QEMU default
 OFF, concrete v8 phone image with explicit approval before boot-only write.
 Rootfs remains PC-only; no userdata writes. Existing v7 remains installed.
+CI44514064375 (051b6ed) started; ADB confirms recovery. Await full build result.
 
 ### Latest: v7 written and verified; collect physical UFS registers (2026-11-19)
 
