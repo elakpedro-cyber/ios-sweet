@@ -2,6 +2,33 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### READY: touch CI SUCCESS; v15 snapshot staged, awaiting boot approval (2026-11-19)
+
+CI44609929903 for70642f3 SUCCESS, including full XNU link and actual touch
+decoder/FIFO/gate tests. Kernel downloaded ONLY xnu-kernel (not buildtree) to
+xnu/out-touch-kernel/kernel.development.sweet, SHA256
+9fe189b564ca1e497efc7b56c5688094e87261131c7b77b943c9cdf16f0fb73e,
+matches artifact SHA256SUMS. Linked driver strings/boot flag present.
+research/build_touch_boot.py packaged two16998400byte Androidv2 images:
+- shim/out/lemon-boot/boot-lemon-touch-probe-v15.img, lemontouch=1,
+  SHA2563d607568355c7dd577cb7cac703b9b2701f3daff2e65b63d8b9e07364576c104.
+- shim/out/lemon-boot/boot-lemon-touch-active-v16.img, lemontouch=2,
+  SHA2561839c1ec9b31e9c7ef6e88ec2a11ce5dc7709a8266080653df3202f096a44b43.
+Payloads payload-touch-probe-phone.bin/payload-touch-active-phone.bin retain
+exact v14 identityADT and cmdline plus ONLY lemontouch flag; new kernel. Boot
+header/load addresses/known DTB/gzip shim/4K payload/ranges/timer19 all verified.
+Staged ONLY v15 in recovery /tmp/boot-lemon-touch-probe-v15.img, device SHA
+matches. ADB recovery, boot link /dev/block/sde49, battery56. No partition write
+or reboot. Latest full boot hash remainscf01389b... (v14); recovery/dtbo match
+original full hashes (read this turn). All changes committed/pushed to fork.
+
+NEXT obtain explicit approval for concrete boot-only v15 write/reboot per
+AGENTS.md. Write dd4096 conv=fsync+sync only boot; verify16998400byte prefix
+and protected hashes before reboot. First test is read-only MMIO snapshot,
+not yet expected functional touch. ReturnTWRP/read4.2MiB tail, grep LEMON TOUCH
+to assess SE clocks/protocol before choosing same-kernel active v16. No firmware
+upload/reset implemented; hardware input still UNPROVEN. Keep root/recovery.
+
 ### ACTIVE: NT36672A touch driver prepared; phone in TWRP (2026-11-19)
 
 User requested actual touchscreen after v14 lock-screen success, returned TWRP.
