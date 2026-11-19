@@ -1,0 +1,65 @@
+--- a/bsd/dev/lemon_touch.c
++++ b/bsd/dev/lemon_touch.c
+@@ -319,6 +319,40 @@
+ 	lt.active = mask;
+ }
+ 
++/* A single early read may precede firmware readiness. Never relax identity checks. */
++static bool
++lt_identify(void)
++{
++	for (unsigned attempt = 0; attempt < 20; attempt++) {
++		uint8_t state[5] = {0}, pair[2] = {0}, info[16] = {0}, pid[2] = {0};
++		int err = lt_page(LT_EVENT);
++		if (!err) err = lt_read(0x60, state, sizeof(state));
++		if (!err) err = lt_read(0x78, pair, sizeof(pair));
++		if (!err) err = lt_read(0x78, info, sizeof(info));
++		if (!err) err = lt_page(LT_EVENT + 0x9a);
++		if (!err) err = lt_read(0x9a, pid, sizeof(pid));
++		/* Restore report page before waiting or accepting firmware. */
++		if (!err) err = lt_page(LT_EVENT);
++		printf("LEMON TOUCH: identity try=%u err=%d irq=%#x reset=%02x:%02x:%02x:%02x:%02x short=%02x:%02x pid=%02x%02x\n",
++		    attempt + 1, err, lt.irq, state[0], state[1], state[2], state[3], state[4],
++		    pair[0], pair[1], pid[1], pid[0]);
++		printf("LEMON TOUCH: raw FW=%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
++		    info[0], info[1], info[2], info[3], info[4], info[5], info[6], info[7],
++		    info[8], info[9], info[10], info[11], info[12], info[13], info[14], info[15]);
++		if (err) {
++			return false; /* Do not retry a failed SPI transport. */
++		}
++		if (info[0] == 5 && (unsigned)info[0] + info[1] == 255 &&
++		    pair[0] == info[0] && pair[1] == info[1] &&
++		    pid[0] == 0x40 && pid[1] == 0x59 &&
++		    ((info[4] << 8) | info[5]) == 1080 && ((info[6] << 8) | info[7]) == 2340) {
++			return true;
++		}
++		if (attempt != 19) lt_wait(100);
++	}
++	return false;
++}
++
+ static void
+ lt_thread(void *arg, wait_result_t result)
+ {
+@@ -334,19 +368,8 @@
+ 	if (mode == 1 || !lt_setup()) {
+ 		goto out;
+ 	}
+-	uint8_t info[16] = {0}, pid[2] = {0};
+-	int err = lt_page(LT_EVENT + 0x78);
+-	if (!err) err = lt_read(0x78, info, sizeof(info));
+-	if (!err) err = lt_page(LT_EVENT + 0x9a);
+-	if (!err) err = lt_read(0x9a, pid, sizeof(pid));
+-	if (!err) err = lt_page(LT_EVENT);
+-	printf("LEMON TOUCH: retained FW err=%d version=%u complement=%#x pid=%02x%02x size=%ux%u irq=%#x\n",
+-	    err, info[0], info[1], pid[1], pid[0], (info[4] << 8) | info[5],
+-	    (info[6] << 8) | info[7], lt.irq);
+-	if (err || info[0] != 5 || (unsigned)info[0] + info[1] != 255 ||
+-	    pid[0] != 0x40 || pid[1] != 0x59 ||
+-	    ((info[4] << 8) | info[5]) != 1080 || ((info[6] << 8) | info[7]) != 2340) {
+-		printf("LEMON TOUCH: no validated firmware handoff; no reset/upload attempted\n");
++	if (!lt_identify()) {
++		printf("LEMON TOUCH: no validated firmware handoff after bounded readiness check; no reset/upload attempted\n");
+ 		goto out;
+ 	}
+ 	printf("LEMON TOUCH: NT36672A ready CS0 poll=20ms 1080x2340\n");

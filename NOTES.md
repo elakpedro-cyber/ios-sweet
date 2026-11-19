@@ -2,6 +2,43 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE: v16 SPI responds but FW info invalid; readiness patch0018 (2026-11-20)
+
+User returned TWRP; read ONLY4198400byte tail to research/lemon-v16-log.bin/.txt,
+SWEETLOG total170993/flush13. Active setup succeeded: awake FW register0x102,
+status0; retained read err0, version160/complement04, PID5940, geometry35584x0,
+IRQ40000001. Worker refused input as designed. Actual touch still not working.
+User confirms TWRP touch works. Its fresh initial firmware update logs FW5/PID5940,
+but later /proc/nvt_fw_version also fails (FF/FF), while PID query5940 succeeds.
+Thus invalid metadata is not proof of lost sensor SRAM firmware.
+
+Read local recovery backup into ignored research/twrp-Image,30978064bytes SHA
+4e9946d0160031469fe1d664e75d1e282539ca92dddd21349bd34188154ccdba.
+Binary trim0Axxxx726603 at16c1d48 points to map16c1f9c, event base21c00;
+get_fw_info code7f8b70 uses offset78/read17. CTP read7f7de0 clears bit7.
+Actual vendor Truly file pulled118784bytes, SHA36dccc95785b40bb5bc0cc4764bc80dc066ce358dd7fb3c1afebaca670b9276f;
+metadata at1a000 is06/f9, unlike runtime5. Do not upload this based on name alone.
+
+DIAGNOSTIC ERROR/RECOVERY: ignored research/nvt-read-info.c initially inverted
+NVTSPI direction flag. Source enum is WRITE0/READ1; first helper inadvertently
+sent zero writes to volatile sensor event memory instead of reads (no phone
+partition write or firmware-flash command). Disclosed to user immediately,
+corrected direction, executed adb reboot recovery; fresh TWRP initialized/reset
+and successfully reloaded its firmware (FW5/PID5940). Tested helper on host;
+live page-only counter delta messages1/RX0/TX3 confirms corrected WRITE flag.
+Later corrected bounded reads (only page-select writes) still returned unstable
+metadata; not reliable evidence of firmware absence. No more NVTSPI probing
+needed; use driver single-owner diagnostics. Helper is temporary/ignored.
+
+Patch0018 adds bounded20x100ms readiness, reset-state/short+full metadata/PID logs,
+keeps strict FW5/complement/PID/geometry gates, requires short/full agreement,
+stops immediately on SPI error. No reset/power/upload. Actual helper tests pass
+ASan/UBSan: delayed readiness, disagreement, wrong PID/geometry/complement,
+bounded invalid state, transport error, restored event page. CI not yet launched.
+NEXT push/build, package same v14 ADT with new kernel+lemontouch2 as v17, verify,
+stage /tmp then obtain explicit boot-only write/reboot approval. Installed v16
+full boot remains e975d1e1...; recovery/root preserved. No new boot written.
+
 ### v16 RESULT: user reports no touch; waiting TWRP/log (2026-11-20)
 
 User selected "Касания не работают" after v16 swipe test. No claim of working

@@ -31,6 +31,21 @@ First physical test should use snapshot mode and read the small persistent log
 after returning TWRP. The same kernel contains active mode for a subsequent
 boot; successful offline tests are not proof of physical input support.
 
+Physical v15: wrapper clocks run, SE2 is gated and SPI pins are not selected.
+v16: narrow setup starts GENI SPI (FW register0x102), transport returns success
+and PID5940, but FW info is invalid (a0:04, geometry35584x0). The worker stops
+and the user reports no touch. This does not establish that SRAM firmware is
+missing: even TWRP's later version query fails while the user confirms its touch
+works. Initial recovery firmware upload does report FW5/PID5940. Actual recovery
+binary trim-table/map confirm event base0x21c00. Do not guess a new base or upload
+the available Truly image (file metadata6, observed runtime5; mismatch unresolved).
+
+Patch0018 checks readiness at most20times,100ms apart, and logs reset-state bytes,
+short and full FW-info reads and PID. It retains all version/complement/geometry/
+PID gates and additionally requires short/full version agreement. SPI transport
+failure still stops immediately. This is a bounded diagnostic/retry change,
+not a demonstrated fix or permission to reset/upload firmware.
+
 Primary register/protocol references (read locally during implementation):
 Xiaomi NT36672A and spi-geni-qcom sources, commit
 02ca1a919564a9b176a79cce09c40977f833e9ac in
