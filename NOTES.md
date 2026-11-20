@@ -2,6 +2,32 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### READY: v19 CI success, staged/verified; awaiting boot approval (2026-11-20)
+
+CI44708711146 for6a8f449 SUCCESS (build + native actual-driver tests). Local
+gh artifact download hit TLS timeout twice. Used GitHub connector's dedicated
+download_workflow_artifact, repoelakpedro-cyber/ios-sweet artifact14616387841;
+downloaded returned temporary file URL to ignored research/v19-xnu-kernel.zip
+(66780460bytes), extracted ONLY kernel.development.sweet and SHA256SUMS into
+xnu/out-touch-live-kernel. Kernel SHA256
+a36dd239863cbbfe30b89d599903bffad6a5985f62762fb03e69147438caf62b
+matches artifact checksum. Linked fallback and motion strings present.
+research/build_touch_boot.py live packaged16998400byte
+shim/out/lemon-boot/boot-lemon-touch-live-v19.img SHA256
+f4fb3a6ca4c63648ac426ce49a7cdb6b3ae681e73414c93ffb0c56717f400316,
+payload-touch-live-phone.bin. IdentityADT/settings same as v14+lemontouch2;
+new kernel only. Androidv2/knownDTB/gzipshim/4Kloadranges/timer19 PASS.
+Staged /tmp/boot-lemon-touch-live-v19.img, device SHA matches. ADB recovery,
+boot link sde49 size134217728, current fullboot42681fe0... (v18) and original
+recovery/dtbo rechecked/matched. Only4096bytes userdata read for HFSX header:
+signature valid. No partition write/reboot or sensor reset/upload this turn.
+NEXT obtain explicit concrete v19 boot-only write/reboot approval; prior unattended
+authorization applied v18. Then dd16998400bytes boot+fsync/sync, verify4150block
+prefix and protected hashes, reboot. User slow swipe to provide live movement;
+first valid movement confirms fallback. Physical iOS touch still UNPROVEN.
+If no response, returnTWRP/read4.2MiB tail for stablePID/reportmode/checkedcontact/
+movementconfirmed/HID logs. Preserve installed root/recovery and current backups.
+
 ### ACTIVE: v18 no touch; real TWRP packets validate metadata fallback for v19 (2026-11-20)
 
 User corrected initial "Есть реакция": NO touch in v18. Returned TWRP, USB absent
