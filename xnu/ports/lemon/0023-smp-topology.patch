@@ -1,0 +1,31 @@
+--- a/iokit/Kernel/arm/SweetCPU.cpp
++++ b/iokit/Kernel/arm/SweetCPU.cpp
+@@ -73,16 +73,28 @@
+ 	if (*(const uint32_t *)reg->getBytesNoCopy() != cpu->phys_id) {
+ 		return false;
+ 	}
++#if defined(LEMON_4K)
++	/* SM6115 MPIDR: Aff1 = cluster (0 Cortex-A53, 1 Cortex-A73), Aff0 = core 0-3.
++	 * GICR lookup, SGI routing, the reset vector and ml_get_cpu_number()
++	 * all match the full Aff1:Aff0 value; nothing indexes by Aff1 alone. */
++	if ((cpu->phys_id & ~0x103U) != 0 ||
++	    topology->num_cpus > SWEET_SMP_MAX_CPUS) {
++#else
+ 	/* MPIDR Aff1 = core: 0x000-0x500 A55, 0x600/0x700 A76 */
+ 	if (cpu->phys_id > 0x700 || (cpu->phys_id & 0xff) != 0 ||
+ 	    topology->num_cpus > SWEET_SMP_MAX_CPUS) {
++#endif
+ 		panic("SWEET CPU: invalid topology cpu=%u mpidr=0x%x count=%u",
+ 		    cpu->cpu_id, cpu->phys_id, topology->num_cpus);
+ 	}
+ 	if (!IOCPU::start(provider)) {
+ 		return false;
+ 	}
++#if defined(LEMON_4K)
++	cpuName = OSSymbol::withCStringNoCopy("Kryo 260");
++#else
+ 	cpuName = OSSymbol::withCStringNoCopy("Kryo 470");
++#endif
+ 	if (cpuName == NULL) {
+ 		return false;
+ 	}

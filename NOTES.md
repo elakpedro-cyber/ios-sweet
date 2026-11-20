@@ -2,7 +2,77 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: temporary CPU-graphics optimization requested; v21 building (2026-11-20)
+### ACTIVE: v22 opt-in SMP (boot A53 + four A73) prepared; CI next (2026-11-20)
+
+User approved preparing SMP ("Да, готовь SMP"). Audited CI44717407897 build tree:
+GICR lookup (pe_fiq find_gicr_pe_base), SGI1R routing (SweetCPU::signalCPU uses
+target Aff1/Aff0), start.s reset search (#0xFFFF vs cpu_phys_id) and
+ml_get_cpu_number all use full Aff1:Aff0; LOAD_PMAP_CPU_DATA (cluster_offsets)
+is PPL-only and was unused on sweet SMP. Only blocker: SweetCPU::start's Sweet
+MPIDR rule (Aff0 must be 0) would panic on lemon 0x001..0x003/0x100..0x103.
+xnu/ports/lemon/0023-smp-topology.patch (CI 0104): LEMON_4K rule
+(phys_id & ~0x103)==0, name "Kryo 260". Kernel is -mcpu=cortex-a53 ARMv8.0,
+valid on A73. tools/lemon_smp_adt.py expands real phone ADT /cpus to
+0x000,0x100-0x103,0x001-0x003 (only /cpus changes, new unique phandles);
+tools/test-lemon-smp.py PASS on patched files + real perf ADT, FAILS on
+unpatched tree; added to workflow. research/build_smp_boot.py [CPUS] (default5)
+dry-run PASS with v21 kernel (output discarded; v21 kernel would panic with this
+ADT). v22 args = v21 minus 15Hz, + cpus=5 sweetfb_vsync_hz=30 sweetfb_hz=30.
+NEXT commit/push, CI, download artifact to xnu/out-smp-kernel, build, stage,
+concrete boot-write approval. Expect "SWEET CPU: cpu=N came alive" x5 in log.
+Risk: secondary start hang -> panic naming cpu; lemon drivers never ran SMP.
+
+### v21 RESULT: no felt improvement; bottleneck is userspace CPU rendering (2026-11-20)
+
+User: "Так же или хуже". Phone returned TWRP; read ONLY 4198400byte userdata tail
+(sda11 50573750272bytes, skip12346082; TWRP sh 32-bit arithmetic overflows, compute
+offset on host) -> research/lemon-v21-log.bin/.txt, total154881/flush18.
+26 LEMON PERF lines: vsyncs 73-75/5s (=15Hz pacing works); frames mostly 0,
+interactive peaks 2,6,4,15,1,3 per 5s => <=3 fps presented; present_ms ~5.4ms per
+frame (82ms/15 frames). Kernel copy is NOT the bottleneck; CoreAnimation software
+render on ONE CPU is. No crash loops (driverkitd sig9 x3, sel x3 only). Log:
+"SWEET CPU: requested=1 selected=1 (limit=8)", boot CPU mpidr0x0 = little A53
+cluster on SM6115. 15Hz cap and +256MiB RAM don't help a CPU-bound renderer.
+Biggest lever: SMP on lemon, esp. A73 big cores (DT MPIDR 0,1,2,3,100..103;
+Sweet SMP code assumes Aff1 numbering 0,100..700, docs/LEMON_4K.md says keep
+cpus=1 until lemon topology handled). Secondary: CPU clock (unknown, ABL-left).
+v21 currently installed (boot d4bde338...); functionally same as v20.
+
+### INSTALLED: v21 performance boot, rebooted; awaiting user feel/LEMON PERF (2026-11-20)
+
+Second PC, adb (Android SDK platform-tools) sees lemon in recovery. Preflight:
+boot /dev/block/sde49 134217728bytes, full boot fad51c7b... (v20), recovery
+1737005c..., dtbo 6fd8b752..., battery60. Staged /tmp v21 SHA matched. User
+explicitly approved write ("Да, записывай"). Guarded script wrote ONLY16998400
+bytes dd bs4096 + sync. Readback4150block prefix SHA 806f8212... matches v21.
+New full boot SHA256 d4bde338d49e46a858dda4f1d40fefbc5093f600faa861c3c2d96e20468e9373.
+recovery/dtbo unchanged. adb reboot issued. Rollback: write
+shim/out/lemon-boot/boot-lemon-touch-grace-v20.img (a3e7e8d2...) the same way.
+NEXT user reports responsiveness; return TWRP, read 4198400byte userdata tail to
+research/lemon-v21-log.bin/.txt, extract LEMON PERF frames/elapsed/present_ms.
+
+### READY: v21 performance boot PACKAGED on second PC; not staged (2026-11-20)
+
+Work moved to second PC (C:\Users\Ya\Desktop\ios-sweet\ios-lemon), copied by SSH
+from home PC workspace (Downloads\platform-tools_r37.0.1-windows\ios-lemon):
+.git, tracked tree, research/ (without ci-* logs and *.zip), shim/out/lemon-perf,
+v20 assets of shim/out/lemon-boot, dtb/boot-current, xnu/out-touch-grace-kernel,
+../Redmi9T-Native-Linux/tools/mkbootimg.py+gki. backup/ NOT copied (stays home).
+CI44717407897 (21f58a1) SUCCESS; xnu-kernel artifact14620588673 via nightly.link,
+kernel SHA256 73e4450a1b4092abdd7f23877fc04f58c6f4751557a42476c8340ed7867ba6f9
+matches SHA256SUMS; sweetfb_vsync_hz/sweetfb_stats/LEMON PERF strings present.
+Copied v20 image SHA a3e7e8d2... matches. research/build_perf_boot.py run with
+Windows Python: all asserts PASS -> shim/out/lemon-perf/boot-lemon-performance-v21.img
+16998400bytes SHA256
+806f8212b7720a41e593f4a66b9f9737deb61927aaa3c44fbe084fbba013fa38,
+loader SHA 28a527c4407e242949b2b06b351115b4d125ac577daa1603fa5ae1df17d6a73c.
+Cmdline = v20 + sweetsample=- sweetnull=- sweetfb_vsync_hz=15 sweetfb_hz=15
+sweetfb_stats=1. test-lemon-perf.py not rerun locally (CI ran it). Second PC has
+no git/gh/adb/WSL yet; nothing committed. No phone contact/write this session.
+NEXT install tools, stage image via TWRP, preflight hashes, get concrete
+boot-only write/reboot approval, then collect LEMON PERF lines + user feedback.
+
+### Previous: temporary CPU-graphics optimization requested; v21 building (2026-11-20)
 
 User requests reducing lag without waiting for Adreno/Metal; phone returned TWRP.
 ADB connected. Read ONLY4198400byte v20 tail to research/lemon-v20-log.bin/.txt,
