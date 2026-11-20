@@ -4,6 +4,15 @@
 
 ### A610 READ-ONLY KERNEL CHECKPOINT PREPARED; no build/flash yet (2026-11-20)
 
+PHONE TEST STARTED: user explicitly said "запускай". research/flash_v24.py
+verified prior full boot v23 SHA df269ab5..., exact boot target/size, recovery
+and dtbo checksums. Flashed ONLY boot with v24, prefix readback SHA matches
+6bde139f36c090a6fb1442c7177a79b608abb1718b332f8a435935053f6e19ce.
+New full boot SHA05f02aae6d650336d12290af78ad6e3b508a91a23d046aa4e5440cc2ca27a3ca.
+Recovery/dtbo unchanged; userdata untouched. adb reboot command sent.
+Next: let kernel boot 40-60 seconds, return to TWRP, read persistent log
+LEMON GPU PROBE lines. Actual screen/snapshot not yet observed.
+
 RESULT: run44801353816 completed SUCCESS at source741404a; GPU checkpoint
 CI test also success. Downloaded xnu-kernel to xnu/out-gpu-probe-kernel.
 Kernel SHA256SUMS verified, ARM64 Mach-O and GPU marker checked:
