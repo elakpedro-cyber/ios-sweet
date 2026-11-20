@@ -1,0 +1,42 @@
+--- a/bsd/dev/lemon_touch.c
++++ b/bsd/dev/lemon_touch.c
+@@ -28,6 +28,7 @@
+ 	bool started;
+ 	unsigned depth, active;
+ 	uint32_t irq;
++	uint64_t release_deadline;
+ 	int x[10], y[10];
+ } lt;
+ static int lt_wait_chan;
+@@ -324,6 +325,20 @@
+ 	lt.active = mask;
+ }
+ 
++/* A corrupt sample is not a finger-up. Bound stale contacts to100ms. */
++static void
++lt_expire_contacts(void)
++{
++	if (!lt.active) return;
++	uint64_t now;
++	clock_get_uptime(&now);
++	if (now >= lt.release_deadline) {
++		int x[10] = {0}, y[10] = {0};
++		printf("LEMON TOUCH: releasing stale contacts after100ms without a valid report\n");
++		lt_report(0, x, y);
++	}
++}
++
+ /* A single early read may precede firmware readiness. Never relax identity checks. */
+ static int
+ lt_identify(void)
+@@ -434,8 +449,9 @@
+ 				printf("LEMON TOUCH: invalid report err=%d first=%02x:%02x bad=%u\n",
+ 				    err, report[1], report[2], bad);
+ 			}
+-			lt_report(0, x, y);
++			lt_expire_contacts();
+ 		} else {
++			clock_interval_to_deadline(100, NSEC_PER_MSEC, &lt.release_deadline);
+ 			if (guarded) {
+ 				if (mask && candidate_frames++ < 3) {
+ 					printf("LEMON TOUCH: checked contact awaiting movement mask=%#x\n", mask);

@@ -26,8 +26,9 @@ frames with the same active contacts show actual movement. A first slow swipe
 confirms this path; static/corrupt replies do not activate it. It selects the
 event pages, reads reports and checks checksum, contact IDs and coordinates;
 no chip reset, power change, SRAM firmware/configuration upload or flash write.
-Readable unsupported firmware or transport failure stops the worker. Invalid reports release
-contacts; initial stale frames do not permanently disable input. Poll20ms, no
+Readable unsupported firmware or transport failure stops the worker. Invalid reports
+are discarded; patch0021 releases stale contacts after100ms without a valid report,
+while valid finger-up remains immediate. Initial stale frames do not permanently disable input. Poll20ms, no
 GIC interrupt registration. Touch reports use the existing SweetHID service;
 LEMON panel height2340 yields a48pixel Y offset into the2436pixel logical display.
 
@@ -80,6 +81,23 @@ also requires the last two PID reads5940 and live motion before HID. Both decode
 and live-motion gate were exercised on real recorded reports locally (dumps
 remain ignored). Source:
 https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/02ca1a919564a9b176a79cce09c40977f833e9ac/drivers/input/touchscreen/NT36672A/nt36xxx_fw_update.c
+
+v19 confirms physical iOS touch delivery: log contains checked movement enabled,
+then real SWEET HID finger down/movement/up. First monotonic upward swipe from
+(477,2292) to(696,483) splits into7 down segments: invalid packets caused6 early
+finger-ups before the valid release at frame126. This explains unreliable swipes;
+reliable unlock is not established. Patch0021 discards invalid samples without
+ending the gesture, using a100ms absolute-clock deadline to prevent stale held
+contacts. Any valid frame refreshes it; valid no-touch and transport failure
+still release immediately. Tests exercise short gaps, refreshed deadline,
+exact timeout, one release only and immediate real release.
+
+The photographed fade to black is separately consistent with RequestPowerChange0:
+v19 logs display off and existing framebuffer code halves pixels on successive
+vsyncs while leaving panel power on. No kernel panic or SpringBoard/backboardd
+crash appears in the saved log (existing driverkitd sig9 occurs earlier). This
+does not identify the exact userspace reason for the power-off request. Test the
+next swipe promptly when the clock appears; physical power-key wake remains unported.
 
 Primary register/protocol references (read locally during implementation):
 Xiaomi NT36672A and spi-geni-qcom sources, commit

@@ -9,6 +9,10 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--xnu', type=Path, required=True)
 args = parser.parse_args()
 source = (args.xnu / 'bsd/dev/lemon_touch.c').read_text()
+assert 'clock_interval_to_deadline(100, NSEC_PER_MSEC, &lt.release_deadline);' in source
+report_loop=source[source.index('err = lt_decode(report, &mask, x, y);'):]
+bad_branch=report_loop[:report_loop.index('\n\t\t} else {')]
+assert 'lt_expire_contacts();' in bad_branch and 'lt_report(0' not in bad_branch
 
 # Check the whole worker too: the executable MMIO mocks below test selected functions.
 syntax_header = r'''
@@ -27,6 +31,7 @@ typedef uintptr_t vm_offset_t, vm_size_t;
 typedef void *thread_t;
 typedef int kern_return_t, wait_result_t;
 extern void delay(unsigned), clock_interval_to_deadline(unsigned,unsigned,uint64_t *);
+extern void clock_get_uptime(uint64_t *);
 extern int assert_wait_deadline(void *,int,uint64_t);
 extern void thread_block(void *), thread_deallocate(thread_t);
 extern thread_t current_thread(void);
@@ -70,6 +75,8 @@ static unsigned wanted, sent, got, pending, fault;
 static uint8_t wire[68], captured[68];
 static unsigned regs[0x1000];
 static unsigned hid_calls, hid_down, hid_up;
+static uint64_t mock_now;
+static void clock_get_uptime(uint64_t *now) {*now=mock_now;}
 static void sweet_hid_touch(int i, int down, int x, int y) {
     assert(i>=0 && i<10 && x>=0 && x<1080 && y>=0 && y<2340);
     hid_calls++; if (down) hid_down++; else hid_up++;
@@ -154,6 +161,16 @@ int main(void) {
     memset(report,0,66);for(unsigned i=0;i<10;i++)point(report,i,i+1,1,i,i);checksum(report);
     assert(!lt_decode(report,&mask,x,y) && mask==1023);
     reset();lt_report(mask,x,y);assert(hid_down==10);lt_report(0,x,y);assert(hid_up==10 && !lt.active);
+    reset();hid_calls=hid_down=hid_up=0;
+    lt.release_deadline=100;lt_report(1,x,y);assert(hid_down==1);
+    mock_now=1;lt_expire_contacts();mock_now=99;lt_expire_contacts();
+    assert(!hid_up && lt.active==1); /* short bad-read gaps preserve the swipe */
+    lt.release_deadline=180;mock_now=100;lt_expire_contacts();
+    mock_now=179;lt_expire_contacts();assert(!hid_up && lt.active==1);
+    mock_now=180;lt_expire_contacts();assert(hid_up==1 && !lt.active);
+    mock_now=200;lt_expire_contacts();assert(hid_up==1); /* exactly one timeout release */
+    lt.release_deadline=500;lt_report(1,x,y);mock_now=201;lt_report(0,x,y);
+    assert(hid_up==2 && !lt.active); /* a real valid finger-up is still immediate */
     for(unsigned n=1;n<=67;n++) {
         uint8_t tx[68],rx[69];for(unsigned i=0;i<68;i++)tx[i]=(uint8_t)(i*3);
         reset();memset(rx,0xcc,sizeof(rx));
@@ -180,11 +197,11 @@ int main(void) {
         reset();unsigned before=threads;lemon_touch_init();lemon_touch_init();
         assert(threads-before==((option==1 || option==2)?1:0) && !writes && !se_reads);
     }
-    puts("PASS: decoder bounds/IDs/checksum, 1..67 byte duplex/TX FIFO, late DONE/error, timeouts, CS0 setup, read-only snapshot, default-off gate, HID release");
+    puts("PASS: decoder/FIFO/errors, CS0 setup, read-only snapshot/default-off, invalid-frame grace, 100ms stale release, immediate real release");
 }
 '''
 defines = source[source.index('#define LT_GCC'):source.index('static int lt_wait_chan;')]
-functions = '\n'.join(function(name) for name in ('lt_clear', 'lt_snapshot', 'lt_setup', 'lt_transfer', 'lt_page', 'lt_read', 'lt_decode', 'lt_report'))
+functions = '\n'.join(function(name) for name in ('lt_clear', 'lt_snapshot', 'lt_setup', 'lt_transfer', 'lt_page', 'lt_read', 'lt_decode', 'lt_report', 'lt_expire_contacts'))
 program = program.replace('/* DEFINITIONS */', defines).replace('/* FUNCTIONS */', functions)
 program = program.replace('/* INIT */', function('lemon_touch_init'))
 with tempfile.TemporaryDirectory() as folder:

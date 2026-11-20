@@ -2,6 +2,41 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### MILESTONE: v19 real iOS HID touch CONFIRMED; fix false releases for v20 (2026-11-20)
+
+User returned TWRP during photo discussion. ADB connected without replug. Read
+ONLY4198400byte tail to research/lemon-v19-log.bin/.txt, total230895/flush26.
+PID stable fallback enters reportmode2; ~3500bad idle packets then two checked
+contacts and "live checked movement confirmed; enabling HID". Actual SWEET HID
+down at477,2292 edge, continuous changing coordinates, valid release696,483.
+Thus physical iOS touch delivery is now CONFIRMED, beyond TWRP-only validation.
+Reliable unlock/home navigation NOT yet established. Photo transition alone was
+ambiguous but HID log now proves real input.
+
+Root of fragmented swipes found in our invalid-frame branch: every corrupt sample
+called lt_report0. First monotonic upward gesture split into7 down segments;
+six early UPs lack a valid mask0 event, followed by actual mask0 at frame126.
+Vendor checksum failures go to XFER_ERROR/drop frame, not immediate release.
+Patch0021 drops invalid packets, holds last valid contact for at most100ms using
+clock_interval_to_deadline/clock_get_uptime. Valid reports refresh deadline;
+valid mask0 and SPI transport failure retain immediate release. No timing,
+firmware, reset, power, display policy or userland changes.
+Tests pass whole-worker syntax + actual FIFO/decoder + short bad gaps, refreshed
+deadline, exact100ms expiry/one release, immediate valid finger-up, existing
+identity/motion gate. Workflow applies0102. CI not yet launched.
+
+Black-screen evidence: display off at log1401, on1459, off2221 amid later input;
+SpringBoard/user daemons continue afterward, no kernel panic or SpringBoard/
+backboardd crash in this log. Baseline driverkitd sig9 only at843. Framebuffer
+RequestPowerChange0 explicitly fades pixels while keeping panel powered, matching
+user's smooth fade/lit black report. Exact reason for userspace request unknown;
+do not call it a kernel crash or successful unlock. Next test should start when
+clock first appears, before display sleep (power-key wake still not ported).
+
+NEXT build/package v20, stage/verify, obtain concrete boot-only write/reboot
+approval. Installed v19 fullboot42595e17..., root/recovery preserved. Previous
+photo-note commit13a3be5 push still had a running session74386; check completion.
+
 ### v19 OBSERVATION: shifted lock screen then black; await TWRP/log (2026-11-20)
 
 User supplied photo while trying to document no reaction: clock partially at
