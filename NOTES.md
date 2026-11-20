@@ -2,6 +2,44 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE: temporary CPU-graphics optimization requested; v21 building (2026-11-20)
+
+User requests reducing lag without waiting for Adreno/Metal; phone returned TWRP.
+ADB connected. Read ONLY4198400byte v20 tail to research/lemon-v20-log.bin/.txt,
+total280605/flush60. v20 had510MiB/oneCPU,60Hz vsync notifications but15Hz panel
+copies, explicit heavy process sampler and stderr tee. No quantitative FPS baseline.
+Do not promise all lag gone. Keep working v20 image/loader for rollback.
+
+Implemented patch0022: opt-in sweetfb_vsync_hz (10..60, default60), matching
+copy-tick pacing, optional5s LEMON PERF counters for active notifications,
+presentations and presentation walltime. Default60Hz cadence preserved. No
+pixel format/resolution/touch changes. Explicit sweetsample=- sweetnull=- needed
+because omitting these enables defaults (checked actual source). Sampling thread
+may return safely: ARM64 Call_continuation automatically thread_terminates it.
+
+Added physical lemon_perf RAM profile in mkadt, same4GiB base, total768MiB,
+usable0x2fe00000=766MiB, panic0x12fe00000/2MiB, end0x130000000. Live/proc/iomem
+saved ignored research/lemon-perf-iomem.txt: covering SystemRAM80000000..13fffffff,
+first overlapping-bank reservation13b546000, no selected-range reservations.
+Actual MemTotal3801116kB. Do NOT apply Sweet's highmem profile to lemon.
+Loader guard now allows ONLY old510 and this766 usable MiB at unchangedbase.
+Loader compiled locally with-Werror/relocation check into shim/out/lemon-perf/Image
+(77824bytes); original shim/out/lemon-boot loader preserved. Build script now
+accepts optional output directory. Host C/C++ tests actual pacing/stats and exact
+loader guard + ADT identity preservation passed, including live iomem overlap check.
+
+Code commit21f58a1 pushed; CI44717407897 in progress. Workflow applies0103 and
+runs tools/test-lemon-perf.py. Builder prepared research/build_perf_boot.py,
+expects xnu/out-perf-kernel/kernel.development.sweet; creates
+shim/out/lemon-perf/boot-lemon-performance-v21.img, payload-performance-phone.bin,
+cloned real identityADT with ONLY dram-size/pram address changed. Intended args
+15Hz notify/copy, stats1, sampler-/tee-, rest v20 unchanged, lemontouch2 retained.
+See docs/LEMON_PERFORMANCE.md. No userdata/partition write/reboot this turn.
+NEXT CI success, artifact SHA, package/verify RAM/layout/touch, stage image and
+obtain concrete boot-only write/reboot approval. Installedv20 fullbootfad51c7b... .
+After test collect small tail and LEMON PERF lines, user responsiveness feedback.
+Cold boot firmware, extra CPUs, GPU and CPU-clock control are outside this change.
+
 ### MILESTONE: v20 touch swipe reaches iOS HOME SCREEN (user-confirmed, 2026-11-20)
 
 User selected "Открылся следующий экран" after v20 slow upward swipe. Asked
