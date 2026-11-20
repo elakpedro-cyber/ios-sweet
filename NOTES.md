@@ -4,6 +4,22 @@
 
 ### GPU CONFIG CLOCK ENABLE PREPARED (2026-11-20)
 
+HARDWARE RESULT v25 (2026-11-21): user returned to TWRP, ADB recovery available.
+Read userdata log tail only via research/read_v25_log.py; private .bin/.txt
+saved (4198400-byte area, log total121652, flush19). Exact clock/readout:
+LEMON GPU CLOCK: QMIP enabled before=0x4be0 after=0x4bf0 status=0x8
+LEMON GPU PROBE: A610 snapshot cfg=0x9 qmip=0x8 vote=0x4bf0 memnoc=0x80004221 snoc=0x80000000
+LEMON GPU PROBE: cx=0x222001 gx=0x222001 ahb=0x80000001 cx_gmu=0x80004220 cxo=0x80000001 gfx3d=0x80004220
+Configuration vote succeeded, guarded GPUCC reads completed. CX/GX PWR_ON31
+clear and SW_COLLAPSE0 set (gdsc.c definitions checked), both domains off.
+Listed internal branches CLK_OFF31 set; do not claim GPU execution enabled.
+Next stage requires SM6115 CX/GX power/clock prerequisites; no power/PLL/reset
+or GPU core/SMMU access attempted. 5/5 CPUs/SGI verified; SpringBoard and
+backboardd exec present, no panic( found. Touch identifies PID5940/ready but
+later all checksum failures while idle; no live motion/interactive result
+confirmed, do not infer new touch regression from this alone.
+No writes/reboot/new Actions during collection. Phone remains TWRP, v25 boot.
+
 V25 FLASHED AND REBOOT SENT: user confirmed "да". research/flash_v25.py
 verified prior full v24 boot SHA, target sde49/134217728, image/transfer hashes,
 recovery/dtbo hashes. Wrote only boot17002496 bytes; readback prefix matches
