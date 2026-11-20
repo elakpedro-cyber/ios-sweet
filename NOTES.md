@@ -2,7 +2,11 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### INSTALLED: v17 bounded readiness boot; awaiting swipe/log (2026-11-20)
+### v17 RESULT: no touch reported; waiting TWRP/log (2026-11-20)
+
+User selected "Касания не работают" after v17 test. ADB currently empty;
+asked return TWRP without formatting Data. Next action is small tail-log read
+below; do not infer the cause or flash another boot without reading it.
 
 User explicitly approved concrete v17 boot-only write/reboot: "да".
 Preflight sde49/134217728bytes, staged image SHA, old v16 full boot and original
