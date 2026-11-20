@@ -4,6 +4,17 @@
 
 ### GPU POWER REQUEST: RPM TRANSPORT PREREQUISITE FOUND (2026-11-21)
 
+Checkpoint build3ca4f6197271b97645bd7dbd8ee5c0394553de47 pushed;
+run44838698400 https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44838698400
+observed in_progress Build. v26 builder research/build_rpm_probe_boot.py:
+input xnu/out-rpm-probe-kernel/kernel.development.sweet; output
+shim/out/lemon-rpm-probe/boot-lemon-rpm-probe-v26.img, lemongpu=3 and RPM marker.
+No image or new phone flash yet. Failed debugfs mount left no mount;
+empty /tmp/lemon-debug directory removed afterwards.
+RPM LOW_SVS enum is64 (not128), source include/dt-bindings/power/qcom-rpmpd.h.
+Do not replace an inherited shared CX lvl128 request with lvl64: apps-level
+aggregation/ownership must be respected; floor-key strategy needs validation.
+
 User requested enabling CX/GX and internal clocks. Do NOT just clear GDSCs:
 live FDT CX/GX parent supply is pm6125_s3_level, GPUCC also votes MX S5.
 TWRP sysfs read-only: CX/GX disabled, S3 level128 enabled, S5 level256 enabled.
