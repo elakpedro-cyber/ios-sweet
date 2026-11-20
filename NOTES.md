@@ -4,6 +4,14 @@
 
 ### A610 READ-ONLY KERNEL CHECKPOINT PREPARED; no build/flash yet (2026-11-20)
 
+UPDATE: user explicitly authorized Actions and requested stopping immediately
+after launch. Pushed741404a10d082f659740d0b78455fba87a2bd475 to fork/lemon-bringup.
+Run44801353816 confirmed in_progress:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44801353816
+Stopped without waiting, downloading, flashing or rebooting. Next session:
+check this run result before packaging v24. Earlier NO ACTIONS restriction
+is superseded for this run only.
+
 Patch0025 adds bsd/dev/lemon_gpu.c and a Lemon-only UFS attach hook after
 persistent logging starts. Default off; lemongpu=1 starts a snapshot worker.
 Reads GCC CFG_AHB36004/QMIP36040/vote7900c/MEMNOC3600c/SNOC36018.
