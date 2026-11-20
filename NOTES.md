@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### AUTHORIZED: finish v18 build, write boot and start iOS while user away (2026-11-20)
+
+User explicitly instructed: when compilation finishes, upload boot, flash it and
+start iOS so it is ready when they return to test touch. This grants concrete
+v18 boot-only write/reboot authorization; do NOT ask again. Still verify successful
+CI44703558816, artifact SHA/layout and staged SHA/current boot/protected hashes,
+write ONLY boot, readback prefix/protected hashes, then reboot. Preserve recovery,
+root and all other partitions. Current installed v17 fullboot f243791d... .
+After reboot report ready and await user's physical touch result. No firmware
+upload/reset additions authorized or implemented by this v18 change.
+
 ### ACTIVE: v17 retries fail; complete SPI BYTE_GRAN setup for v18 (2026-11-20)
 
 Read ONLY4198400byte tail after user returned TWRP, saved
