@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### UPSTREAM TOUCH REVIEW: no ready IRQ handler to reuse (2026-11-20)
+
+User stopped IRQ-handler preparation; only initial reads ran, no kernel code
+changed. Then requested upstream check. Read current dipa-studio/ios-sweet main
+45263bee51df4a0f55cdf9c649af886399488ddb through GitHub read APIs. Patch0060
+uses touch_wait(10) polling for Goodix/Focaltech; sweettouchirq is irq_hint,
+only reading GPIO level in that loop (still periodic reads). No actual touch
+interrupt registration/wakeup handler there. Patch0071 adds HID edge-gesture
+flags, not hardware IRQ handling. Thus no upstream Novatek/TLMM handler ready
+to copy. Actions/flash prohibition remains; no remote write in this check.
+
 ### IRQ ROUTE / HOLD CHECK COMPLETE; NO ACTIONS OR FLASH (2026-11-20)
 
 User requested next check, retaining previous prohibition on Actions. Read live
