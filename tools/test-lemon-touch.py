@@ -172,7 +172,8 @@ int main(void) {
     assert(lt_read(0,rx,66)==EINVAL && writes==0);
     reset();gmode=1;assert(!lt_snapshot() && !writes && !se_reads);
     reset();gmode=0;assert(lt_snapshot() && !writes && se_reads);
-    reset();assert(lt_setup());
+    reset();regs[0x254/4]=2;assert(lt_setup()); /* inherited 32-bit granularity must be cleared */
+    assert(regs[0x254/4]==0);
     assert(regs[0x250/4]==0 && regs[0x268/4]==4 && regs[0x278/4]==200u<<10);
     assert(regs[0x260/4]==0x7f8fe && regs[0x264/4]==0xffefe && !regs[0xe1c/4]);
     for(option=0;option<=3;option++) {

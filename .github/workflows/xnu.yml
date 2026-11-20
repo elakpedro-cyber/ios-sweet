@@ -66,6 +66,7 @@ jobs:
           cp xnu/ports/lemon/0016-pid1-failure-hold.patch dxb/patches/0097-lemon-pid1-failure-hold.patch
           cp xnu/ports/lemon/0017-novatek-touch.patch dxb/patches/0098-lemon-novatek-touch.patch
           cp xnu/ports/lemon/0018-touch-readiness.patch dxb/patches/0099-lemon-touch-readiness.patch
+          cp xnu/ports/lemon/0019-spi-byte-granularity.patch dxb/patches/0100-lemon-spi-byte-granularity.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh

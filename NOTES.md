@@ -2,6 +2,27 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE: v17 retries fail; complete SPI BYTE_GRAN setup for v18 (2026-11-20)
+
+Read ONLY4198400byte tail after user returned TWRP, saved
+research/lemon-v17-log.bin/.txt, total183437/flush16. All20 attempts err0;
+short FW mostlya1:06; full raw FW mostly00:00:00:00:00:00:00:00:00:ff:a0:04:a7:cf:8b:00.
+Reset firsta0:04:a7:cf:8b, laterff:ff:85:fe:0a. PID5940 except try19ffff,
+whose full data shifts to8b:00:00:ff:ff:ff:85:fe:0a:00:00:72:66:03:00:00.
+Bounded waiting did not fix identity; worker stops. No firmware absence proven.
+No NVTSPI probing/reset/reboot/partition write this turn.
+
+Source audit found omitted GENI SE_GENI_BYTE_GRAN(0x254) setup. Mainline
+drivers/soc/qcom/qcom-geni-se.c:209,580-590 sets bpw/16=0 for8bit4word packing,
+in addition to the four vector registers. Our earlier setup omitted it.
+Patch0019 explicitly sets0, logs inherited granularity, reads back configured
+gran/word/packing/MCLK/CS; requires gran0. Actual inherited HW value UNKNOWN,
+so omission is established, causality is not. All decoder/FIFO/gate and readiness
+tests plus whole-worker syntax pass. Setup test now starts gran2, requires0.
+Workflow applies0100. CI not yet launched. NEXT build/package v18 with same
+identityADT/settings+lemontouch2, stage/verify, obtain concrete boot-write/reboot
+approval. Preserve recovery/root. Installed v17 fullboot f243791d... unchanged.
+
 ### v17 RESULT: no touch reported; waiting TWRP/log (2026-11-20)
 
 User selected "Касания не работают" after v17 test. ADB currently empty;

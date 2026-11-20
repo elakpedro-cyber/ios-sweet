@@ -1,0 +1,32 @@
+--- a/bsd/dev/lemon_touch.c
++++ b/bsd/dev/lemon_touch.c
+@@ -123,7 +123,7 @@
+ 		}
+ 	}
+ 	uint32_t fw = lt_rd(lt.se, 0x68), status = lt_rd(lt.se, 0x40);
+-	printf("LEMON TOUCH: awake fw=%#x status=%#x\n", fw, status);
++	printf("LEMON TOUCH: awake fw=%#x status=%#x gran=%#x\n", fw, status, lt_rd(lt.se, 0x254));
+ 	if (((fw >> 8) & 0xff) != 1 || (status & 0x1001u)) {
+ 		return false; /* Firmware must already be SPI and both sequencers idle. */
+ 	}
+@@ -154,6 +154,7 @@
+ 	lt_wr(lt.se, 0x264, 0x000ffefeu);
+ 	lt_wr(lt.se, 0x284, 0x0007f8feu);
+ 	lt_wr(lt.se, 0x288, 0x000ffefeu);
++	lt_wr(lt.se, 0x254, 0); /* GENI BYTE_GRAN: four 8-bit protocol words per FIFO entry. */
+ 	lt_wr(lt.se, 0x268, (lt_rd(lt.se, 0x268) & ~0x3ffu) | 4u); /* 8-bit words */
+ 	lt_wr(lt.se, 0x224, lt_rd(lt.se, 0x224) & ~1u); /* mode0 */
+ 	lt_wr(lt.se, 0x230, lt_rd(lt.se, 0x230) & ~4u);
+@@ -167,7 +168,11 @@
+ 	lt_wr(lt.se, 0x80c, 1);
+ 	lt_wr(lt.se, 0x810, 1);
+ 	lt_wr(lt.se, 0x814, ((rx >> 16) & 0x3f) - 2);
+-	return true;
++	uint32_t gran = lt_rd(lt.se, 0x254);
++	printf("LEMON TOUCH: SPI config gran=%#x word=%#x pack=%#x/%#x mclk=%#x cs=%#x\n",
++	    gran, lt_rd(lt.se, 0x268), lt_rd(lt.se, 0x260), lt_rd(lt.se, 0x264),
++	    lt_rd(lt.se, 0x48), lt_rd(lt.se, 0x250));
++	return gran == 0;
+ }
+ 
+ /* One complete CS transaction, including the final partial RX FIFO word. */

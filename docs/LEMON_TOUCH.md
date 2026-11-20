@@ -46,6 +46,18 @@ PID gates and additionally requires short/full version agreement. SPI transport
 failure still stops immediately. This is a bounded diagnostic/retry change,
 not a demonstrated fix or permission to reset/upload firmware.
 
+v17 physical result: all20 readiness attempts complete without transport errors,
+but short FW bytes mostlya1:06, full info mostly ninezeros/ff/a0:04:a7:cf:8b:00,
+PID usually5940 (oneffff). Reset read is also inconsistent. Delay alone did not
+produce valid identity. This still does not identify missing firmware as cause.
+
+Patch0019 completes GENI packing setup with SE_GENI_BYTE_GRAN(0x254)=0 for
+four8bit words per FIFO entry, matching geni_se_config_packing(8,4,...).
+Earlier code set packing vectors but omitted this register. It logs inherited
+granularity and reads back the configured granularity, word length, packing,
+clock divisor and CS. Whether the inherited value was wrong is not yet measured.
+Host MMIO test begins with granularity2 and verifies setup clears it to0.
+
 Primary register/protocol references (read locally during implementation):
 Xiaomi NT36672A and spi-geni-qcom sources, commit
 02ca1a919564a9b176a79cce09c40977f833e9ac in
