@@ -19,7 +19,9 @@ Patch0019 explicitly sets0, logs inherited granularity, reads back configured
 gran/word/packing/MCLK/CS; requires gran0. Actual inherited HW value UNKNOWN,
 so omission is established, causality is not. All decoder/FIFO/gate and readiness
 tests plus whole-worker syntax pass. Setup test now starts gran2, requires0.
-Workflow applies0100. CI not yet launched. NEXT build/package v18 with same
+Workflow applies0100. Commit6efc617 pushed; CI44703558816 in progress. Packaging
+ready: research/build_touch_boot.py gran, kernel xnu/out-touch-gran-kernel,
+boot-lemon-touch-gran-v18.img / payload-touch-gran-phone.bin. NEXT build/package v18 with same
 identityADT/settings+lemontouch2, stage/verify, obtain concrete boot-write/reboot
 approval. Preserve recovery/root. Installed v17 fullboot f243791d... unchanged.
 
