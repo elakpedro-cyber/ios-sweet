@@ -2,6 +2,21 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### INSTALLED: v17 bounded readiness boot; awaiting swipe/log (2026-11-20)
+
+User explicitly approved concrete v17 boot-only write/reboot: "да".
+Preflight sde49/134217728bytes, staged image SHA, old v16 full boot and original
+recovery/dtbo hashes matched. Wrote ONLY16998400bytes boot, dd4096 conv=fsync
+plus sync. Readback4150block prefix SHA matched
+d0601d0885c79a49edced6ddd127609bad2f5eb4c75f0f5fd56846816ae6c7a3.
+Full boot SHA256 now
+f243791d05a4b157036dccfae06e07edeb4f9012b2daa7977311b2510e14d720.
+Recovery/dtbo remain original. No manual userdata write. Issued adb reboot.
+NEXT allow lock screen to load and user try slow upward swipe. If no touch,
+return TWRP and read ONLY4198400byte log tail to research/lemon-v17-log.bin/.txt;
+inspect LEMON TOUCH identity try/reset/short/raw FW/PID progression. This is
+bounded readiness diagnosis, not a proven touch fix. No reset/power/upload.
+
 ### READY: v17 build SUCCESS; staged in TWRP, awaiting boot approval (2026-11-20)
 
 User said "продолжм" during build wait. CI44617296656 for14ce591 SUCCESS,
