@@ -43,7 +43,10 @@ HID until two valid checksummed frames with same active contacts show movement,
 then uses normal checked reports. Static/empty/bad frames do not enable HID.
 First slow swipe may confirm it; physical iOS result still UNPROVEN. Tests pass
 whole-worker syntax + FIFO/decoder/gates + identity classes/motion, and actual
-recorded packets. Workflow applies0101. CI not yet launched. NEXT build/package
+recorded packets. Workflow applies0101. Commit6a8f449 pushed; CI44708711146
+in progress. Packaging: research/build_touch_boot.py live, kernel expected in
+xnu/out-touch-live-kernel, boot-lemon-touch-live-v19.img and
+payload-touch-live-phone.bin. NEXT build/package
 v19, stage/verify, obtain concrete boot-only write/reboot approval (prior unattended
 authorization was v18). Installed v18 fullboot42681fe0..., preserve root/recovery.
 
