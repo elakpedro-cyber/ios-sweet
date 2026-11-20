@@ -2,6 +2,36 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v23 RESULT: second boot reaches iOS, user slightly faster; log captured (2026-11-20)
+
+First attempt: user saw Apple logo disappear progressively, then blank lit
+screen. User rebooted into iOS again (not immediately TWRP), successfully
+reached iOS and reports slightly faster but still far from smooth. Returned
+to TWRP. Read-only captured4198400 bytes -> research/lemon-v23-log.bin/.txt,
+total131020 bytes / flush21. Captured log contains only one CPU-start sequence
+and describes the second attempt; no reliable first-attempt failure diagnosis.
+No flash/reboot/root changes during this analysis turn.
+
+5/5 CPUs + SGI1 verified. UFS logs sleep-after-spin=1 cache-maintenance-opt=0;
+this confirms configured mode, not how many commands actually slept. 44 frame
+samples,27 nonzero:195 frames; peak16/5021ms=3.19fps, median nonzero sample
+1.20fps; present_ms/frame11.32. Different activity/duration vs v22's12fps peak,
+so cannot establish a speedup/regression from these samples alone. User feel
+is positive. Only driverkitd SIGKILL captured; no panic( or SPI stopped entries.
+Bluetooth/FairPlay each20 execs, still retrying; no root-service changes made.
+
+41 touch summaries:9350 polls,1297 valid (1206 contact /91 zero-contact),
+8016 checksum failures,37 other invalid,0 recovery signatures,0 whole-zero
+packets. Many checksum failures also occur in idle pre-contact intervals;
+do not call86% a motion-packet-loss rate. Max poll-start gap26ms, max SPI-read
+wall3.751ms. Worker starvation for100ms is not seen in these summaries, yet
+18 stale-contact releases occur: there are stretches without a valid report
+despite regular polling. Whether these are after real finger-up or during
+continuous swipes remains unmeasured. Next target: IRQ/report-read timing and
+invalid packet content, compared with known working vendor/TWRP behavior;
+keep checksum validation and release deadline unchanged until evidence.
+Phone remains TWRP, v23 installed; no new build started.
+
 ### v23 INSTALLED AND REBOOTED: awaiting real responsiveness/touch test (2026-11-20)
 
 User approved proceeding ("делай") after v23-ready report. TWRP preflight:
