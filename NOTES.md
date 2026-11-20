@@ -2,6 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### GPU API OPTIONS RESEARCHED: Mesa GL/Vulkan and Metal translation (2026-11-20)
+
+User asked whether OpenGL/Vulkan can replace writing native Metal support.
+Primary references: docs.mesa3d.org/drivers/freedreno.html describes Freedreno
+GL/GLES and Turnip Vulkan for Adreno6xx. Exact A610 support/version was not
+verified from the device table (official GitLab/AOSP source fetch unavailable),
+so do not call A610/XNU support tested. Mesa expects a kernel GPU interface;
+this port still has no GPU submission/memory/firmware/sync implementation.
+Changing API alone does not give CoreAnimation/SpringBoard acceleration.
+
+Found github.com/darlinghq/indium: Metal-on-Vulkan C++ library, explicitly NOT
+drop-in ABI-compatible Metal. github.com/steelbrain/metal2vulkan: beta Metal
+AIR/metallib->SPIR-V translator plus runtime; no demonstrated iOS16/XNU/Adreno
+integration. Potential reuse, not a ready driver. MoltenVK is Vulkan-on-Metal,
+the reverse direction, so cannot replace missing Metal. ANGLE translates GLES
+to backing APIs; its documented iOS backend uses Metal. Candidate research
+path is XNU GPU support + Turnip + iOS-compatible Metal/CoreAnimation integration;
+GL/Freedreno is another bring-up option, not an automatic system-render switch.
+Only read-only local/web research this turn. No Actions/build/flash initiated.
+
 ### UPSTREAM TOUCH REVIEW: no ready IRQ handler to reuse (2026-11-20)
 
 User stopped IRQ-handler preparation; only initial reads ran, no kernel code
