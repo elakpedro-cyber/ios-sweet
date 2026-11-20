@@ -69,6 +69,7 @@ jobs:
           cp xnu/ports/lemon/0019-spi-byte-granularity.patch dxb/patches/0100-lemon-spi-byte-granularity.patch
           cp xnu/ports/lemon/0020-touch-live-report-fallback.patch dxb/patches/0101-lemon-touch-live-report-fallback.patch
           cp xnu/ports/lemon/0021-touch-invalid-frame-grace.patch dxb/patches/0102-lemon-touch-invalid-frame-grace.patch
+          cp xnu/ports/lemon/0022-framebuffer-pacing-stats.patch dxb/patches/0103-lemon-framebuffer-pacing-stats.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -143,6 +144,9 @@ jobs:
         run: |
           python3 tools/test-lemon-touch.py --xnu dxb/xnu
           python3 tools/test-lemon-touch-ready.py --xnu dxb/xnu
+
+      - name: Verify optional lemon performance profile
+        run: python3 tools/test-lemon-perf.py --xnu dxb/xnu
 
       - name: Package build tree for local compiles
         if: always()

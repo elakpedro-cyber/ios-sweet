@@ -79,15 +79,17 @@ def node(name, props=(), children=()):
     return n
 
 
-def build(seed=None, qemu=False, highmem=False, lemon=False):
+def build(seed=None, qemu=False, highmem=False, lemon=False, lemon_perf=False):
     """qemu=True: same tree, but with QEMU virt's GIC addresses and CNTFRQ (tools/qemu-sweet.py)."""
     phys_base, mem_size = (HIGH_PHYS_BASE, HIGH_MEM_SIZE) if highmem else (PHYS_BASE, MEM_SIZE)
+    if lemon_perf and (not lemon or qemu):
+        raise ValueError('lemon performance RAM is a physical lemon profile')
     if lemon:
         if highmem:
             raise ValueError('--highmem is a Sweet profile; use --lemon alone')
         # Live lemon FDT: RAM extends to 0x140000000; dynamic carve-outs
         # are restricted below 4 GiB. Start with half of the upper 1 GiB.
-        phys_base, mem_size = 0x100000000, 0x20000000
+        phys_base, mem_size = 0x100000000, (0x30000000 if lemon_perf else 0x20000000)
     panic_size = 0x200000 if lemon else PANIC_LOG_SIZE
     # Carve the panic log off the top so the kernel never allocates over it.
     panic_base = phys_base + mem_size - panic_size
@@ -261,7 +263,7 @@ def build(seed=None, qemu=False, highmem=False, lemon=False):
 
 
 if __name__ == '__main__':
-    root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv, lemon='--lemon' in sys.argv)
+    root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv, lemon='--lemon' in sys.argv, lemon_perf='--lemon-perf' in sys.argv)
     blob = adt.serialize(root)
     open(sys.argv[1], 'wb').write(blob)
     if '--dump' in sys.argv:

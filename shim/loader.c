@@ -102,7 +102,9 @@ const char *loader_boot(uintptr_t dtb)
 	    p->entry_va < p->virt_base || p->entry_va >= p->kernel_end)
 		return "kernel bounds";
 #if defined(LEMON_BOOT)
-	if (p->phys_base != 0x100000000UL || p->mem_size != 0x1fe00000UL)
+	/* Validated upper-bank profiles: 512/768 MiB total, each minus 2 MiB panic log. */
+	if (p->phys_base != 0x100000000UL ||
+	    (p->mem_size != 0x1fe00000UL && p->mem_size != 0x2fe00000UL))
 		return "wrong lemon RAM profile";
 	extern char _head[], _end[];
 	if ((uintptr_t)_end > p->phys_base &&
