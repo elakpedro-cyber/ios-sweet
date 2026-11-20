@@ -4,6 +4,14 @@
 
 ### GPU CONFIG CLOCK ENABLE PREPARED (2026-11-20)
 
+Build started for user's "включи": source370b3167f612e62728cb96ee4633be55bf9cc581,
+run44809918008 https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44809918008
+Last observed in_progress Build. research/build_gpu_clock_boot.py prepared
+for v25: input xnu/out-gpu-clock-kernel/kernel.development.sweet, output
+shim/out/lemon-gpu-clock/boot-lemon-gpu-clock-v25.img, requires CLOCK marker,
+lemongpu=2. Patches0025+0026 sequential application from v23 matches tested
+source byte-for-byte. No v25 kernel/boot on disk or phone yet.
+
 User requested "включи" after v24 readout. Patch0026 adds lemongpu=2 opt-in:
 require existing CFG_AHB enabled/not halted, RMW only GCC7900c bit4 QMIP
 configuration vote, read back vote and QMIP CLK_OFF with200 x1us max polling.
