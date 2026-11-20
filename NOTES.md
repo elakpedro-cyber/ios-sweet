@@ -4,6 +4,18 @@
 
 ### A610 READ-ONLY KERNEL CHECKPOINT PREPARED; no build/flash yet (2026-11-20)
 
+RESULT: run44801353816 completed SUCCESS at source741404a; GPU checkpoint
+CI test also success. Downloaded xnu-kernel to xnu/out-gpu-probe-kernel.
+Kernel SHA256SUMS verified, ARM64 Mach-O and GPU marker checked:
+af0f6b59010b1ddb4f67da730aa880e1006c392b0c07a608087799966ff1a2ac
+Packaged v24 with research/build_gpu_probe_boot.py; all boot layout/payload/
+ADT/RAM/DTB checks PASS. Image17002496 bytes (4151 blocks):
+shim/out/lemon-gpu-probe/boot-lemon-gpu-probe-v24.img
+SHA2566bde139f36c090a6fb1442c7177a79b608abb1718b332f8a435935053f6e19ce
+Phone ADB recovery available. No phone writes/reboot. Ready for boot flash
+and launch; requesting confirmation per AGENTS before destructive step.
+No additional Actions started. Hardware snapshot still pending.
+
 UPDATE: user explicitly authorized Actions and requested stopping immediately
 after launch. Pushed741404a10d082f659740d0b78455fba87a2bd475 to fork/lemon-bringup.
 Run44801353816 confirmed in_progress:
