@@ -1,5 +1,18 @@
 # Redmi 9T NT36672A touch bring-up
 
+Passive recovery check after v23 (2026-11-20): during user swipes, a29.25s
+snapshot window showed214 native IRQs and214 SPI messages/transfers, with no
+transport errors/timeouts. Contact-event spacing median16.664ms, p9516.780ms.
+The capture ends during the last contact, so its missing final UP is expected.
+Live dmesg confirms IRQ277 / GPIO93 / int_trigger_type1; vendor defines this
+as a rising edge. The driver reads on that edge, whereas XNU polls every20ms.
+Command/dummy-byte layout and checksum range match the vendor protocol.
+An earlier raw recovery polling control had1969 invalid replies out of2000
+despite working native input; invalid fractions include reads without ready
+data and must not be called motion-packet loss. IRQ-aligned XNU reads are the
+next hypothesis to test, not a demonstrated fix. No raw SPI reads, firmware
+changes, partition writes or GitHub Actions were used for this passive check.
+
 TWRP identifies event5 as NVTCapacitiveTouchScreen, ten slots, X0..1079,
 Y0..2339. SPI1.1 binds NVT-ts. Recovery reports firmware5, PID5940 and a
 successful SRAM firmware upload. These observations do not prove that the

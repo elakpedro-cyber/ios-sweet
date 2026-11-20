@@ -2,6 +2,41 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### PASSIVE TOUCH CHECK COMPLETE; user forbids Actions (2026-11-20)
+
+Latest user instruction: do the next check, DO NOT start an Action. No workflow
+dispatch, kernel changes, build, flash, reboot or firmware/raw SPI access this
+turn. Phone remains TWRP with v23 installed. Findings committed locally only.
+
+Confirmed live event5 NVTCapacitiveTouchScreen, native IRQ277 = msmgpio93 Edge.
+Live dmesg says int_trigger_type=1 (vendor header IRQ_TYPE_EDGE_RISING) and
+request irq277 succeeded. Thus do NOT assume falling edge or gate reads solely
+on the current GPIO level. Vendor source reads one67-wire-byte transaction
+in a threaded IRQ handler, skips one dummy RX byte, returns65 report bytes;
+XNU command/dummy-byte layout and checksum range match that convention.
+
+User performed long swipes. research/capture_touch_passive.py collected30s
+getevent and36 passive IRQ/SPI snapshots under research/touch-passive-v23/.
+Measured snapshot window29.25s: IRQ+214, messages+214, transfers+214,
+errors+0, timedout+0. Input capture201 active-contact SYN_REPORTs in10 recorded
+contact segments (last contact truncated at capture end, not evidence of a
+stuck finger). Within-contact spacing median16.664ms, p95 16.780ms;
+max85.339ms,4 intervals>40ms (stationary motion can suppress events; not a
+direct packet-loss metric). Dmesg has one checksum-failure dump at15.950s,
+before capture241..271s; none logged during capture. No NVTSPI helper used,
+so no competing raw reader consumed reports or changed event pages/ESD state.
+
+Important prior control: recovery raw-poll capture already had31 valid /
+1969 invalid out of2000 reads while native touch worked. Thus a large invalid
+fraction alone does not prove damaged reports or hardware. Current native
+IRQ-driven capture corroborates event-ready timing as next target, but does
+NOT yet prove that IRQ-driven XNU fixes gestures. XNU v23 regular20ms polling
+is unsynchronized with native~16.7ms ready events. Next implementation would
+need properly routed TLMM93 rising IRQ to wake a sleepable SPI worker, keeping
+SPI out of hard interrupt context, plus checksum/contact-release validation.
+Do not simply raise SPI speed, remove checksum, stretch grace or read arbitrary
+firmware addresses. Wait for user's next instruction; Actions remain forbidden.
+
 ### v23 RESULT: second boot reaches iOS, user slightly faster; log captured (2026-11-20)
 
 First attempt: user saw Apple logo disappear progressively, then blank lit
