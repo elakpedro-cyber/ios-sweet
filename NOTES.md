@@ -4,6 +4,18 @@
 
 ### GPU POWER REQUEST: RPM TRANSPORT PREREQUISITE FOUND (2026-11-21)
 
+V26 READY: CI44838698400 SUCCESS, source3ca4f61; all tests including RPM PASS.
+Downloaded xnu-kernel via gh to xnu/out-rpm-probe-kernel. CI SHA256SUMS,
+ARM64 Mach-O and RPM marker verified. Kernel SHA:
+fd6d556524757abffbae9262461e4338a096df7b1cc9c356a3ce369c0f53e6d8.
+Packaged v26, layout/ADT/RAM/DTB checks PASS, image17002496 bytes:
+shim/out/lemon-rpm-probe/boot-lemon-rpm-probe-v26.img
+SHA34cd0931a314bab894117f078f9b45aa3d3c7c27fdf03aa370ae911d0cb5f98d.
+Prepared research/flash_v26.py with exact current v25 full boot checksum,
+protected recovery/dtbo and readback checks; NOT executed. ADB recovery
+available; phone still v25. Awaiting concrete boot write/launch confirmation
+per AGENTS. v26 is RPM transport READ-ONLY diagnostic, not CX/GX power enable.
+
 Checkpoint build3ca4f6197271b97645bd7dbd8ee5c0394553de47 pushed;
 run44838698400 https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44838698400
 observed in_progress Build. v26 builder research/build_rpm_probe_boot.py:
