@@ -2,6 +2,21 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v23 INSTALLED AND REBOOTED: awaiting real responsiveness/touch test (2026-11-20)
+
+User approved proceeding ("делай") after v23-ready report. TWRP preflight:
+boot sde49/134217728, full v22 SHA2d4b22b6..., protected hashes matched,
+battery76% charging. research/flash_v23.py staged verified v23 image, wrote
+ONLY17002496 bytes (4151 blocks) to boot, synced and verified prefix SHA
+d88d451cdeeb8a1ffed2ecd3dbdf441441c8b786a3c8324b388ce28c7f874fac.
+New full boot SHA256
+df269ab5e41a57f5061c53e5b3c710ad644b73f1ba3ca2749a0147a61bb9d7b8.
+Recovery/dtbo unchanged. adb reboot completed successfully. This confirms
+installation/reboot request, NOT successful iOS startup or a performance gain.
+NEXT: user waits for home/lock screen, tests swipe and responsiveness vs v22;
+after return to TWRP read persistent log, inspect UFS wait mode, LEMON PERF
+and new LEMON TOUCH PERF summaries. Do not format Data. v22 rollback remains.
+
 ### v23 READY: CI successful, boot packaged/validated, NOT FLASHED (2026-11-20)
 
 User returned after CI finished. Confirmed CI44746893042 SUCCESS, exact source
