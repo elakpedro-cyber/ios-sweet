@@ -1,5 +1,29 @@
 # Redmi 9T NT36672A touch bring-up
 
+IRQ-route and hold checks (2026-11-20): live FDT resolves GPIO93 through TLMM
+SPI227 and the pass-through wake-gic domain to GIC INTID259. Linux IRQ277 is
+the GPIO child number. Neither Linux IRQ277 nor wake-gpio's MPM index46 should
+be used as the active GIC interrupt ID. The pinned native qcom-mpm driver
+forwards its three-cell GIC spec unchanged. GPIO93's WEST configuration/status
+addresses are0x55d008/0x55d00c. Native Bengal acknowledgment clears status bit0
+with a read-modify-write (`intr_ack_high=0`); it is not write-one-to-clear.
+The native driver keeps raw-status detection enabled when masking edge IRQs.
+
+A separate passive hold capture excluded the preceding TWRP-unlock swipe by
+tracking ID: a12.218s nearly stationary contact still generated~60IRQs/s
+(658 over a10.97s interior window). There were no SPI transport errors/timeouts
+or new logged checksum failures. Sparse unchanged input coordinates therefore
+do not mean the controller stops issuing packet-ready IRQs during a hold.
+
+XNU has no TLMM interrupt dispatcher yet. A future implementation must handle
+the shared parent, wake a thread for SPI/HID, order GPIO acknowledgment before
+GIC EOI and close the wait-registration race with a generation/recheck scheme.
+These checks validate routing and native behavior, not an implemented XNU IRQ
+driver. No workflow, new boot, hardware-register write or flash was performed.
+Primary source for acknowledgment and register layout:
+[pinctrl-msm.c](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/02ca1a919564a9b176a79cce09c40977f833e9ac/drivers/pinctrl/qcom/pinctrl-msm.c),
+[pinctrl-bengal.c](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/02ca1a919564a9b176a79cce09c40977f833e9ac/drivers/pinctrl/qcom/pinctrl-bengal.c).
+
 Passive recovery check after v23 (2026-11-20): during user swipes, a29.25s
 snapshot window showed214 native IRQs and214 SPI messages/transfers, with no
 transport errors/timeouts. Contact-event spacing median16.664ms, p9516.780ms.

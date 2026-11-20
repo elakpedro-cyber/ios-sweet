@@ -2,6 +2,46 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### IRQ ROUTE / HOLD CHECK COMPLETE; NO ACTIONS OR FLASH (2026-11-20)
+
+User requested next check, retaining previous prohibition on Actions. Read live
+FDT (503580 bytes) to research/touch-irq-live.dtb/.dts and IRQ sysfs only; no
+raw SPI, MMIO register writes, pin changes, firmware upload, root write/reboot.
+Read pinned primary Xiaomi pinctrl-bengal.c, pinctrl-msm.c and qcom-mpm.c via
+GitHub read APIs (not Actions). Saved ignored research/irq-* sources.
+research/check_touch_irq_route.py PASS against actual live FDT and those files.
+
+Route: GPIO93 / TLMM phandle0x11 -> SPI227 level-high -> inherited wake-gic
+phandle1 -> GIC phandle0xf / INTID259. The first local route assertion assumed
+direct GIC parent and correctly FAILED; followed actual wake-gic and verified
+qcom-mpm forwards the same3-cell fwspec unchanged to GIC. SPI227+32=259 remains
+correct, but do not skip resolving the hierarchy. Linux IRQ277 is GPIO child93;
+Linux IRQ259 is an unrelated pmic_arb number, NOT physical GIC259.
+GPIO93 is WEST: flat TLMM base0x400000 + WEST0x100000 +93*0x1000 gives
+cfg0x55d008/status0x55d00c. Rising edge confirmed by native source/live dmesg.
+Bengal intr_ack_high defaults0: native ack reads status and clears bit0, then
+writes it back. Do NOT use W1C here. Keep raw-status enable set for edge IRQs;
+toggling it can create spurious status according to native driver comments.
+
+Second passive capture under research/touch-irq-hold: user first unlocked TWRP
+by swipe. analysis separated tracking IDs instead of discarding arbitrary log
+lines. Contact0 short tap0.085s; contact1 unlock0.851s; contact2 nearly stationary
+hold12.218s, X391..399 /Y2135..2165,42 changed-input reports. Middle hold window
+10.97s:658 IRQs (~59.98Hz), SPI message/transfer deltas655/654 (sequential
+non-atomic sysfs snapshots, do not treat small differences as exact loss),
+errors/timeouts0. No new checksum dump; only boot-time15.950s dump predates
+capture. Thus sensor continues issuing IRQs while held even when input event
+changes are sparse. A stationary hold does not require blind polling reads.
+
+XNU review: sleh_irq passes external INTIDs to optional per-CPU callback and
+EOIs; SweetCPU does not install a TLMM handler. New IRQ mode would need an
+explicit route/dispatch and must wake a sleepable SPI worker (no SPI/HID in
+hard IRQ), acknowledge TLMM before GIC EOI, handle shared-parent non93 sources,
+and prevent lost wakeups around assert_wait using an atomic generation plus
+post-registration recheck. These are reviewed requirements, NOT implemented
+or hardware-tested IRQ code. No kernel patch/build prepared this turn.
+Phone remains TWRP/v23. Findings committed locally; do not trigger Actions.
+
 ### PASSIVE TOUCH CHECK COMPLETE; user forbids Actions (2026-11-20)
 
 Latest user instruction: do the next check, DO NOT start an Action. No workflow
