@@ -4,6 +4,16 @@
 
 ### GPU POWER REQUEST: RPM TRANSPORT PREREQUISITE FOUND (2026-11-21)
 
+V26 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v26.py
+verified prior full v25 boot checksum, target sde49/134217728 and protected
+recovery/dtbo checksums, transferred image hash, wrote only boot and verified
+prefix SHA34cd0931a314bab894117f078f9b45aa3d3c7c27fdf03aa370ae911d0cb5f98d.
+Full boot SHA a31e382336dfe7331cfa562fd8352fb9d29b02b2d993afbe2726f7868feac092.
+Recovery/dtbo unchanged; userdata untouched. adb reboot returned success,
+device disconnected. Hardware RPM result not yet observed. Next wait60sec,
+user returns to TWRP, read persistent log LEMON RPM lines. v26 does not open
+RPM channel or enable CX/GX; it is read-only RPM handoff inspection.
+
 V26 READY: CI44838698400 SUCCESS, source3ca4f61; all tests including RPM PASS.
 Downloaded xnu-kernel via gh to xnu/out-rpm-probe-kernel. CI SHA256SUMS,
 ARM64 Mach-O and RPM marker verified. Kernel SHA:
