@@ -1,0 +1,127 @@
+--- a/bsd/dev/lemon_gpu.c
++++ b/bsd/dev/lemon_gpu.c
+@@ -14,6 +14,7 @@
+ extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
+ extern kern_return_t thread_terminate(thread_t);
+ void lemon_gpu_init(void);
++extern void lemon_rpm_snapshot(void);
+ 
+ #define LG_GCC_PA 0x01400000u
+ #define LG_GCC_SIZE 0x80000u
+@@ -128,8 +129,11 @@
+ 	if (lg_started) return;
+ 	lg_started = true;
+ 	PE_parse_boot_argn("lemongpu", &mode, sizeof(mode));
+-	if (mode == 2) {
+-		if (lg_config_enable()) lg_snapshot();
++	if (mode == 2 || mode == 3) {
++		if (lg_config_enable()) {
++			lg_snapshot();
++			if (mode == 3) lemon_rpm_snapshot();
++		}
+ 		return;
+ 	}
+ 	if (mode != 1) return;
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -110,6 +110,7 @@
+ bsd/dev/sweet_touch.c			standard
+ bsd/dev/lemon_touch.c			standard
+ bsd/dev/lemon_gpu.c			standard
++bsd/dev/lemon_rpm.c			standard
+ bsd/dev/sweet_rpmh.c			standard
+ bsd/dev/sweet_spmi.c			standard
+ bsd/dev/sweet_usb.c			standard
+--- /dev/null
++++ b/bsd/dev/lemon_rpm.c
+@@ -0,0 +1,90 @@
++/* SM6115 RPM GLINK handoff checkpoint. Read-only; no rail votes or FIFO writes.
++ * Layout: Linux drivers/rpmsg/qcom_glink_rpm.c; addresses: live lemon FDT.
++ */
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <machine/machine_routines.h>
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++void lemon_rpm_snapshot(void);
++
++#define LR_PA 0x045f0000u
++#define LR_SIZE 0x7000u
++#define LR_TOC (LR_SIZE - 256u)
++#define LR_TX 0x61703272u
++#define LR_RX 0x72326170u
++
++struct lr_pipe { unsigned offset, size; };
++
++static uint32_t
++lr_read(vm_offset_t base, unsigned offset)
++{
++	uint32_t value = *(volatile uint32_t *)(base + offset);
++	__asm__ volatile("dmb oshld" ::: "memory");
++	return value;
++}
++
++static bool
++lr_parse(vm_offset_t base, struct lr_pipe *tx, struct lr_pipe *rx)
++{
++	uint32_t magic = lr_read(base, LR_TOC), count = lr_read(base, LR_TOC + 4);
++	printf("LEMON RPM: GLINK toc=%#x entries=%u\n", magic, count);
++	if (magic != 0x67727430u || !count || count > 20) return false;
++	tx->size = rx->size = 0;
++	for (unsigned i = 0; i < count; i++) {
++		unsigned entry = LR_TOC + 8 + i * 12;
++		uint32_t id = lr_read(base, entry);
++		if (id != LR_TX && id != LR_RX) continue;
++		unsigned offset = lr_read(base, entry + 4), size = lr_read(base, entry + 8);
++		/* Descriptor tail/head precede size bytes of FIFO. No TOC overlap. */
++		if ((offset & 3) || (size & 7) || size < 16 ||
++		    offset > LR_TOC - 8 || size > LR_TOC - 8 - offset) return false;
++		struct lr_pipe *pipe = id == LR_TX ? tx : rx;
++		if (pipe->size) return false;
++		pipe->offset = offset;
++		pipe->size = size;
++	}
++	if (!tx->size || !rx->size) return false;
++	if (tx->offset < rx->offset + 8 + rx->size &&
++	    rx->offset < tx->offset + 8 + tx->size) return false;
++	return true;
++}
++
++static bool
++lr_snapshot_pipe(vm_offset_t base, const char *name, struct lr_pipe pipe)
++{
++	/* A remote producer can move head: this is a diagnostic, not ownership. */
++	unsigned tail = lr_read(base, pipe.offset), head = lr_read(base, pipe.offset + 4);
++	printf("LEMON RPM: %s offset=%#x size=%#x tail=%#x head=%#x\n",
++	    name, pipe.offset, pipe.size, tail, head);
++	if (tail >= pipe.size || head >= pipe.size || ((tail | head) & 7)) return false;
++	unsigned available = head >= tail ? head - tail : pipe.size - tail + head;
++	/* At most the first64 pending bytes; do not advance pointers or ACK. */
++	for (unsigned i = 0; i < available && i < 64; i += 8) {
++		unsigned pos = (tail + i) % pipe.size;
++		printf("LEMON RPM: %s pending+%u %08x %08x\n", name, i,
++		    lr_read(base, pipe.offset + 8 + pos),
++		    lr_read(base, pipe.offset + 12 + pos));
++	}
++	return true;
++}
++
++void
++lemon_rpm_snapshot(void)
++{
++	vm_offset_t base = ml_io_map(LR_PA, LR_SIZE);
++	if (!base) {
++		printf("LEMON RPM: mapping failed; no power requests\n");
++		return;
++	}
++	struct lr_pipe tx = {0}, rx = {0};
++	if (!lr_parse(base, &tx, &rx)) {
++		printf("LEMON RPM: invalid GLINK layout; no power requests\n");
++		return;
++	}
++	bool tx_ok = lr_snapshot_pipe(base, "ap2r", tx);
++	bool rx_ok = lr_snapshot_pipe(base, "r2ap", rx);
++	printf("LEMON RPM: snapshot valid=%u; channel not opened, no rail or FIFO writes\n",
++	    tx_ok && rx_ok);
++}
++#endif

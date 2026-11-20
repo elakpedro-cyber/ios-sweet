@@ -71,6 +71,15 @@ only, not rendering. Ordering avoids racing the touch worker's shared vote.
 Linux references: [SM6115 GCC](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/gcc-sm6115.c),
 [branch polling](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/clk-branch.c).
 
+v25 hardware verified the config vote and GPUCC reads; CX/GX remain collapsed.
+Before powering them, SM6115 needs RPM-SMD voltage votes transported by RPM
+GLINK, not the SM7150 RPMh implementation. Patch0027 adds `lemongpu=3`:
+retain mode2 config setup, then inspect RPM message RAM0x045f0000/0x7000.
+The read-only parser validates TOC, pipe bounds/overlap and indices, and logs
+up to64 pending bytes per direction without opening a channel or advancing
+pointers. It makes no voltage or CX/GX requests. This is a prerequisite
+diagnostic; it does not enable GPU power or rendering.
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence

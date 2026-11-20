@@ -2,6 +2,31 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### GPU POWER REQUEST: RPM TRANSPORT PREREQUISITE FOUND (2026-11-21)
+
+User requested enabling CX/GX and internal clocks. Do NOT just clear GDSCs:
+live FDT CX/GX parent supply is pm6125_s3_level, GPUCC also votes MX S5.
+TWRP sysfs read-only: CX/GX disabled, S3 level128 enabled, S5 level256 enabled.
+These are RPM corner enums, NOT microvolts and NOT XNU inherited voltage proof.
+Linux sm6115.dtsi GPU320MHz requires RPM LOW_SVS; rpmpd uses rwcx0/lvl.
+Existing sweet_rpmh.c targets PM6150L/SM7150 and must not be reused here.
+Transport is RPM-SMD messages OVER GLINK RPM: live FDT message RAM045f0000
+size7000, mailbox0f111000, IRQ194. Mainline dtsi and qcom_glink_rpm.c agree.
+Do not assume legacy SMD SMEM channel despite rpm-smd compatibility node.
+
+Patch0027 prepares opt-in lemongpu=3: reuse verified config vote/snapshot,
+then read RPM RAM TOC/pipe indices/first64 pending bytes per direction.
+No channel opening, FIFO pointer writes, mailbox, voltage, PLL, power writes.
+Needed to determine firmware handoff before active request/ACK implementation.
+Actual parser ASan/UBSan tests PASS malformed magic/count, offset overflow,
+FIFO overlap/duplicates, invalid alignment/indices, wrap and no memory writes;
+ARMv8.0 cross compile PASS. GPU modes0/1/2 regressions and mode3 gate PASS.
+Reverse patch dry-run PASS. Actual GPU power remains OFF, not implemented yet.
+TWRP debugfs mount attempt /tmp/lemon-debug failed No such device; no mount
+was established, no regulator or voltage changes. No phone flash/reboot.
+Next build diagnostic boot, collect RPM FIFO handoff, then add RPM request/ACK
+and only then bounded CX/GX/clock sequence. Do not call this power enable.
+
 ### GPU CONFIG CLOCK ENABLE PREPARED (2026-11-20)
 
 HARDWARE RESULT v25 (2026-11-21): user returned to TWRP, ADB recovery available.
