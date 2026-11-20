@@ -2,6 +2,30 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v22 LAG INVESTIGATION: frame supply, daemon retries, touch ambiguity (2026-11-20)
+
+User requested diagnosis and timing estimate. Read existing driver/vendor source
+and compared v20/v21/v22 logs; no phone writes or reboot. Details and next
+bounded test are in docs/LEMON_PERFORMANCE.md (v22 section). Key distinction:
+present() wall time is only 2.4% of intervals containing frames, not a CPU-load
+measurement. Frame supply / userspace work is the next profiling target.
+bluetoothd/fairplayd.H2 exec counts55/56 and xpcproxy381 show process churn;
+v20 already had52/54, so it predates SMP. Crashes include PosterBoard SIGTRAP
+and assetsd SIGABRT twice, not just driverkitd. Local UUID-checked cache-symbol
+lookup (research/symbolicate_v22.py) puts PosterBoard near initial switcher
+setup/extension prewarming; nearest-symbol matches are approximate, not exact
+assertion diagnosis. Do not disable FairPlay on this evidence alone.
+
+Correction to earlier audit wording: invalid first=00:00 does NOT prove an
+all-zero packet. Only first two bytes are logged. Decoder error22 conflates
+checksum/ID errors; 21 stale releases do not prove21 broken swipes. Vendor uses
+IRQ reads, ours20ms polling. Need report-reason/transfer/scheduling counters
+to distinguish missed motion from absent finger-up. No SPI stop found.
+Confirmed same classes of retries/touch expiry before SMP; no established SMP
+regression. Native canvas saves only7.8% pixels, not a large temporary fix.
+No new boot prepared/flashed; phone remains TWRP with v22 installed. Next:
+bounded diagnostics above and verified Reduce Motion/Transparency preferences.
+
 ### v22 AUDITED: 5/5 CPUs alive, log read, boot/protected hashes match (2026-11-20)
 
 Resumed after Claude's work at e3e20bc (remote branch matches local; clean tree).
