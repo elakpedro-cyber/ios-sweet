@@ -4,6 +4,12 @@
 
 ### v23 PREPARED: yielding UFS + quiet AKS + touch timing, CI next (2026-11-20)
 
+BUILD RUNNING: commit f7f69e43a21b019b858547cead6a21dbfbbd1bb7,
+CI44746893042 / job136324416582. Deps and atomics passed, Build in progress.
+Local builder now rejects kernels lacking all3 new v23 strings and asserts
+ADT is byte-identical to v22. Output boot-lemon-performance-v23.img.
+Eight touch functions also compared byte-identical with working v20-v22 code.
+
 User explicitly requested remaining analysis followed by a build, not flashing.
 Read installed HFSX through read-only nbdkit/guestfish (root WSL required for
 supermin kernel access); private files in /home/hadirpc/lemon-v23-diagnostics.
