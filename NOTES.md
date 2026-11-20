@@ -4,6 +4,22 @@
 
 ### GPU POWER REQUEST: RPM TRANSPORT PREREQUISITE FOUND (2026-11-21)
 
+V26 HARDWARE READOUT (2026-11-21): returned to TWRP, recovery ADB connected.
+Read-only userdata tail4198400 bytes via research/read_v26_log.py; private
+research/lemon-v26-log.bin/.txt, SWEETLOG total120781/flush14. Exact RPM lines:
+LEMON RPM: GLINK toc=0x67727430 entries=10
+LEMON RPM: ap2r offset=0x200 size=0x6f8 tail=0 head=0
+LEMON RPM: r2ap offset=0x900 size=0x6f8 tail=0 head=0
+LEMON RPM: snapshot valid=1; channel not opened, no rail or FIFO writes
+TOC/FIFO layout valid and both queues empty; this is NOT proof of endpoint
+open, remote reply, request acceptance or rail readiness. Need implement
+bounded GLINK version/channel handshake, rpm_requests request + matching ACK
+before any CX/GX voltage/domain/PLL changes. No stale pending bytes to adopt.
+Config vote succeeds4be0->4bf0; CX/GX still222001 and internal branches gated.
+5/5 CPUs and SGI verified; SpringBoard/backboardd exec found, no panic( found.
+Idle touch checksum failures continue; no touch interaction tested. No phone
+writes/reboot/new CI in this collection. Phone remains TWRP with v26 installed.
+
 V26 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v26.py
 verified prior full v25 boot checksum, target sde49/134217728 and protected
 recovery/dtbo checksums, transferred image hash, wrote only boot and verified
