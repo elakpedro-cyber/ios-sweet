@@ -4,6 +4,22 @@
 
 ### A610 READ-ONLY KERNEL CHECKPOINT PREPARED; no build/flash yet (2026-11-20)
 
+HARDWARE RESULT v24: returned to TWRP, ADB recovery connected. Read only
+userdata tail (4198400 bytes), decoded research/lemon-v24-log.bin/.txt:
+SWEETLOG version1, total119047, flush27. Exact snapshot:
+LEMON GPU PROBE: A610 snapshot cfg=0x9 qmip=0x8 vote=0x4be0 memnoc=0x80004221 snoc=0x80000000
+LEMON GPU PROBE: config clocks not proven on; GPUCC skipped
+CFG_AHB enable bit0 set, CLK_OFF31 clear. QMIP CLK_OFF31 clear, but local
+vote7900c bit4 absent. Do NOT infer clock physically off solely from missing
+local vote: another voter may keep a voted clock running. Conservative guard
+therefore correctly skipped GPUCC. MEMNOC/SNOC CLK_OFF31 set. Source register
+mapping rechecked in Linux gcc-sm6115.c. Next hardware bring-up needs explicit
+SM6115 config/bus clock votes and bounded readback before downstream access;
+do not simply remove guard. No GPUCC/CX/GX/core/SMMU state observed yet.
+5/5 CPUs and SGI verified, SpringBoard/backboardd exec seen, no panic( in log.
+These logs do not prove an interactive desktop. No writes/reboots/new CI during
+this log collection. Phone remains TWRP. GPU acceleration still absent.
+
 PHONE TEST STARTED: user explicitly said "запускай". research/flash_v24.py
 verified prior full boot v23 SHA df269ab5..., exact boot target/size, recovery
 and dtbo checksums. Flashed ONLY boot with v24, prefix readback SHA matches
