@@ -2,6 +2,29 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### INSTALLED: v18 SPI byte granularity boot; user away, waiting touch test (2026-11-20)
+
+CI44703558816 for6efc617 SUCCESS, full build and both actual-driver tests passed.
+Downloaded ONLY xnu-kernel to xnu/out-touch-gran-kernel. Kernel SHA256
+d8f57e24cf0f7f73bb3d04fed7bc54b6854fd220ccbf8af01ad256577eb23bb9
+matches artifact SHA256SUMS; new config/readiness diagnostic strings present.
+research/build_touch_boot.py gran generated16998400byte
+shim/out/lemon-boot/boot-lemon-touch-gran-v18.img, SHA256
+fcb6d48e0645d0ff17d1d8ce913d08b75ffea46928219f9a2b1ce11cc275aba9.
+Payload-touch-gran-phone.bin retains exact identityADT/settings+lemontouch2.
+Androidv2/gzip/DTB/4Kloadranges/timer19 verified. ADB recovery, targetboot sde49
+size134217728, stagedSHA and oldv17/protected hashes matched before write.
+Using user's explicit unattended-v18 authorization below, wrote ONLY16998400
+bytes boot (dd4096 conv=fsync+sync). Readback4150block prefix SHA matches above.
+New full boot SHA256
+42681fe0ea69441cc790fa57097a6864f7cb725f2469a45441ed59912a12744b.
+Recovery/dtbo full hashes unchanged. No manual userdata writes or sensor commands.
+Issued adb reboot successfully. Allow~2min for iOS while user away; GUI/touch
+NOT yet physically confirmed. NEXT user slow swipe test. If no response, return
+TWRP/read ONLY4198400byte log tail to research/lemon-v18-log.bin/.txt, inspect
+LEMON TOUCH awake gran=... / SPI config gran=0 and identity. Whether inherited
+granularity was wrong is still unknown; do not assume this fixes physical input.
+
 ### AUTHORIZED: finish v18 build, write boot and start iOS while user away (2026-11-20)
 
 User explicitly instructed: when compilation finishes, upload boot, flash it and
