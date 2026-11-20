@@ -2,6 +2,31 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### A610 READ-ONLY KERNEL CHECKPOINT PREPARED; no build/flash yet (2026-11-20)
+
+Patch0025 adds bsd/dev/lemon_gpu.c and a Lemon-only UFS attach hook after
+persistent logging starts. Default off; lemongpu=1 starts a snapshot worker.
+Reads GCC CFG_AHB36004/QMIP36040/vote7900c/MEMNOC3600c/SNOC36018.
+Only when CFG enabled/not halted and QMIP voted bit4/not halted, reads GPUCC
+CX/GX GDSC and four clock status registers. Addresses grounded in live FDT
+and Linux SM6115 drivers. No register writes, GPU core/SMMU access, firmware,
+LemonGPU service or acceleration. This is NOT a working GPU initialization.
+
+Applied locally to /home/hadirpc/lemon-gpu-probe-xnu (copy of lemon-v23-xnu).
+tools/test-lemon-gpu-probe.py PASS: actual code with ASan/UBSan MMIO mocks,
+default off, single start, parent clock guards, mapping failures, read whitelist;
+full module with real barrier cross-compiled for Cortex-A53/ARMv8.0 PASS.
+Workflow stages patch0106 and this test; local edits only, no Actions run.
+Private research/build_gpu_probe_boot.py prepared from v23 builder: requires
+new kernel marker, adds lemongpu=1, retains five CPUs/RAM/30Hz/touch/v23 args.
+Input xnu/out-gpu-probe-kernel/kernel.development.sweet; output
+shim/out/lemon-gpu-probe/boot-lemon-gpu-probe-v24.img. No new kernel/image yet.
+
+Phone remains TWRP with v23 installed; no writes/reboot this stage.
+Previous NO ACTIONS restriction retained pending explicit clarification for
+this specific diagnostic build. Do not push kernel changes (push triggers CI)
+until resolved. Next: full XNU CI build, package/validate boot, hardware log.
+
 ### PIXEL3 GPU USERSPACE PORT STARTED: imported/adapted, host tests PASS; no GPU boot (2026-11-20)
 
 User requested "попробуй pixel3". Previous NO ACTIONS restriction retained.

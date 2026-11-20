@@ -72,6 +72,7 @@ jobs:
           cp xnu/ports/lemon/0022-framebuffer-pacing-stats.patch dxb/patches/0103-lemon-framebuffer-pacing-stats.patch
           cp xnu/ports/lemon/0023-smp-topology.patch dxb/patches/0104-lemon-smp-topology.patch
           cp xnu/ports/lemon/0024-perf-wait-diagnostics.patch dxb/patches/0105-lemon-perf-wait-diagnostics.patch
+          cp xnu/ports/lemon/0025-gpu-clock-probe.patch dxb/patches/0106-lemon-gpu-clock-probe.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -155,6 +156,9 @@ jobs:
 
       - name: Verify UFS yielding and touch performance diagnostics
         run: python3 tools/test-lemon-perf-wait.py --xnu dxb/xnu
+
+      - name: Verify default-off lemon GPU checkpoint
+        run: python3 tools/test-lemon-gpu-probe.py --xnu dxb/xnu
 
       - name: Package build tree for local compiles
         if: always()

@@ -1,0 +1,131 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -109,6 +109,7 @@
+ bsd/dev/sweet_keys.c			standard
+ bsd/dev/sweet_touch.c			standard
+ bsd/dev/lemon_touch.c			standard
++bsd/dev/lemon_gpu.c			standard
+ bsd/dev/sweet_rpmh.c			standard
+ bsd/dev/sweet_spmi.c			standard
+ bsd/dev/sweet_usb.c			standard
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -53,6 +53,9 @@
+ extern void sweet_keys_init(void);
+ extern void sweet_touch_init(void);
+ extern void sweet_usb_probe(void);
++#if defined(LEMON_4K)
++extern void lemon_gpu_init(void);
++#endif
+ 
+ #define REG_CAP         0x00
+ #define REG_IS          0x20
+@@ -740,6 +743,9 @@
+ 	/* Input drivers (HID services in iokit/Kernel/arm/hid/SweetHID.cpp). */
+ 	sweet_keys_init();
+ 	sweet_touch_init();
++#if defined(LEMON_4K)
++	lemon_gpu_init();
++#endif
+ 	sweet_usb_probe();
+ 	return 0;
+ }
+--- /dev/null
++++ b/bsd/dev/lemon_gpu.c
+@@ -0,0 +1,96 @@
++/* SM6115/A610 first kernel checkpoint. lemongpu=1: clock/power snapshot only.
++ * Registers: Linux05441d... gcc-sm6115.c and gpucc-sm6115.c; live phone FDT.
++ * No power/clock/reset writes, GPU/SMMU access, firmware loading or GPU service.
++ */
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++extern kern_return_t thread_terminate(thread_t);
++void lemon_gpu_init(void);
++
++#define LG_GCC_PA 0x01400000u
++#define LG_GCC_SIZE 0x80000u
++#define LG_GPUCC_PA 0x05990000u
++#define LG_GPUCC_SIZE 0x9000u
++#define LG_CFG_AHB 0x36004u
++#define LG_MEMNOC 0x3600cu
++#define LG_SNOC 0x36018u
++#define LG_QMIP_AHB 0x36040u
++#define LG_VOTE 0x7900cu
++#define LG_CX_GDSC 0x106cu
++#define LG_GX_GDSC 0x100cu
++#define LG_AHB 0x1078u
++#define LG_CX_GMU 0x1098u
++#define LG_CXO 0x109cu
++#define LG_GFX3D 0x1054u
++
++static bool lg_started;
++
++static uint32_t
++lg_read(vm_offset_t base, unsigned offset)
++{
++	uint32_t value = *(volatile uint32_t *)(base + offset);
++	__asm__ volatile("dmb oshld" ::: "memory");
++	return value;
++}
++
++static void
++lg_snapshot(void)
++{
++	vm_offset_t gcc = ml_io_map(LG_GCC_PA, LG_GCC_SIZE);
++	if (!gcc) {
++		printf("LEMON GPU PROBE: GCC mapping failed\n");
++		return;
++	}
++	uint32_t cfg = lg_read(gcc, LG_CFG_AHB), qmip = lg_read(gcc, LG_QMIP_AHB);
++	uint32_t vote = lg_read(gcc, LG_VOTE);
++	printf("LEMON GPU PROBE: A610 snapshot cfg=%#x qmip=%#x vote=%#x memnoc=%#x snoc=%#x\n",
++	    cfg, qmip, vote, lg_read(gcc, LG_MEMNOC), lg_read(gcc, LG_SNOC));
++	/* Refuse downstream reads unless both configuration paths are clearly on.
++	 * QMIP is a voted clock: its own enable is GCC vote bit4, not CBCR bit0. */
++	if (!(cfg & 1u) || (cfg & (1u << 31)) ||
++	    !(vote & (1u << 4)) || (qmip & (1u << 31))) {
++		printf("LEMON GPU PROBE: config clocks not proven on; GPUCC skipped\n");
++		return;
++	}
++	vm_offset_t cc = ml_io_map(LG_GPUCC_PA, LG_GPUCC_SIZE);
++	if (!cc) {
++		printf("LEMON GPU PROBE: GPUCC mapping failed\n");
++		return;
++	}
++	printf("LEMON GPU PROBE: cx=%#x gx=%#x ahb=%#x cx_gmu=%#x cxo=%#x gfx3d=%#x\n",
++	    lg_read(cc, LG_CX_GDSC), lg_read(cc, LG_GX_GDSC), lg_read(cc, LG_AHB),
++	    lg_read(cc, LG_CX_GMU), lg_read(cc, LG_CXO), lg_read(cc, LG_GFX3D));
++	printf("LEMON GPU PROBE: snapshot complete; no GPU commands or register writes\n");
++}
++
++static void
++lg_thread(void *arg, wait_result_t result)
++{
++	(void)arg;
++	(void)result;
++	lg_snapshot();
++	(void)thread_terminate(current_thread());
++	thread_block(THREAD_CONTINUE_NULL);
++}
++
++void
++lemon_gpu_init(void)
++{
++	int mode = 0;
++	thread_t thread;
++	if (lg_started) return;
++	lg_started = true;
++	PE_parse_boot_argn("lemongpu", &mode, sizeof(mode));
++	if (mode != 1) return;
++	kern_return_t error = kernel_thread_start(lg_thread, NULL, &thread);
++	if (error == KERN_SUCCESS) thread_deallocate(thread);
++	else printf("LEMON GPU PROBE: thread failed %d\n", error);
++}
++#endif

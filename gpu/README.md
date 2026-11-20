@@ -51,6 +51,16 @@ runtime compatibility, rendering correctness or performance.
 
 ## What remains before a phone test
 
+Port patch0025 prepares a default-off first kernel checkpoint. `lemongpu=1`
+starts a separate snapshot thread after persistent logging is available. It
+reads GCC GPU config clocks and, only when both parent paths are clearly on,
+the GPUCC power/clock status. It does not access GPU core/SMMU registers or
+write hardware registers, load firmware or publish `LemonGPU`. This is a
+bring-up diagnostic, not GPU initialization or acceleration. Its actual code
+is covered by `tools/test-lemon-gpu-probe.py --xnu PATCHED_XNU` (gated paths,
+mapping failures, single start, default off, ARMv8.0 compile). A full XNU build
+and a hardware run remain pending.
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence
