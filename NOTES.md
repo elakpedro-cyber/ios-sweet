@@ -23,7 +23,11 @@ valid mask0 and SPI transport failure retain immediate release. No timing,
 firmware, reset, power, display policy or userland changes.
 Tests pass whole-worker syntax + actual FIFO/decoder + short bad gaps, refreshed
 deadline, exact100ms expiry/one release, immediate valid finger-up, existing
-identity/motion gate. Workflow applies0102. CI not yet launched.
+identity/motion gate. Workflow applies0102. Commite62c516 pushed; CI44712167874
+in progress. Packaging: research/build_touch_boot.py grace, kernel expected in
+xnu/out-touch-grace-kernel, boot-lemon-touch-grace-v20.img /
+payload-touch-grace-phone.bin. Prefer connector download_workflow_artifact if
+local gh API repeats TLS timeouts; fetch plain /actions/runs works for run list.
 
 Black-screen evidence: display off at log1401, on1459, off2221 amid later input;
 SpringBoard/user daemons continue afterward, no kernel panic or SpringBoard/
@@ -35,7 +39,7 @@ clock first appears, before display sleep (power-key wake still not ported).
 
 NEXT build/package v20, stage/verify, obtain concrete boot-only write/reboot
 approval. Installed v19 fullboot42595e17..., root/recovery preserved. Previous
-photo-note commit13a3be5 push still had a running session74386; check completion.
+photo-note commit13a3be5 push completed successfully; no pending session.
 
 ### v19 OBSERVATION: shifted lock screen then black; await TWRP/log (2026-11-20)
 
