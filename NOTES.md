@@ -2,6 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### READY: v17 build SUCCESS; USB absent, not staged/flashed (2026-11-20)
+
+User said "продолжм" during build wait. CI44617296656 for14ce591 SUCCESS,
+including full compile/link, whole-worker syntax and actual decoder/FIFO/
+readiness tests. Downloaded ONLY xnu-kernel into xnu/out-touch-ready-kernel;
+kernel.development.sweet SHA256
+c80c149489fd2ab8ae0fcea289092f730849f0716729d23112d7061435fc6515
+matches artifact SHA256SUMS; identity/rawFW diagnostic strings present.
+Packaged research/build_touch_boot.py ready ->
+shim/out/lemon-boot/boot-lemon-touch-ready-v17.img16998400bytes SHA256
+d0601d0885c79a49edced6ddd127609bad2f5eb4c75f0f5fd56846816ae6c7a3,
+payload-touch-ready-phone.bin. Unchanged identityADT and boot settings, new
+kernel/lemontouch2. Androidv2/knownDTB/gziploader/4Kloadranges/timer19 PASS.
+ADB daemon restarted but no devices enumerated. Push to /tmp FAILED; nothing
+staged, no partition write/reboot. Asked user reconnect cable/leave TWRP.
+NEXT reconnect, stage exact v17 and verify SHA/device boot link. Then obtain
+explicit concrete v17 boot-only write/reboot approval per AGENTS.md. Installed
+v16 last verified fullboot e975d1e1..., original recovery/dtbo match; battery61.
+After physical test collect log regardless of swipe result if input fails.
+
 ### ACTIVE: v16 SPI responds but FW info invalid; readiness patch0018 (2026-11-20)
 
 User returned TWRP; read ONLY4198400byte tail to research/lemon-v16-log.bin/.txt,
@@ -24,7 +44,8 @@ NVTSPI direction flag. Source enum is WRITE0/READ1; first helper inadvertently
 sent zero writes to volatile sensor event memory instead of reads (no phone
 partition write or firmware-flash command). Disclosed to user immediately,
 corrected direction, executed adb reboot recovery; fresh TWRP initialized/reset
-and successfully reloaded its firmware (FW5/PID5940). Tested helper on host;
+and successfully reloaded its firmware (FW5/PID5940). User separately confirmed
+AFTER that reboot/diagnostics that TWRP touch still works. Tested helper on host;
 live page-only counter delta messages1/RX0/TX3 confirms corrected WRITE flag.
 Later corrected bounded reads (only page-select writes) still returned unstable
 metadata; not reliable evidence of firmware absence. No more NVTSPI probing
