@@ -44,6 +44,36 @@ limit. Temporary UI candidates are Reduce Motion/Transparency; verify the
 installed preference schema before changing it. Avoid arbitrary clock writes,
 blindly extending contact grace, or enabling eight CPUs as an assumed cure.
 
+## v23 bounded experiment
+
+Keep v22's five CPUs, 766MiB RAM, 30Hz pacing, panel geometry and touch mapping.
+The boot profile enables the existing `ufswait=1` implementation: commands spin
+for 50us, then sleep in at-most-200us steps only after root initialization and
+in a sleepable thread context. The UFS mutex/slot ownership, DMA cache
+maintenance and command timeout stay unchanged. Early/interrupt/atomic paths
+still spin. This can free CPU during I/O but may add completion latency; it
+is an experiment, not a measured speedup. `ufscache=0` remains explicit.
+
+Patch0024 adds `sweetaks_log=0` to skip verbose per-call AppleKeyStore logging
+without changing selector results; default logging remains enabled. Exec,
+crash and persistent-log output remain available.
+
+`lemontouch_stats=1` reports one summary per five seconds of successful SPI
+reads: valid/contact/up packets, checksum/other validation/recovery errors,
+whole-zero packets, maximum interval between read starts and maximum read
+wall time. It does not change packet acceptance, coordinates or release rules.
+Read time includes preemption; the counters alone do not identify CPU load.
+Both options are opt-in. Host tests execute the actual UFS wait loop and touch
+accounting and preserve the existing decoder/readiness/framebuffer/SMP tests.
+
+Read-only inspection of the installed root confirmed `ReduceMotionEnabled=0`.
+The saved PosterBoard IPS confirms the failing switcher-setup method; assetsd
+IPS shows an Objective-C exception from a photo-library operation. No exact
+exception explanation is present in the inspected fields. KeepAlive settings
+explain why exiting Bluetooth/FairPlay services restart, but not why they exit.
+This boot does not disable these services, modify root preferences, change
+hardware clocks or increase contact grace. Those require separate evidence.
+
 ## Original v21 profile
 
 v20 reaches the iOS home screen with working touch, but the user reports severe

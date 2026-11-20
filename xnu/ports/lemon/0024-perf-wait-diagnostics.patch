@@ -1,0 +1,126 @@
+--- a/iokit/Kernel/arm/SweetKeyStore.cpp
++++ b/iokit/Kernel/arm/SweetKeyStore.cpp
+@@ -24,6 +24,9 @@
+ #include <IOKit/IOMemoryDescriptor.h>
+ #include <libkern/c++/OSString.h>
+ #include <sys/proc.h>
++#include <pexpert/pexpert.h>
++
++static int sweet_aks_log = 1;
+ 
+ /* libaks selectors (AppleKeyStore.framework, iOS 16.7). */
+ enum {
+@@ -74,6 +77,7 @@
+ 	if (!IOService::start(provider)) {
+ 		return false;
+ 	}
++	PE_parse_boot_argn("sweetaks_log", &sweet_aks_log, sizeof(sweet_aks_log));
+ 	setProperty(kIOUserClientClassKey, "AppleKeyStoreUserClient");
+ 	registerService();
+ 	IOLog("SWEET AKS: AppleKeyStore registered (no passcode, unlocked)\n");
+@@ -232,10 +236,12 @@
+ 		break;
+ 	}
+ 
+-	char name[32];
+-	proc_selfname(name, sizeof(name));
+-	IOLog("SWEET AKS: %s sel %u arg0 %llu in %u/%u out %u/%u -> 0x%x\n", name, selector,
+-	    arg0, in_scalars, in_struct, out_scalars, out_struct, ret);
++	if (sweet_aks_log) {
++		char name[32];
++		proc_selfname(name, sizeof(name));
++		IOLog("SWEET AKS: %s sel %u arg0 %llu in %u/%u out %u/%u -> 0x%x\n", name, selector,
++		    arg0, in_scalars, in_struct, out_scalars, out_struct, ret);
++	}
+ 	return ret;
+ }
+ #endif /* SWEET */
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -668,6 +668,7 @@
+ 	PE_parse_boot_argn("ufswait", &wait, sizeof(wait));
+ 	su.cache = (cache == 1);
+ 	su.wait = (wait == 1);
++	printf("SWEET UFS: sleep-after-spin=%u cache-maintenance-opt=%u\n", su.wait, su.cache);
+ 
+ 	su.regs = ml_io_map(reg[0], reg[1]);
+ 	if (kmem_alloc_contig(kernel_map, &su.dma, DMA_SIZE, PAGE_MASK, 0, 0,
+--- a/bsd/dev/lemon_touch.c
++++ b/bsd/dev/lemon_touch.c
+@@ -325,6 +325,52 @@
+ 	lt.active = mask;
+ }
+ 
++
++/* Diagnostics only: never modify decoded contacts or the release deadline. */
++static struct {
++	int enabled;
++	uint64_t start, last, gap, read;
++	unsigned polls, valid, contacts, up, checksum, invalid, recovery, zero;
++} lt_perf;
++
++static void
++lt_perf_record(const uint8_t report[66], int error, unsigned mask,
++    uint64_t begin, uint64_t end)
++{
++	if (!lt_perf.enabled) return;
++	if (!lt_perf.start) lt_perf.start = begin;
++	if (lt_perf.last && begin - lt_perf.last > lt_perf.gap) lt_perf.gap = begin - lt_perf.last;
++	lt_perf.last = begin;
++	if (end - begin > lt_perf.read) lt_perf.read = end - begin;
++	lt_perf.polls++;
++	uint8_t sum = 0, bits = 0;
++	for (unsigned i = 1; i < 66; i++) { sum += report[i]; bits |= report[i]; }
++	if (!bits) lt_perf.zero++;
++	if (!error) {
++		lt_perf.valid++;
++		if (mask) lt_perf.contacts++;
++		else lt_perf.up++;
++	} else {
++		if (error == EAGAIN) lt_perf.recovery++;
++		else if (sum) lt_perf.checksum++;
++		else lt_perf.invalid++;
++	}
++	uint64_t elapsed, gap, read;
++	absolutetime_to_nanoseconds(end - lt_perf.start, &elapsed);
++	if (elapsed < 5000000000ULL) return;
++	absolutetime_to_nanoseconds(lt_perf.gap, &gap);
++	absolutetime_to_nanoseconds(lt_perf.read, &read);
++	printf("LEMON TOUCH PERF: ms=%llu polls=%u valid=%u contact=%u up=%u checksum=%u invalid=%u recovery=%u zero=%u gap_ms=%llu read_us=%llu\n",
++	    (unsigned long long)(elapsed / 1000000), lt_perf.polls, lt_perf.valid,
++	    lt_perf.contacts, lt_perf.up, lt_perf.checksum, lt_perf.invalid,
++	    lt_perf.recovery, lt_perf.zero, (unsigned long long)(gap / 1000000),
++	    (unsigned long long)(read / 1000));
++	lt_perf.start = end;
++	lt_perf.gap = lt_perf.read = 0;
++	lt_perf.polls = lt_perf.valid = lt_perf.contacts = lt_perf.up = 0;
++	lt_perf.checksum = lt_perf.invalid = lt_perf.recovery = lt_perf.zero = 0;
++}
++
+ /* A corrupt sample is not a finger-up. Bound stale contacts to100ms. */
+ static void
+ lt_expire_contacts(void)
+@@ -432,18 +478,23 @@
+ 	unsigned candidate_frames = 0;
+ 	int candidate_x[10] = {0}, candidate_y[10] = {0};
+ 	printf("LEMON TOUCH: report mode=%d (2 waits for checked motion)\n", identity);
++	PE_parse_boot_argn("lemontouch_stats", &lt_perf.enabled, sizeof(lt_perf.enabled));
+ 	unsigned frames = 0, bad = 0, changes = 0;
+ 	for (;;) {
+ 		uint8_t report[66] = {0};
+ 		int x[10] = {0}, y[10] = {0};
+ 		unsigned mask = 0;
++		uint64_t begin = 0, end = 0;
++		if (lt_perf.enabled) clock_get_uptime(&begin);
+ 		int err = lt_read(0, report + 1, 65);
++		if (lt_perf.enabled) clock_get_uptime(&end);
+ 		if (err) {
+ 			printf("LEMON TOUCH: SPI stopped err=%d irq=%#x\n", err, lt.irq);
+ 			lt_report(0, x, y);
+ 			break;
+ 		}
+ 		err = lt_decode(report, &mask, x, y);
++		lt_perf_record(report, err, mask, begin, end);
+ 		if (err) {
+ 			if ((bad++ % 500) == 0) {
+ 				printf("LEMON TOUCH: invalid report err=%d first=%02x:%02x bad=%u\n",

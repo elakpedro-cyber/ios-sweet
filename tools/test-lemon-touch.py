@@ -32,6 +32,7 @@ typedef void *thread_t;
 typedef int kern_return_t, wait_result_t;
 extern void delay(unsigned), clock_interval_to_deadline(unsigned,unsigned,uint64_t *);
 extern void clock_get_uptime(uint64_t *);
+extern void absolutetime_to_nanoseconds(uint64_t,uint64_t *);
 extern int assert_wait_deadline(void *,int,uint64_t);
 extern void thread_block(void *), thread_deallocate(thread_t);
 extern thread_t current_thread(void);

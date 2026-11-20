@@ -2,6 +2,31 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v23 PREPARED: yielding UFS + quiet AKS + touch timing, CI next (2026-11-20)
+
+User explicitly requested remaining analysis followed by a build, not flashing.
+Read installed HFSX through read-only nbdkit/guestfish (root WSL required for
+supermin kernel access); private files in /home/hadirpc/lemon-v23-diagnostics.
+Confirmed Bluetooth/FairPlay KeepAlive entries and ReduceMotionEnabled=0.
+PosterBoard IPS confirms switcher initial setup SIGTRAP; assetsd IPS identifies
+an Objective-C exception in a photo-library operation, with no exact exception
+reason in inspected fields. No root writes or new hardware accesses.
+
+v23 retains v22 5 CPUs/766MiB/30Hz/working touch. Builder
+research/build_perf_v23.py expects xnu/out-perf-v23-kernel; new output directory
+shim/out/lemon-perf-v23. Adds ufswait=1 (existing guarded runtime yielding,
+50us spin/200us sleep), ufscache=0 (unchanged DMA maintenance), sweetaks_log=0,
+lemontouch_stats=1. Patch0024 implements opt-in AKS log gate and touch summary,
+plus one UFS mode print. No touch behavior change or background-service removal.
+Yielding may trade I/O completion latency for free CPU; not yet phone-tested.
+
+Local patched tree /home/hadirpc/lemon-v23-xnu: copied verified through0016
+source, applied0017..0023 with fuzz0 then0024. Host tests PASS: full touch worker
+syntax + decoder/FIFO/grace tests, readiness, SMP, framebuffer/RAM profile, and
+new actual UFS wait-loop guards/timeouts + touch diagnostic counters. Added
+0024 and new test to CI. NEXT commit/push, wait for CI, retrieve verified kernel,
+package v23 and validate layout; leave phone TWRP, do not flash on build request.
+
 ### v22 LAG INVESTIGATION: frame supply, daemon retries, touch ambiguity (2026-11-20)
 
 User requested diagnosis and timing estimate. Read existing driver/vendor source
