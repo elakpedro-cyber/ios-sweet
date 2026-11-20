@@ -2,6 +2,51 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIVE: v18 no touch; real TWRP packets validate metadata fallback for v19 (2026-11-20)
+
+User corrected initial "Есть реакция": NO touch in v18. Returned TWRP, USB absent
+even after ADB restart; user replugged and ADB recovery connected. Read ONLY
+4198400byte tail to research/lemon-v18-log.bin/.txt, total180159/flush15.
+Inherited gran=0, configured gran0 word4 pack7f8fe/ffefe MCLK101 CS0. All20
+identity attempts fail like v17 (shorta1:06, rawmostly9zeros/ff/a0:04:a7:cf:8b:00,
+PID5940 except oneffff). Thus BYTE_GRAN was not the cause. No new boot write.
+
+No speculative SPI timing changes made. Stock DT has no set-miso-sampling;
+source's version-specific CFG108/109 patch is conditional, do not enable blindly.
+Noted stock long67byte transfers choose DMA vs small FIFO, but longer metadata
+reads alone did not repair addressing; valid FW5/1080x2340 appears shifted28bytes
+in a65byte reply. Do not reinterpret arbitrary offsets as a fix.
+
+Captured event5 while user tapped (at least167 evdev lines) to ignored
+research/lemon-twrp-touch-events.txt: real NVT touch, not FTS. FTS temporarily
+registers input6 at boot then fails GPIO ownership and unregisters; current
+input list only NVT. Read-only raw report collector /proc/NVTSPI (READ0x80,len66,
+command0) observed2000polls: good31,bad1969,contacts30, while stock IRQ driver
+also consumes reports. research/lemon-twrp-live-report.txt saves12 raw examples;
+actual XNU lt_decode and new motion gate accept all12 with matching coordinates
+(research/test-real-nvt-reports.py, ASan+UBSan). All dumps/helpers ignored.
+Helpers' exact READ/header/page-only requests checked by native host mocks;
+compiled recovery NVTSPI.read7fbd40/fileops16c21e0 confirms headeroffset2 and
+READ bit7, CTP reads copy RBUF+2. Temporary helpers removed from /tmp afterward.
+No reset/power/fw upload or partition write during these diagnostics.
+
+Key distinction: metadata query fails even in working TWRP, whereas live
+checksummed contact packets decode correctly. Vendor nvt_get_fw_info falls
+back to known dimensions on invalid metadata; nvt_update_firmware logs its
+failure without disabling input. Primary FW updater fetched from MiCode commit
+02ca1a919564a9b176a79cce09c40977f833e9ac, lines978-982. Our unconditional
+metadata gate was stricter than the working driver's behavior.
+
+Patch0020 adds bounded metadata fallback ONLY with last2 PID5940. Valid/readable
+wrong version/geometry still reject; transport error stops. Fallback withholds
+HID until two valid checksummed frames with same active contacts show movement,
+then uses normal checked reports. Static/empty/bad frames do not enable HID.
+First slow swipe may confirm it; physical iOS result still UNPROVEN. Tests pass
+whole-worker syntax + FIFO/decoder/gates + identity classes/motion, and actual
+recorded packets. Workflow applies0101. CI not yet launched. NEXT build/package
+v19, stage/verify, obtain concrete boot-only write/reboot approval (prior unattended
+authorization was v18). Installed v18 fullboot42681fe0..., preserve root/recovery.
+
 ### INSTALLED: v18 SPI byte granularity boot; user away, waiting touch test (2026-11-20)
 
 CI44703558816 for6efc617 SUCCESS, full build and both actual-driver tests passed.

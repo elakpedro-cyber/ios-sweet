@@ -19,10 +19,14 @@ Patch0017 adds a separate SPI polling driver, guarded by LEMON_4K:
   SPI mode0/8bit/CS0, raw CS delay200. Requires retained GENI SPI firmware and
   idle/empty FIFOs. Reads NT36672A FW info/PID before accepting any contacts.
 
-Active handoff accepts only the observed FW5/PID5940/1080x2340. It selects the
+Active handoff requires known PID5940. Readable metadata must match the observed
+FW5/1080x2340. If metadata is unavailable, patch0020 permits the vendor-style
+known panel dimensions after stable PID, but withholds HID until two checksummed
+frames with the same active contacts show actual movement. A first slow swipe
+confirms this path; static/corrupt replies do not activate it. It selects the
 event pages, reads reports and checks checksum, contact IDs and coordinates;
 no chip reset, power change, SRAM firmware/configuration upload or flash write.
-Unknown firmware or transport failure stops the worker. Invalid reports release
+Readable unsupported firmware or transport failure stops the worker. Invalid reports release
 contacts; initial stale frames do not permanently disable input. Poll20ms, no
 GIC interrupt registration. Touch reports use the existing SweetHID service;
 LEMON panel height2340 yields a48pixel Y offset into the2436pixel logical display.
@@ -57,6 +61,25 @@ Earlier code set packing vectors but omitted this register. It logs inherited
 granularity and reads back the configured granularity, word length, packing,
 clock divisor and CS. Whether the inherited value was wrong is not yet measured.
 Host MMIO test begins with granularity2 and verifies setup clears it to0.
+
+v18 physical result: inherited granularity already0, configured0/word4/packing
+7f8fe,ffefe/MCLK101/CS0. Identity fails like v17; this register was not the cause.
+User corrected their initial positive touch reply: there is NO iOS touch success.
+
+Direct recovery validation then captured actual event5 movement and30 raw
+checksummed contact packets. The actual XNU decoder accepted all12 saved samples
+with matching IDs/coordinates. TWRP touch works despite its metadata query failing.
+Longer raw reads expose FW5/1080x2340 at an unexpected offset; that observation
+does not justify changing offsets or scanning arbitrary memory to bypass checks.
+
+Vendor nvt_get_fw_info defaults to panel dimensions when metadata is broken;
+nvt_update_firmware logs that failure without making the input path contingent
+on a valid version response. Patch0020 follows this distinction, preserving
+rejection of readable wrong geometry/version and SPI failures. Metadata fallback
+also requires the last two PID reads5940 and live motion before HID. Both decoder
+and live-motion gate were exercised on real recorded reports locally (dumps
+remain ignored). Source:
+https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/02ca1a919564a9b176a79cce09c40977f833e9ac/drivers/input/touchscreen/NT36672A/nt36xxx_fw_update.c
 
 Primary register/protocol references (read locally during implementation):
 Xiaomi NT36672A and spi-geni-qcom sources, commit

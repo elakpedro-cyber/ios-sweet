@@ -1,0 +1,104 @@
+--- a/bsd/dev/lemon_touch.c
++++ b/bsd/dev/lemon_touch.c
+@@ -325,9 +325,10 @@
+ }
+ 
+ /* A single early read may precede firmware readiness. Never relax identity checks. */
+-static bool
++static int
+ lt_identify(void)
+ {
++	unsigned project_streak = 0;
+ 	for (unsigned attempt = 0; attempt < 20; attempt++) {
+ 		uint8_t state[5] = {0}, pair[2] = {0}, info[16] = {0}, pid[2] = {0};
+ 		int err = lt_page(LT_EVENT);
+@@ -345,17 +346,49 @@
+ 		    info[0], info[1], info[2], info[3], info[4], info[5], info[6], info[7],
+ 		    info[8], info[9], info[10], info[11], info[12], info[13], info[14], info[15]);
+ 		if (err) {
+-			return false; /* Do not retry a failed SPI transport. */
++			return 0; /* Do not retry a failed SPI transport. */
++		}
++		if (pid[0] == 0x40 && pid[1] == 0x59) project_streak++;
++		else project_streak = 0;
++		/* A readable but unsupported identity is not a metadata-query failure. */
++		if ((unsigned)info[0] + info[1] == 255 &&
++		    (info[0] != 5 || ((info[4] << 8) | info[5]) != 1080 ||
++		    ((info[6] << 8) | info[7]) != 2340)) {
++			printf("LEMON TOUCH: unsupported valid FW metadata; stopping\n");
++			return 0;
+ 		}
+ 		if (info[0] == 5 && (unsigned)info[0] + info[1] == 255 &&
+ 		    pair[0] == info[0] && pair[1] == info[1] &&
+ 		    pid[0] == 0x40 && pid[1] == 0x59 &&
+ 		    ((info[4] << 8) | info[5]) == 1080 && ((info[6] << 8) | info[7]) == 2340) {
+-			return true;
++			return 1;
+ 		}
+ 		if (attempt != 19) lt_wait(100);
+ 	}
+-	return false;
++	if (project_streak >= 2) {
++		printf("LEMON TOUCH: PID5940 stable; metadata unavailable, require live checked motion\n");
++		return 2;
++	}
++	return 0;
++}
++
++/* Metadata fallback: require two checksummed frames showing real movement. */
++static bool
++lt_live_motion(unsigned mask, const int x[10], const int y[10],
++    unsigned *previous, int px[10], int py[10])
++{
++	bool moved = false;
++	if (mask && mask == *previous) {
++		for (unsigned i = 0; i < 10; i++) {
++			if ((mask & (1u << i)) && (x[i] != px[i] || y[i] != py[i])) {
++				moved = true;
++			}
++		}
++	}
++	*previous = mask;
++	memcpy(px, x, 10 * sizeof(int));
++	memcpy(py, y, 10 * sizeof(int));
++	return moved;
+ }
+ 
+ static void
+@@ -373,11 +406,17 @@
+ 	if (mode == 1 || !lt_setup()) {
+ 		goto out;
+ 	}
+-	if (!lt_identify()) {
++	int identity = lt_identify();
++	if (!identity) {
+ 		printf("LEMON TOUCH: no validated firmware handoff after bounded readiness check; no reset/upload attempted\n");
+ 		goto out;
+ 	}
+ 	printf("LEMON TOUCH: NT36672A ready CS0 poll=20ms 1080x2340\n");
++	bool guarded = identity == 2;
++	unsigned candidate = 0;
++	unsigned candidate_frames = 0;
++	int candidate_x[10] = {0}, candidate_y[10] = {0};
++	printf("LEMON TOUCH: report mode=%d (2 waits for checked motion)\n", identity);
+ 	unsigned frames = 0, bad = 0, changes = 0;
+ 	for (;;) {
+ 		uint8_t report[66] = {0};
+@@ -397,6 +436,17 @@
+ 			}
+ 			lt_report(0, x, y);
+ 		} else {
++			if (guarded) {
++				if (mask && candidate_frames++ < 3) {
++					printf("LEMON TOUCH: checked contact awaiting movement mask=%#x\n", mask);
++				}
++				if (!lt_live_motion(mask, x, y, &candidate, candidate_x, candidate_y)) {
++					lt_wait(20);
++					continue;
++				}
++				guarded = false;
++				printf("LEMON TOUCH: live checked movement confirmed; enabling HID\n");
++			}
+ 			if (mask != lt.active && changes++ < 20) {
+ 				printf("LEMON TOUCH: frame=%u active=%#x\n", frames, mask);
+ 			}
