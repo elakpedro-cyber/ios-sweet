@@ -4,6 +4,21 @@
 
 ### GPU CONFIG CLOCK ENABLE PREPARED (2026-11-20)
 
+RESULT: run44809918008 SUCCESS for370b316, all tests passed. gh download
+repeated TLS timeout; GitHub connector downloaded artifact14668700210, then
+local urllib fetch succeeded. Archive SHA verified against API digest
+ef5fe0ecf0e50b79b921fd85da7719a971598e8d2e1fdbc7b6ea39b68281ccc7.
+Extracted only kernel/SHA256SUMS; kernel checksum, ARM64 Mach-O/marker PASS:
+a22b6e528b35af6b577783ec98521683afa16c1a3c406532bd9f1c3b46438d79.
+Packaged v25 boot17002496 bytes, all layout/ADT/RAM/DTB checks PASS:
+shim/out/lemon-gpu-clock/boot-lemon-gpu-clock-v25.img
+SHA256 a889370d03326e9a907ee0a115c69e9ac579832370e978a7f1fef9ae3707215f.
+lemongpu=2; five CPUs,30Hz,v23 args unchanged. Phone recovery connected.
+Prepared research/flash_v25.py with exact prior v24 full boot SHA, protected
+recovery/dtbo hashes and prefix readback checks; NOT executed. Hardware remains
+v24. Awaiting confirmation for this boot write per AGENTS. No actual clock
+enable on phone yet. After launch wait60sec then recover/read persistent log.
+
 Build started for user's "включи": source370b3167f612e62728cb96ee4633be55bf9cc581,
 run44809918008 https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44809918008
 Last observed in_progress Build. research/build_gpu_clock_boot.py prepared
