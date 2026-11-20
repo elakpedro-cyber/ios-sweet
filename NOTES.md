@@ -2,7 +2,7 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### READY: v17 build SUCCESS; USB absent, not staged/flashed (2026-11-20)
+### READY: v17 build SUCCESS; staged in TWRP, awaiting boot approval (2026-11-20)
 
 User said "продолжм" during build wait. CI44617296656 for14ce591 SUCCESS,
 including full compile/link, whole-worker syntax and actual decoder/FIFO/
@@ -15,10 +15,13 @@ shim/out/lemon-boot/boot-lemon-touch-ready-v17.img16998400bytes SHA256
 d0601d0885c79a49edced6ddd127609bad2f5eb4c75f0f5fd56846816ae6c7a3,
 payload-touch-ready-phone.bin. Unchanged identityADT and boot settings, new
 kernel/lemontouch2. Androidv2/knownDTB/gziploader/4Kloadranges/timer19 PASS.
-ADB daemon restarted but no devices enumerated. Push to /tmp FAILED; nothing
-staged, no partition write/reboot. Asked user reconnect cable/leave TWRP.
-NEXT reconnect, stage exact v17 and verify SHA/device boot link. Then obtain
-explicit concrete v17 boot-only write/reboot approval per AGENTS.md. Installed
+Initially USB absent; user reconnected and confirmed TWRP. ADB recovery now
+connected; staged /tmp/boot-lemon-touch-ready-v17.img, SHA matches d0601d08...
+above. Boot link /dev/block/sde49 size134217728. Full current v16 boot and
+original recovery/dtbo hashes rechecked/matched. No partition write/reboot.
+NEXT obtain explicit concrete v17 boot-only write/reboot approval per AGENTS.md.
+Write16998400bytes boot only, verify4150block prefix and protected hashes, reboot.
+Installed
 v16 last verified fullboot e975d1e1..., original recovery/dtbo match; battery61.
 After physical test collect log regardless of swipe result if input fails.
 
