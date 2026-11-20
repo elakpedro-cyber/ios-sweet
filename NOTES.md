@@ -2,6 +2,40 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v22 AUDITED: 5/5 CPUs alive, log read, boot/protected hashes match (2026-11-20)
+
+Resumed after Claude's work at e3e20bc (remote branch matches local; clean tree).
+Reviewed 6084b08: lemon-only MPIDR validation/name, opt-in ADT expansion and CI
+test. CI44740417458 confirmed success. Host ADT test passed against real perf
+ADT; full patched-source checks were run in CI, not repeated locally. Kernel
+and packaged image hashes match the recorded v22 values. Read-only device
+checks: full boot 2d4b22b6... matches installed v22; recovery 1737005c... and
+dtbo 6fd8b752... unchanged. No device writes/reboots in this audit.
+
+Fresh 4198400-byte userdata log tail saved to research/lemon-v22-log.bin/.txt.
+SWEET CPU explicitly confirms MPIDRs 0,100,101,102,103 alive, SGI1 OK on each,
+and "5/5 CPUs initialized, SGI1 verified". This establishes CPU startup, not
+actual CPU clock frequency or even workload distribution. ADT clock-frequency
+values are declarations, not measured hardware clocks.
+
+115 LEMON PERF samples, 59 with frames, 598 total frames. Peak 60 frames in
+5016ms = 11.96 presented fps; v21 peak 15/5011ms = 2.99 fps. Sessions differ
+in duration/activity, so this is NOT a controlled 4x speedup measurement.
+Active v22 samples usually 1-25 frames per 5s, with one 60-frame sample;
+30Hz notifications work but are not a 30fps render rate. Accumulated present
+time/frame 11.95ms (v21 5.23ms), including scheduling/locking/preemption.
+Copy alone does not explain the long intervals between most presented frames;
+software rendering / scheduling remains a hypothesis requiring profiling.
+No panic( entries found in captured log. Touch has invalid all-zero reports
+(counter reaches 22001) and 21 stale-contact releases after 100ms. This may
+split gestures and must be distinguished from slow frame rendering; whether
+SMP changed the error rate is unmeasured. Do not increase grace blindly.
+
+NEXT: separate render stalls from touch gaps; inspect CPU load/actual frequency
+and safe userspace motion/transparency settings before another boot. cpus=8
+is only an untested option, not a demonstrated fix. Current phone is in TWRP,
+v22 remains installed, no new flash authorized by the audit request.
+
 ### v22 SMP BOOTS TO iOS; user: iOS "чуть чуть быстрее", boot not faster (2026-11-20)
 
 User report after v22 reboot: boot time not noticeably shorter, iOS itself works
