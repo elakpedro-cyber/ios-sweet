@@ -4,6 +4,16 @@
 
 ### GPU CONFIG CLOCK ENABLE PREPARED (2026-11-20)
 
+V25 FLASHED AND REBOOT SENT: user confirmed "да". research/flash_v25.py
+verified prior full v24 boot SHA, target sde49/134217728, image/transfer hashes,
+recovery/dtbo hashes. Wrote only boot17002496 bytes; readback prefix matches
+a889370d03326e9a907ee0a115c69e9ac579832370e978a7f1fef9ae3707215f.
+New full boot SHA ca773dae1d24d2fef9fe91f1847bd9a621feec0fc837342e30eebc8601d42ad4.
+Recovery/dtbo unchanged; userdata untouched. adb reboot returned success,
+device disconnected as expected. Actual screen/clock result not yet observed.
+Next: wait60sec then user returns to TWRP; read persistent log and inspect
+LEMON GPU CLOCK / LEMON GPU PROBE lines. No acceleration expected yet.
+
 RESULT: run44809918008 SUCCESS for370b316, all tests passed. gh download
 repeated TLS timeout; GitHub connector downloaded artifact14668700210, then
 local urllib fetch succeeded. Archive SHA verified against API digest
