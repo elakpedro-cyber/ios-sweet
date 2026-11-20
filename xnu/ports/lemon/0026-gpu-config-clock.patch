@@ -1,0 +1,86 @@
+--- a/bsd/dev/lemon_gpu.c
++++ b/bsd/dev/lemon_gpu.c
+@@ -1,6 +1,7 @@
+ /* SM6115/A610 first kernel checkpoint. lemongpu=1: clock/power snapshot only.
+  * Registers: Linux05441d... gcc-sm6115.c and gpucc-sm6115.c; live phone FDT.
+- * No power/clock/reset writes, GPU/SMMU access, firmware loading or GPU service.
++ * lemongpu=2: enable QMIP config clock before input workers, then snapshot.
++ * No power/reset/PLL writes, GPU/SMMU access, firmware loading or GPU service.
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)
+ #include <sys/param.h>
+@@ -38,6 +39,45 @@
+ 	uint32_t value = *(volatile uint32_t *)(base + offset);
+ 	__asm__ volatile("dmb oshld" ::: "memory");
+ 	return value;
++}
++
++/* Linux gcc-sm6115: QMIP GPU config enable = GCC7900c bit4.
++ * Called synchronously BEFORE touch workers: they update the same vote word.
++ * Require existing CFG_AHB on. Never start MEMNOC/SNOC or GPU execution here. */
++static void
++lg_write(vm_offset_t base, unsigned offset, uint32_t value)
++{
++	*(volatile uint32_t *)(base + offset) = value;
++	__asm__ volatile("dsb oshst" ::: "memory");
++}
++
++static bool
++lg_config_enable(void)
++{
++	vm_offset_t gcc = ml_io_map(LG_GCC_PA, LG_GCC_SIZE);
++	if (!gcc) return false;
++	uint32_t cfg = lg_read(gcc, LG_CFG_AHB);
++	if (!(cfg & 1u) || (cfg & (1u << 31))) {
++		printf("LEMON GPU CLOCK: CFG_AHB unavailable; no writes\n");
++		return false;
++	}
++	uint32_t before = lg_read(gcc, LG_VOTE);
++	bool owned = !(before & (1u << 4));
++	if (owned) lg_write(gcc, LG_VOTE, before | (1u << 4));
++	for (unsigned i = 0; i < 200; i++) {
++		uint32_t vote = lg_read(gcc, LG_VOTE);
++		uint32_t qmip = lg_read(gcc, LG_QMIP_AHB);
++		if ((vote & (1u << 4)) && !(qmip & (1u << 31))) {
++			printf("LEMON GPU CLOCK: QMIP enabled before=%#x after=%#x status=%#x\n",
++			    before, vote, qmip);
++			return true;
++		}
++		delay(1);
++	}
++	if (owned) lg_write(gcc, LG_VOTE, lg_read(gcc, LG_VOTE) & ~(1u << 4));
++	printf("LEMON GPU CLOCK: QMIP timeout; owned vote cleared, vote=%#x\n",
++	    lg_read(gcc, LG_VOTE));
++	return false;
+ }
+ 
+ static void
+@@ -88,6 +128,10 @@
+ 	if (lg_started) return;
+ 	lg_started = true;
+ 	PE_parse_boot_argn("lemongpu", &mode, sizeof(mode));
++	if (mode == 2) {
++		if (lg_config_enable()) lg_snapshot();
++		return;
++	}
+ 	if (mode != 1) return;
+ 	kern_return_t error = kernel_thread_start(lg_thread, NULL, &thread);
+ 	if (error == KERN_SUCCESS) thread_deallocate(thread);
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -740,12 +740,12 @@
+ 	    su.writable ? "read-write" : "read-only", su.dma_pa);
+ 	sweet_log_start();
+ 	sweet_sample_start();
++#if defined(LEMON_4K)
++	lemon_gpu_init();
++#endif
+ 	/* Input drivers (HID services in iokit/Kernel/arm/hid/SweetHID.cpp). */
+ 	sweet_keys_init();
+ 	sweet_touch_init();
+-#if defined(LEMON_4K)
+-	lemon_gpu_init();
+-#endif
+ 	sweet_usb_probe();
+ 	return 0;
+ }

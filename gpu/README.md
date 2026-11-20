@@ -61,6 +61,16 @@ is covered by `tools/test-lemon-gpu-probe.py --xnu PATCHED_XNU` (gated paths,
 mapping failures, single start, default off, ARMv8.0 compile). A full XNU build
 and a hardware run remain pending.
 
+Patch0026 adds opt-in `lemongpu=2`: synchronously before input workers, require
+CFG_AHB already running, set only GCC7900c bit4 (QMIP GPU configuration vote),
+verify vote and CLK_OFF for at most200us, then take the guarded snapshot.
+On timeout clear only a vote acquired by this code; preserve other bits.
+Success retains the config vote. GPU power domains, MEMNOC/SNOC, PLLs,
+GPU core/SMMU and firmware remain untouched. This enables register access
+only, not rendering. Ordering avoids racing the touch worker's shared vote.
+Linux references: [SM6115 GCC](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/gcc-sm6115.c),
+[branch polling](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/clk-branch.c).
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence

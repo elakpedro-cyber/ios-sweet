@@ -13,6 +13,8 @@ source = (tree / 'bsd/dev/lemon_gpu.c').read_text()
 assert '#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)' in source
 assert 'extern void lemon_gpu_init(void);' in (tree / 'bsd/dev/sweet_ufs.c').read_text()
 assert 'bsd/dev/lemon_gpu.c' in (tree / 'bsd/conf/files').read_text()
+hook = (tree / 'bsd/dev/sweet_ufs.c').read_text()
+assert hook.index('\tlemon_gpu_init();') < hook.index('\tsweet_touch_init();')
 header = r'''
 #include <stdbool.h>
 #include <stdint.h>
@@ -32,13 +34,25 @@ extern int PE_parse_boot_argn(const char *,void *,unsigned);
 extern kern_return_t kernel_thread_start(thread_continue_t,void *,thread_t *);
 extern void thread_deallocate(thread_t),thread_block(void *);
 extern thread_t current_thread(void);
+extern void delay(int);
 '''
 plain = re.sub(r'^#include <[^>]+>\n', '', source, flags=re.M)
 mocked = re.sub(r'static uint32_t\nlg_read\(.*?\n}\n', 'static uint32_t lg_read(vm_offset_t, unsigned);\n', plain, flags=re.S)
 assert mocked != plain
+mocked = re.sub(r'static void\nlg_write\(.*?\n}\n', 'static void lg_write(vm_offset_t, unsigned, uint32_t);\n', mocked, flags=re.S)
 test = r'''
 static unsigned option, maps, reads, cc_reads, threads, terminated, map_failure;
 static uint32_t cfg, qmip, vote;
+static unsigned writes, delays, ignore_write, concurrent_vote;
+void delay(int us) {
+    assert(us==1);delays++;
+    if(concurrent_vote) vote |= 0x1000;
+}
+static void lg_write(vm_offset_t base,unsigned offset,uint32_t value) {
+    assert(option==2 && base==1 && offset==LG_VOTE);
+    assert(((value^vote)&~16u)==0);writes++;
+    if(!ignore_write) vote=value;
+}
 int PE_parse_boot_argn(const char *name,void *p,unsigned size) {
     assert(!strcmp(name,"lemongpu") && size==sizeof(int));*(int *)p=option;return 1;
 }
@@ -81,7 +95,7 @@ static void run(unsigned mode,unsigned config,unsigned q,unsigned v,unsigned fai
 }
 int main(void) {
     run(0,1,0,16,0);assert(!maps && !reads);
-    run(2,1,0,16,0);assert(!maps && !reads);
+    run(99,1,0,16,0);assert(!maps && !reads);
     run(1,0,0,16,0);assert(maps==1 && reads==5 && !cc_reads);
     run(1,0x80000001,0,16,0);assert(maps==1 && !cc_reads);
     run(1,1,0,0,0);assert(maps==1 && !cc_reads);
@@ -89,6 +103,21 @@ int main(void) {
     run(1,1,0,16,1);assert(maps==1 && !reads);
     run(1,1,0,16,2);assert(maps==2 && reads==5 && !cc_reads);
     run(1,1,0,16,0);assert(maps==2 && reads==11 && cc_reads==6);
+    run(2,1,8,0x4be0,0);assert(writes==1 && !delays && cc_reads==6 && vote==0x4bf0);
+    writes=delays=0;
+    run(2,1,8,0x4bf0,0);assert(!writes && !delays && cc_reads==6);
+    run(2,0,8,0x4be0,0);assert(!writes && !cc_reads);
+    run(2,0x80000001,8,0x4be0,0);assert(!writes && !cc_reads);
+    run(2,1,8,0x4be0,1);assert(!writes && !cc_reads);
+    concurrent_vote=1;
+    run(2,1,0x80000008,0x4be0,0);
+    assert(writes==2 && delays==200 && !cc_reads && vote==0x5be0);
+    concurrent_vote=0;writes=delays=0;
+    run(2,1,0x80000008,0x4bf0,0);
+    assert(!writes && delays==200 && !cc_reads && vote==0x4bf0);
+    ignore_write=1;writes=delays=0;
+    run(2,1,8,0x4be0,0);assert(writes==2 && delays==200 && !cc_reads && vote==0x4be0);
+    puts("PASS: opt-in config vote only, bounded timeout, rollback owned bit, preserve other voters, input initialization order");
     puts("PASS: actual GPU probe default off, single start, gated parent clocks, mapping failures; only whitelisted read accesses");
 }
 '''

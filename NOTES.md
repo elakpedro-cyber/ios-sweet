@@ -2,6 +2,23 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### GPU CONFIG CLOCK ENABLE PREPARED (2026-11-20)
+
+User requested "включи" after v24 readout. Patch0026 adds lemongpu=2 opt-in:
+require existing CFG_AHB enabled/not halted, RMW only GCC7900c bit4 QMIP
+configuration vote, read back vote and QMIP CLK_OFF with200 x1us max polling.
+On timeout clear only owned bit, preserving current other votes. Success
+retains config vote and runs existing guarded GPUCC snapshot. No GPU core,
+SMMU, firmware, power/reset/PLL, MEMNOC/SNOC writes or acceleration yet.
+Moved GPU init before input workers; mode2 executes synchronously to avoid
+racing touch setup RMW on same7900c word. Mode1 stays read-only/default0 off.
+Grounded in local Linux05441d gcc-sm6115.c and clk-branch.c; upstream primary
+sources also checked. Actual-module mock ASan/UBSan tests PASS for successful
+vote, already voted, CFG off/halted, failed mapping/write,200us timeout,
+owned rollback/other-bit preservation and ordering. ARMv8.0 compile PASS.
+Reverse patch dry-run PASS. Working tree /home/hadirpc/lemon-gpu-probe-xnu.
+Next full kernel build and v25 packaging with lemongpu=2; no new phone writes.
+
 ### A610 READ-ONLY KERNEL CHECKPOINT PREPARED; no build/flash yet (2026-11-20)
 
 HARDWARE RESULT v24: returned to TWRP, ADB recovery connected. Read only
