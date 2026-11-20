@@ -2,6 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### INSTALLED: v19 live-report fallback; awaiting physical swipe test (2026-11-20)
+
+User explicitly approved concrete v19 boot-only write/reboot: "да".
+Preflight sde49/134217728bytes, stagedSHA, currentv18/protected hashes matched.
+Wrote ONLY16998400bytes boot via dd4096 conv=fsync+sync. Readback4150blocks SHA
+f4fb3a6ca4c63648ac426ce49a7cdb6b3ae681e73414c93ffb0c56717f400316 matches.
+New full boot SHA256
+42595e17149709595b8fcbcd8d06160f167306a65dfff89ddba4e878aead12e4.
+Recovery/dtbo original full hashes unchanged. No manual userdata writes or
+sensor commands. Issued adb reboot successfully. NEXT allow lock screen, user
+slow swipe(s) to establish checked movement; physical iOS touch NOT yet confirmed.
+If no response, returnTWRP and pull ONLY4198400byte tail into
+research/lemon-v19-log.bin/.txt, inspect PID-stable fallback/report mode,
+checked-contact awaiting movement/live movement confirmed/HID. Preserve root
+and recovery; do not assume TWRP packet success proves SRAM retention in XNU.
+
 ### READY: v19 CI success, staged/verified; awaiting boot approval (2026-11-20)
 
 CI44708711146 for6a8f449 SUCCESS (build + native actual-driver tests). Local
