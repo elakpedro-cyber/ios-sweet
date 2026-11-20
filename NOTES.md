@@ -2,6 +2,30 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### READY: v20 gesture grace CI success, staged; awaiting boot approval (2026-11-20)
+
+CI44712167874 fore62c516 SUCCESS. Downloaded xnu-kernel artifact14619145512
+through GitHub download_workflow_artifact (66779160byteZIP), extracted ONLY
+kernel.development.sweet/SHA256SUMS to xnu/out-touch-grace-kernel. Kernel SHA256
+12821796d5a0882d65f079220f396b40994c48d42041331918de9582f324f699
+matches artifact checksum; stale-contact timeout string present in linked kernel.
+research/build_touch_boot.py grace ->16998400byte
+shim/out/lemon-boot/boot-lemon-touch-grace-v20.img SHA256
+a3e7e8d22800e1c4df436f63d01543ad4c6e993db05b311430cb7b74f81745e5,
+payload-touch-grace-phone.bin. Same identityADT/settings+lemontouch2, new kernel.
+Androidv2/gzip/knownDTB/4Kloadranges/timer19 PASS. Staged
+/tmp/boot-lemon-touch-grace-v20.img; device SHA matches. ADB recovery, boot link
+sde49 size134217728, currentv19 fullboot42595e17... and original recovery/dtbo
+hashes matched. No partition write/reboot this turn. Full build and decoder/
+FIFO/readiness/motion/grace tests passed. All completed changes committed/pushed.
+NEXT get concrete v20 boot-only write/reboot approval, dd16998400bytes+fsync/sync,
+verify4150block prefix/protected hashes, reboot. Ask user start slow swipe(s)
+promptly when clock appears, before display sleep; confirm continuous gesture.
+v19 established real iOS HID input after THIS warm reboot from TWRP. Cold boot
+after sensor power loss remains untested; no reset/upload support claimed.
+If v20 fails, returnTWRP/read4.2MiB tail, check fewer false UPs vs timeout releases,
+valid releases, display power requests. Preserve root/recovery/backups.
+
 ### MILESTONE: v19 real iOS HID touch CONFIRMED; fix false releases for v20 (2026-11-20)
 
 User returned TWRP during photo discussion. ADB connected without replug. Read
