@@ -2,6 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### INSTALLED: v20 invalid-frame grace; awaiting continuous swipe test (2026-11-20)
+
+User explicitly approved concrete v20 boot-only write/reboot: "да".
+Preflight sde49/134217728bytes, stagedSHA, oldv19/protected hashes matched.
+Wrote ONLY16998400bytes boot, dd4096 conv=fsync+sync. Readback4150block prefix
+SHA matches a3e7e8d22800e1c4df436f63d01543ad4c6e993db05b311430cb7b74f81745e5.
+New full boot SHA256
+fad51c7be045eaa01a341514dca2e01a68659a0b3b7640e488838ce48567742d.
+Recovery/dtbo original hashes unchanged. No manual userdata writes or sensor
+commands. Issued adb reboot successfully. NEXT user watch clock appear and
+promptly try2-3 slow upward swipes (first establishes checked live motion).
+Physical v20 gesture reliability NOT yet confirmed. If black/no unlock, return
+TWRP/read ONLY4198400byte tail to research/lemon-v20-log.bin/.txt and inspect
+continuous HID path vs stale-contact timeout, valid UP and display-off request.
+v19 already confirms basic iOS HID input; no cold-boot firmware claim.
+
 ### READY: v20 gesture grace CI success, staged; awaiting boot approval (2026-11-20)
 
 CI44712167874 fore62c516 SUCCESS. Downloaded xnu-kernel artifact14619145512
