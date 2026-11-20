@@ -2,7 +2,45 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### ACTIVE: v22 opt-in SMP (boot A53 + four A73) prepared; CI next (2026-11-20)
+### v22 SMP BOOTS TO iOS; user: iOS "чуть чуть быстрее", boot not faster (2026-11-20)
+
+User report after v22 reboot: boot time not noticeably shorter, iOS itself works
+slightly faster. So v22 boots to usable iOS with cpus=5 (boot A53 + A73 cluster
+requested). Log NOT yet read: number of CPUs actually alive ("SWEET CPU: N/5
+CPUs initialized") and LEMON PERF fps are UNVERIFIED. Phone left running v22
+(boot 2d4b22b6...). Second-PC work synced to home PC workspace (commits +
+ignored build outputs). NEXT: TWRP, read v22 log tail, confirm 5 CPUs and fps;
+then consider userspace-side load (backboardd/SpringBoard render cost), CPU
+frequency (ABL-left, unknown), cpus=8, and boot-time profile (UFS/launchd).
+
+### INSTALLED: v22 SMP (cpus=5) written, rebooted; awaiting result (2026-11-20)
+
+User explicitly approved ("Да, записывай"). Guarded script (sde49, size, staged
+SHA, old v21 full SHA) wrote ONLY 17002496 bytes; 4151-block prefix SHA
+8afe76ea... matches v22. New full boot SHA256
+2d4b22b6f3c52fd7fbf69955fb402d69ab2c5e1062dc2089edb8d376ce5da75f.
+recovery/dtbo unchanged. adb reboot issued. Rollback images: v21
+shim/out/lemon-perf/boot-lemon-performance-v21.img, v20 lemon-boot grace.
+NEXT user feedback; TWRP log tail -> research/lemon-v22-log.*; check SWEET CPU
+lines (5 alive?) and LEMON PERF frames.
+
+### READY: v22 SMP CI success, staged in TWRP; awaiting boot approval (2026-11-20)
+
+Commit 6084b08 pushed by user from home PC (SSH sessions cannot read Windows
+credential store; second PC git is logged in as another account). CI44740417458
+SUCCESS incl. "Verify opt-in lemon SMP topology". Artifact14630633482 via
+nightly.link; kernel SHA256
+67c5aaa6378b9f86cfc6377b6aac6621082934bd1e2abce67b1e02b2457c833a matches
+SHA256SUMS; contains "Kryo 260", not "Kryo 470". Copied to xnu/out-smp-kernel.
+research/build_smp_boot.py 5 PASS -> shim/out/lemon-smp/boot-lemon-smp5-v22.img
+17002496 bytes (4151 blocks) SHA256
+8afe76ea780fe1f7ef3d3f4b28956d71ad9fba7ba37bb79d58293f433a43cbab.
+Preflight TWRP: boot sde49/134217728, current full boot d4bde338... (v21),
+recovery 1737005c..., dtbo 6fd8b752..., battery76. Staged /tmp SHA matches.
+NEXT concrete boot-write approval; verify 4151-block prefix; reboot; expect
+"SWEET CPU: cpu=1..4 mpidr=0x100..0x103 came alive" and LEMON PERF lines.
+
+### Previous: v22 opt-in SMP (boot A53 + four A73) prepared; CI next (2026-11-20)
 
 User approved preparing SMP ("Да, готовь SMP"). Audited CI44717407897 build tree:
 GICR lookup (pe_fiq find_gicr_pe_base), SGI1R routing (SweetCPU::signalCPU uses
