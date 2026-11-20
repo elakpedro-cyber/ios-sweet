@@ -2,7 +2,30 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### v23 PREPARED: yielding UFS + quiet AKS + touch timing, CI next (2026-11-20)
+### v23 READY: CI successful, boot packaged/validated, NOT FLASHED (2026-11-20)
+
+User returned after CI finished. Confirmed CI44746893042 SUCCESS, exact source
+f7f69e43a21b019b858547cead6a21dbfbbd1bb7, no failed steps. Downloaded ONLY
+xnu-kernel via gh to research/v23-ci-kernel. Kernel SHA256SUMS, ARM64 Mach-O,
+v23 diagnostic/logging strings and Kryo260 markers verified by
+research/verify_v23_artifact.py. Kernel copied to xnu/out-perf-v23-kernel:
+90ec80e2c72d2bcf981655b425f736c3d5a3b769075c28fecb76de327886d31a.
+
+research/build_perf_v23.py PASS. Image:
+shim/out/lemon-perf-v23/boot-lemon-performance-v23.img
+17002496 bytes (4151 blocks), SHA256
+d88d451cdeeb8a1ffed2ecd3dbdf441441c8b786a3c8324b388ce28c7f874fac.
+Verified Android v2 header/layout, gzip loader bytes, unchanged DTB/loader,
+payload segments within selected RAM and ADT byte-identical to v22. Command
+line retains cpus=5/766MiB/30Hz/touch, adds ufswait=1 ufscache=0 sweetaks_log=0
+lemontouch_stats=1. Full console/persistent logging and exec/crash logs remain.
+No device writes, staging or reboot in this turn. No measured v23 speedup yet.
+NEXT: user authorizes boot test, preflight current boot/protected hashes,
+stage/verify image, guarded boot-only write/readback, reboot, test responsiveness
+and continuous swipe; later collect LEMON PERF / LEMON TOUCH PERF from TWRP.
+v22 rollback image and all protected partitions/root stay intact.
+
+### Previous: v23 prepared and CI started (2026-11-20)
 
 BUILD RUNNING: commit f7f69e43a21b019b858547cead6a21dbfbbd1bb7,
 CI44746893042 / job136324416582. Deps and atomics passed, Build in progress.
