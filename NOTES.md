@@ -2,6 +2,25 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### MILESTONE: v20 touch swipe reaches iOS HOME SCREEN (user-confirmed, 2026-11-20)
+
+User selected "Открылся следующий экран" after v20 slow upward swipe. Asked
+destination; user explicitly confirmed "Рабочий стол с иконками". Thus physical
+touch/swipe navigation to real iOS home screen is now USER-CONFIRMED on Redmi9TNFC.
+This builds on v19's logged real HID input; v20 invalid-frame grace resolves the
+reported fragmented unlock path in this test. No new photo or v20 log collected
+yet; do not label those as independently verified. Preserve interactive success:
+phone left running v20 in iOS, no reboot/TWRP request or device write this turn.
+
+Current boot image boot-lemon-touch-grace-v20.img16998400bytes imageSHA
+a3e7e8d22800e1c4df436f63d01543ad4c6e993db05b311430cb7b74f81745e5;
+installed fullbootSHA fad51c7be045eaa01a341514dca2e01a68659a0b3b7640e488838ce48567742d.
+Kernel12821796d5a0882d65f079220f396b40994c48d42041331918de9582f324f699,
+CI44712167874/e62c516. Root/recovery preserved. Touchscreen request has achieved
+basic interactive home-screen navigation. App launching, performance, physical
+keys/display wake and cold-boot firmware retention remain separate/unverified;
+do not change working build without a new concrete task/approval.
+
 ### INSTALLED: v20 invalid-frame grace; awaiting continuous swipe test (2026-11-20)
 
 User explicitly approved concrete v20 boot-only write/reboot: "да".

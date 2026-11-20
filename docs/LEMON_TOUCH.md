@@ -99,6 +99,12 @@ crash appears in the saved log (existing driverkitd sig9 occurs earlier). This
 does not identify the exact userspace reason for the power-off request. Test the
 next swipe promptly when the clock appears; physical power-key wake remains unported.
 
+v20 physical result (2026-11-20): user confirms the upward swipe opened the next
+screen, and explicitly identifies it as the home screen with icons. Basic touch
+navigation to the iOS desktop is therefore user-confirmed. Phone remains running
+the working v20; no new log/photo was requested at this milestone. This test is
+a warm boot from TWRP, not validation of firmware loading after power loss.
+
 Primary register/protocol references (read locally during implementation):
 Xiaomi NT36672A and spi-geni-qcom sources, commit
 02ca1a919564a9b176a79cce09c40977f833e9ac in
