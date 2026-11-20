@@ -2,6 +2,20 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### v19 OBSERVATION: shifted lock screen then black; await TWRP/log (2026-11-20)
+
+User supplied photo while trying to document no reaction: clock partially at
+panel top, camera affordance and home indicator higher than earlier lock screen.
+Then user reports smooth fade to black with panel still lit. This resembles a
+lock-screen transition but does NOT establish successful touch, unlock, crash
+or display sleep. Preserve distinction; need actual kernel/HID logs.
+Original photo copied to ignored research/lemon-v19-lockscreen-transition.png.
+ADB currently empty, consistent with running XNU. Asked user return TWRP (no
+Data format) to read ONLY4198400byte tail into research/lemon-v19-log.bin/.txt.
+NEXT inspect live movement confirmation, SWEET HID touches/positions and any
+panic/process exits/framebuffer activity around transition. No new device
+write/reboot or driver changes this turn. Keep v19 installed/root/recovery.
+
 ### INSTALLED: v19 live-report fallback; awaiting physical swipe test (2026-11-20)
 
 User explicitly approved concrete v19 boot-only write/reboot: "да".
