@@ -2,6 +2,43 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### IMPORTANT CORRECTION: Pixel forks already accelerate CA via GLES, no Metal needed (2026-11-20)
+
+User pointed to Pixel forks after earlier generic GPU estimate. Paginated all
+direct ios-sweet forks using gh read APIs, then inspected original Pixel1 fork
+joranv1/ios-sailfish and Pixel3 descendant andyleenz/pixel3-ios. Earlier advice
+overemphasized Metal/Vulkan and missed an existing CoreAnimation GLES path.
+For iOS16 UI acceleration, native Metal or Metal-on-Vulkan is NOT prerequisite.
+Use these existing integration donors before proposing writing everything anew.
+
+Pixel1 donor: joranv1/ios-sailfish main6f27e41ff249f2680540ebe8ee5ab982c5e641c9;
+README reports Adreno530 GPU UI20-40fps, explicitly no Metal. tools/sweetgl/
+contains actual Mesa Freedreno + DRM stand-in + EAGL shim source and build
+scripts; kernel patches0119..0164 implement GPU power/SMMU/firmware/BO/submit/
+present. SavoryBanana and devilAPI forks carry this same implementation.
+
+Closer GPU-family donor: andyleenz/pixel3-ios master
+737278ac173883599cfade65627e69b0376083a6. README reports Adreno630 GLES3.2,
+Settings/Safari55-62fps, still no Metal. gpu/README.md, gpu/mesa-ios/README.md,
+gpu/eagl-ios/README.md and actual blueeagl.c / blue_gpu_uapi.h inspected.
+Mesa26.3.1 built for iOS arm64 into bluegl.dylib; bluedrm maps msm ioctls to
+BlueGPU IOKit client. EAGL shim supplies CoreAnimation's private function table
+and IOSurface imports; Metal lookup fails then EAGL API3 is used. Pixel3 uses
+iPhone X16.7.16/20H392 path, promising match for our root, but cache-offset/UUID
+hooks must be validated against our actual converted cache before use.
+gpu/eagl-ios has guards/kill switches/crash-loop fallback; kernel0153,0157-0160
+provide required BO/submit/import ABI. GPU route uses freedreno, NOT Vulkan.
+
+Not plug-and-play: A630 donor uses GMU/HFI, ours A610 uses GMU-wrapper path.
+Local mainline Linux05441d... a6xx_catalog.c741..772 confirms A610/SM6115,
+chip06010000,132KiB GMEM,4GiB-VA quirk,a630_sqe FW name,a610_zap,gmuwrapper.
+Do NOT copy A630 clock/power/firmware/register setup or its1MiB GMEM values.
+Port candidates: Mesa/EAGL glue and ioctl/IOSurface ABI, then A610-specific
+kernel implementation grounded in local SM6115 Linux and this phone's DT/FW.
+Also adapt ARMv8.0 compile flags,4KiB kernel pages and signatures/mappings;
+donor phones support16KiB. No speedup or timeline on our phone established.
+Research only: no source import, Action, build, root change or flash this turn.
+
 ### GPU API OPTIONS RESEARCHED: Mesa GL/Vulkan and Metal translation (2026-11-20)
 
 User asked whether OpenGL/Vulkan can replace writing native Metal support.
