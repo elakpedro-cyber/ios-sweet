@@ -1,0 +1,25 @@
+pixel3-ios: Darwin SYS_gettid is not Linux gettid; use the mach thread port in DBG().
+
+--- a/src/gallium/drivers/freedreno/freedreno_util.h
++++ b/src/gallium/drivers/freedreno/freedreno_util.h
+@@ -96,11 +96,19 @@
+ #include <unistd.h>
+ #include <sys/types.h>
+ #include <sys/syscall.h>
++
++#ifdef __APPLE__
++/* pixel3-ios: Darwin's SYS_gettid (286) is a different call (uid/gid out pointers) */
++#include <pthread.h>
++#define FD_DBG_TID() ((pid_t)pthread_mach_thread_np(pthread_self()))
++#else
++#define FD_DBG_TID() ((pid_t)syscall(SYS_gettid))
++#endif
+ 
+ #define DBG(fmt, ...)                                                          \
+    do {                                                                        \
+       if (FD_DBG(MSGS))                                                        \
+-         mesa_logd("%5d: %s:%d: " fmt, ((pid_t)syscall(SYS_gettid)),           \
++         mesa_logd("%5d: %s:%d: " fmt, FD_DBG_TID(),                           \
+                                         __func__, __LINE__,                    \
+                                         ##__VA_ARGS__);                        \
+    } while (0)

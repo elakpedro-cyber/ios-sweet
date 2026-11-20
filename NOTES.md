@@ -2,6 +2,54 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### PIXEL3 GPU USERSPACE PORT STARTED: imported/adapted, host tests PASS; no GPU boot (2026-11-20)
+
+User requested "попробуй pixel3". Previous NO ACTIONS restriction retained.
+Cloned pinned737278ac173883599cfade65627e69b0376083a6 to ignored research/pixel3-donor.
+Imported ONLY32 userspace source/build/doc files to gpu/pixel3, preserving root
+MIT (LICENSE-pixel3-ios) and HakiOS notices. No kernel/GMU/power code imported.
+gpu/README.md records actual stage/limits; donor READMEs remain reference only.
+
+Adaptations: LemonGPU service; real EAGL gpu_present checks610/chip06010000 /
+GMEM0x21000 before activation. Donor crash/kill guards retained. BO fallback
+rounding uses actual page size, rejects zero/overflow; build flags explicit
+Cortex-A53/ARMv8.0+crypto/no outline atomics. Fake backend has A610 ID fixtures
+and synthetic500MHz model only (NOT hardware clock configuration).
+gpu/.gitattributes keeps shell scripts LF after Windows checkout; bash -n PASS.
+
+tools/test-lemon-gpu.py --linux /home/hadirpc/Redmi9T-Native-Linux/linux-05441d...:
+ASan/UBSan compile/execution of actual bluedrm + fake IOKit backend PASS:
+Linux DRM struct/offset ABI assertions, BO map, submission/fences, CPU_PREP,
+close and stale handle. Actual EAGL gate tests absent/wrong service/GPU/chip/
+GMEM/response size/errors; actual allocation rounding tested4K/16K/overflow.
+Also AArch64 Linux cross-compile PASS with Cortex-A53 flags. This fake executes
+NO GPU commands and renders NO pixels. Full Mesa/EAGL iOS dylibs NOT built:
+no local macOS/Xcode and Actions forbidden; signatures/page sizes still pending.
+
+tools/check-lemon-gpu-cache.py /home/hadirpc/lemon-cache-4k PASS: all5 donor
+vtable targets match the prepared local20H392 cache after slide-info2 decoding.
+Raw values include delta bits (initial un-decoded comparison looked different);
+do not compare raw on-disk pointers directly. Not a runtime graphics test.
+
+Phone reconnected after async request, recovery available. Read-only KGSL sysfs:
+Adreno610v1; freq table950/900/820/745/600/465/320MHz, current TWRP320MHz,
+reset_count0. Not XNU clock measurements. Current mapper/vendor and saved
+vendor-slot0 image did not present an ext4 superblock at1080; refused to mount
+or extract them. Modem mounted temporarily vfat read-only, no A610 files found,
+then unmounted. No phone writes/reboot/clocks/power/firmware commands.
+Previously extracted files already exist under sibling
+Redmi9T-Native-Linux/downloads/v7-personal/firmware. Staged privately with
+research/stage_known_gpu_firmware.py: all sizes match old extraction report;
+ELF/MDT/b00/b01/b02 consistent. a630_sqe32264bytes SHA57eece0d..., a610_zap.mdt
+6860bytes SHA75e47ff4...; manifest in research/lemon-gpu-firmware. No FW loaded.
+
+NEXT: A610-specific kernel bring-up (not A630 GMU/HFI), SMMU/VA, BO/submit/
+fences and IOSurface sharing; publish LemonGPU only after real submission works.
+Saved FDT GPU0x5900000/GPUCC0x5990000/SMMU0x59a0000 differ from Pixel3 addresses.
+Then macOS build/sign/validate4KiB-compatible dylibs and opt-in test. Do not
+inject these staged sources/libraries into existing root now. Current v23 stays.
+No workflow or new boot image created. Commit local only; no push that triggers CI.
+
 ### IMPORTANT CORRECTION: Pixel forks already accelerate CA via GLES, no Metal needed (2026-11-20)
 
 User pointed to Pixel forks after earlier generic GPU estimate. Paginated all

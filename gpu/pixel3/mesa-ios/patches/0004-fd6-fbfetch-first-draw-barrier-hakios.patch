@@ -1,0 +1,35 @@
+From HakiOS freedreno-darwin.patch (MIT), ported to 26.3.1: flush CCU colour + invalidate
+before the first framebuffer-fetch draw after non-fetch draws (CoreAnimation GL renderer).
+
+--- a/src/gallium/drivers/freedreno/a6xx/fd6_draw.cc
++++ b/src/gallium/drivers/freedreno/a6xx/fd6_draw.cc
+@@ -488,6 +488,17 @@
+        DRAW == DRAW_INDIRECT_OP_INDIRECT_COUNT)
+       ctx->batch->barrier |= FD6_WAIT_FOR_ME;
+ 
++   /* From HakiOS freedreno-darwin.patch (MIT): the first draw that reads the
++    * framebuffer (GL_EXT_shader_framebuffer_fetch, used by CoreAnimation's GL
++    * renderer) after draws that did not can read stale pixels through UCHE
++    * with GMEM; seen on a642l (first triangle of each quad wrong). A CCU colour
++    * flush + cache invalidate before that draw fixes it, as a framebuffer
++    * barrier would. Not yet verified on a630.
++    */
++   if (unlikely(emit.fs->fb_read) && !ctx->batch->prev_draw_read_fb)
++      ctx->batch->barrier |= FD6_FLUSH_CCU_COLOR | FD6_INVALIDATE_CACHE;
++   ctx->batch->prev_draw_read_fb = emit.fs->fb_read;
++
+    fd6_barrier_flush<CHIP>(cs, ctx->batch);
+ 
+    if (is_indirect(DRAW)) {
+--- a/src/gallium/drivers/freedreno/freedreno_batch.h
++++ b/src/gallium/drivers/freedreno/freedreno_batch.h
+@@ -136,6 +136,9 @@
+    /* Driver specific barrier/flush flags: */
+    unsigned barrier;
+ 
++   /* The last draw emitted read the framebuffer (see fd6_draw.cc): */
++   bool prev_draw_read_fb;
++
+    /* A calculated "draw cost" value for the batch, which tries to
+     * estimate the bandwidth-per-sample of all the draws according
+     * to:

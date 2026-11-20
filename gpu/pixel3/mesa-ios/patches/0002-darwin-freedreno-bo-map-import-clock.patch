@@ -1,0 +1,65 @@
+pixel3-ios: BO mmap/munmap via the BlueGPU user client, IOSurface import size, and
+absolute timeouts on CLOCK_MONOTONIC_RAW (= mach_continuous_time). From HakiOS (MIT), adapted.
+
+--- a/src/freedreno/drm/freedreno_bo.c
++++ b/src/freedreno/drm/freedreno_bo.c
+@@ -245,9 +245,14 @@
+    if (bo)
+       goto out_unlock;
+ 
++#ifdef __APPLE__
++   /* pixel3-ios: the "dma-buf fd" is an IOSurface ID; the kernel tells its size */
++   size = bluedrm_import_size(dev->fd, fd);
++#else
+    /* lseek() to get bo size */
+    size = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_CUR);
++#endif
+ 
+    bo = import_bo_from_handle(dev, size, handle);
+ 
+@@ -474,7 +479,11 @@
+    fd_bo_fini_fences(bo);
+ 
+    if (bo->map)
++#ifdef __APPLE__
++      bluedrm_unmap(bo->dev->fd, bo->handle, bo->map, bo->size);
++#else
+       os_munmap(bo->map, bo->size);
++#endif
+ 
+    if (handle) {
+       simple_mtx_lock(&table_lock);
+@@ -618,8 +627,14 @@
+    if (ret) {
+       return NULL;
+    }
++#ifdef __APPLE__
++   /* pixel3-ios: no mmap() of a device node; the BlueGPU user client maps the
++    * BO (IOConnectMapMemory64, memory type = the GEM_INFO offset token). */
++   return bluedrm_map(bo->dev->fd, bo->handle, offset, bo->size);
++#else
+    return os_mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                   bo->dev->fd, offset);
++#endif
+ }
+ 
+ /* For internal use only, does not check FD_BO_NOMAP: */
+--- a/src/freedreno/drm/msm/msm_common.h
++++ b/src/freedreno/drm/msm/msm_common.h
+@@ -235,7 +235,15 @@
+    if (ns == OS_TIMEOUT_INFINITE)
+       ns = 3600ULL * NSEC_PER_SEC; /* 1 hour timeout is almost infinite */
+ 
++#ifdef __APPLE__
++   /* pixel3-ios: the BlueGPU kernel driver compares absolute timeouts with
++    * mach_continuous_time(), which is Darwin's CLOCK_MONOTONIC_RAW (Darwin's
++    * CLOCK_MONOTONIC is wall-clock minus boot time). See blue_gpu_uapi.h.
++    */
++   clock_gettime(CLOCK_MONOTONIC_RAW, &t);
++#else
+    clock_gettime(CLOCK_MONOTONIC, &t);
++#endif
+    tv->tv_sec = t.tv_sec + ns / NSEC_PER_SEC;
+    tv->tv_nsec = t.tv_nsec + ns % NSEC_PER_SEC;
+    if (tv->tv_nsec >= NSEC_PER_SEC) { /* handle nsec overflow */

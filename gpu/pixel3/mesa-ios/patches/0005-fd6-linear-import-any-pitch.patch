@@ -1,0 +1,35 @@
+bluegl: a linear one-level import keeps its own pitch (no 64-byte row rule),
+so the GPU reads CoreAnimation's wrapped client images in place.
+
+--- a/src/freedreno/fdl/fd6_layout.c
++++ b/src/freedreno/fdl/fd6_layout.c
+@@ -218,8 +218,16 @@
+    if (explicit_layout) {
+       offset = explicit_layout->offset;
+       layout->pitch0 = explicit_layout->pitch;
+-      if (align(layout->pitch0, 1 << layout->pitchalign) != layout->pitch0)
+-         return false;
++      if (align(layout->pitch0, 1 << layout->pitchalign) != layout->pitch0) {
++         /* bluegl: a linear one-level picture in memory a program already has
++          * (CoreAnimation's wrapped client images: rows of 4500 bytes) is read
++          * where it is, at its own pitch, rather than copied by the CPU.
++          */
++         if (layout->tile_mode || params->mip_levels != 1 || params->array_size != 1 ||
++             layout->pitch0 % layout->cpp != 0)
++            return false;
++         layout->pitchalign = ffs(layout->pitch0) - 1;
++      }
+    }
+ 
+    uint32_t ubwc_width0 = params->width0;
+--- a/src/freedreno/fdl/fd6_view.cc
++++ b/src/freedreno/fdl/fd6_view.cc
+@@ -293,7 +293,7 @@
+          A6XX_TEX_MEMOBJ_1_WIDTH(width) | A6XX_TEX_MEMOBJ_1_HEIGHT(height) |
+          COND(is_mutable, A6XX_TEX_MEMOBJ_1_MUTABLEEN);
+       view->descriptor[2] =
+-         A6XX_TEX_MEMOBJ_2_PITCHALIGN(layout->pitchalign - 6) |
++         A6XX_TEX_MEMOBJ_2_PITCHALIGN(MAX2(layout->pitchalign, 6) - 6) |
+          A6XX_TEX_MEMOBJ_2_PITCH(pitch) |
+          A6XX_TEX_MEMOBJ_2_TYPE(fdl6_tex_type(args->type, false));
+       view->descriptor[3] = A6XX_TEX_MEMOBJ_3_ARRAY_PITCH(layer_size);

@@ -1,0 +1,57 @@
+pixel3-ios: build freedreno's drm/msm layer on Darwin against src/bluedrm (libdrm stand-in).
+Approach from HakiOS tools/mesa/freedreno-darwin.patch (MIT). Mesa 26.3.1.
+
+--- a/meson.build
++++ b/meson.build
+@@ -816,7 +816,15 @@
+   # dependencies (such as vk-runtime) linking to it
+   dep_libdrm = null_dep
+ endif
+-if dep_libdrm.found()
++if host_machine.system() == 'darwin' and with_gallium_freedreno
++  # pixel3-ios (blueline): no DRM on Darwin. freedreno's msm requests go to the kernel's
++  # BlueGPU user client through a libdrm stand-in (src/bluedrm, copied in by
++  # mesa-ios/build-mesa-ios.sh; approach from HakiOS tools/mesa/freedreno-darwin.patch, MIT).
++  dep_libdrm = declare_dependency(
++    include_directories : include_directories('src/bluedrm'),
++    link_args : ['-framework', 'IOKit', '-framework', 'CoreFoundation'],
++  )
++elif dep_libdrm.found()
+   pre_args += '-DHAVE_LIBDRM'
+   if with_dri_platform == 'drm' and with_dri
+     with_gallium_drisw_kms = true
+--- a/src/freedreno/meson.build
++++ b/src/freedreno/meson.build
+@@ -22,7 +22,7 @@
+ subdir('ir3')
+ subdir('fdl')
+ 
+-if system_has_kms_drm
++if system_has_kms_drm or host_machine.system() == 'darwin'
+   subdir('drm')
+ endif
+ 
+--- a/src/freedreno/drm/meson.build
++++ b/src/freedreno/drm/meson.build
+@@ -47,6 +47,9 @@
+   'msm/msm_common.h',
+ )
+ libfreedreno_drm_files += libfreedreno_drm_msm_files
++if host_machine.system() == 'darwin'
++  libfreedreno_drm_files += files('../../bluedrm/bluedrm.c')
++endif
+ 
+ libfreedreno_drm_virtio_files = files(
+   'virtio/virtio_bo.c',
+--- a/src/util/meson.build
++++ b/src/util/meson.build
+@@ -316,7 +316,8 @@
+   idep_mesautilformat,
+ ]
+ 
+-if dep_libdrm.found()
++if dep_libdrm.found() and host_machine.system() != 'darwin'
++  # (pixel3-ios: the Darwin libdrm stand-in has no HAVE_LIBDRM; the header's NULL stub is used)
+   files_mesa_util += files('u_sync_provider.c', 'u_sync_provider.h')
+   deps_for_libmesa_util += dep_libdrm
+ endif

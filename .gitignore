@@ -8,3 +8,9 @@ shim/out/
 xnu/out/
 xnu/out-*/
 __pycache__/
+gpu/pixel3/mesa-ios/dl/
+gpu/pixel3/mesa-ios/build/
+gpu/pixel3/mesa-ios/venv/
+gpu/pixel3/mesa-ios/out/
+gpu/pixel3/eagl-ios/build/
+gpu/pixel3/eagl-ios/out/
