@@ -2,6 +2,29 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### ACTIONS SPEEDUP PREPARED LOCALLY; NO PUSH/RUN (2026-11-21)
+
+User asked to speed up Actions. v31 job lasted11m18s, Build10m29s; KDK
+installation ~64s, XNU installhdrs ~113s, kernel build ~5m56s. Queue excluded.
+Workflow now caches installed default KDK13.5_22G74 only (not all KDKs), and
+uses native XNU CCACHE support (MakeInc.def KCC/KC++/AS). Brew adds ccache;
+cache2GiB, compiler_check=content, no sloppiness/ignored headers. Compiler cache
+restore prefix scopes OS/arch/Xcode16.4/DXB SHA/macOS/config/machine; unique
+commit/attempt keys save updated results across edits. No object tree/fakeroot
+cache that could silently skip the build or retain stale exported headers.
+Pinned build.sh installhdrs gains -j8 (same parallelism as kernel build).
+Cache stats zeroed after restore and printed after build for real hit counts.
+Runner-owned KDK parent permits cache restore; KDK path retained for existing
+build.sh install/detection. Existing tests/artifacts/ARMv8 flags unchanged.
+
+Private research/check_ci_cache.py PASS: YAML parse, bash -n all run steps,
+executes actual inline edit against GitHub-fetched exact DXB SHA build.sh,
+asserts xcconfig and parallel headers edits. git diff --check PASS.
+Runtime macOS/cache performance unverified; first build populates caches and
+may be as slow/slower. No <=6min guarantee. No Actions/push/phone I/O.
+V32 no-ATS change remains prepared in prior commit e6e4485. Next user may
+authorize push to trigger one combined v32+CI-speedup run, then stop.
+
 ### V32 NO-ATS CHECK PREPARED LOCALLY; NO ACTIONS (2026-11-21)
 
 User requested changing the failed v31 check. Added port0034 after0033,

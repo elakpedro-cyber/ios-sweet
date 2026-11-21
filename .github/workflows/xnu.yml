@@ -33,6 +33,10 @@ env:
   KERNEL_CONFIG: ${{ inputs.kernel_config || 'DEVELOPMENT' }}
   MACHINE_CONFIG: ${{ inputs.machine_config || 'SWEET' }}
   LEMON_4K: "1"
+  CCACHE: ccache
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_COMPILERCHECK: content
+  CCACHE_MAXSIZE: 2G
 
 jobs:
   build:
@@ -95,13 +99,17 @@ jobs:
           source = path.read_text()
           old = 'xcodebuild install -target libfirehose_kernel -sdk macosx '
           assert source.count(old) == 1
-          path.write_text(source.replace(old, old + '-xcconfig "${WORK_DIR}/lemon-firehose.xcconfig" '))
+          source = source.replace(old, old + '-xcconfig "${WORK_DIR}/lemon-firehose.xcconfig" ')
+          old = 'make installhdrs SDKROOT=macosx ARCH_CONFIGS="X86_64 ARM64"'
+          assert source.count(old) == 1
+          source = source.replace(old, 'make installhdrs -j8 SDKROOT=macosx ARCH_CONFIGS="X86_64 ARM64"')
+          path.write_text(source)
           PY
           ls dxb/patches
 
       - name: Deps
         run: |
-          brew install jq gum bash cmake ninja
+          brew install jq gum bash cmake ninja ccache
           # build.sh only checks that xcodes exists (Xcode is preinstalled); no bottle on macOS 14
           printf '#!/bin/sh\nexit 0\n' | sudo tee /usr/local/bin/xcodes >/dev/null
           sudo chmod +x /usr/local/bin/xcodes
@@ -113,6 +121,24 @@ jobs:
           sudo xcode-select -s "$XC"
           xcodebuild -version
           xcrun --find iig
+          # The cache action restores as runner, not root.
+          sudo mkdir -p /Library/Developer/KDKs
+          sudo chown "$(id -u):$(id -g)" /Library/Developer/KDKs
+
+      - name: Cache installed KDK
+        if: env.MACOS_VERSION == '13.5'
+        uses: actions/cache@v4
+        with:
+          path: /Library/Developer/KDKs/KDK_13.5_22G74.kdk
+          key: kdk-v1-${{ runner.os }}-${{ runner.arch }}-13.5-22G74
+
+      - name: Cache XNU compiler results
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: xnu-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode16.4-${{ env.DXB_SHA }}-${{ env.MACOS_VERSION }}-${{ env.KERNEL_CONFIG }}-${{ env.MACHINE_CONFIG }}-${{ github.sha }}-${{ github.run_attempt }}
+          restore-keys: |
+            xnu-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode16.4-${{ env.DXB_SHA }}-${{ env.MACOS_VERSION }}-${{ env.KERNEL_CONFIG }}-${{ env.MACHINE_CONFIG }}-
 
       - name: Verify ARMv8 baseline atomics
         run: |
@@ -128,7 +154,13 @@ jobs:
         env:
           # keep going after errors so one run reports every compile failure
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
-        run: bash build.sh
+        run: |
+          ccache --zero-stats
+          bash build.sh
+
+      - name: Compiler cache statistics
+        if: always()
+        run: ccache --show-stats
 
       - name: Verify RPC runtime compatibility
         run: |
