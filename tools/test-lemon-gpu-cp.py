@@ -202,6 +202,7 @@ static void execute(unsigned end) {
     gpu[LC_RPTR]=end;
     if(scenario==24 && submits==1) smmu[0x800/4]=0x80000004; /* Foreign route must not be overwritten. */
     if(scenario==31) smmu[0x48/4]=1;
+    if(scenario==48 && submits==1) smmu[0x8000/4]&=~1u;
 }
 static bool clock_register(unsigned reg) {
     switch(reg) {
@@ -223,7 +224,16 @@ static void lc_write(vm_offset_t base,unsigned off,uint32_t value) {
         if(off==0x87f0) {smmu[0x87f4/4]=scenario==16?1:0;return;}
         if(scenario==17 && off==0x8000 && (value&1)) return;
         if(scenario==18 && off==0x800 && (value&(1u<<31))) return;
-        smmu[off/4]=value;return;
+        if(off==0x8000 && (value&1)) {
+            assert(value==0x127 && !(value&0x1000));
+            if(scenario==43) value&=~0x1000u; /* Observed bit12 reads zero. */
+            if(scenario==44) value|=0x1000;
+            if(scenario==45) value&=~2u;
+            if(scenario==46) value|=0x40;
+        }
+        smmu[off/4]=value;
+        if(scenario==47 && off==0x800 && value==0x80010000) smmu[0x8000/4]&=~1u;
+        return;
     }
     assert(base==(uintptr_t)gpu && !(off&3));gpu_writes++;
     unsigned reg=off/4;
@@ -289,13 +299,13 @@ int main(void) {
     assert(lc_pkt7(0x48,8)==0x70c80008 && lc_pkt7(0x3d,3)==0x703d8003 && lc_pkt7(0x26,0)==0x70268000);
     setup(0);option=6;lemon_gpu_cp_probe();assert(!maps && !writes && !allocations);
     setup(0);lemon_gpu_cp_probe();
-    assert(lc.executed && submits==2 && flushes==1 && allocation && !frees);
+    assert(lc.executed && lc.checkpoints==0x1f && submits==2 && flushes==1 && allocation && !frees);
     assert(!(smmu[0x8000/4]&1) && smmu[0x800/4]==0 && gpu[LC_SQE]==3);
     unsigned previous=writes;lemon_gpu_cp_probe();assert(writes==previous);
-    for(unsigned i=1;i<=42;i++) {
+    for(unsigned i=1;i<=48;i++) {
         if(i==27) continue;
         setup(i);lemon_gpu_cp_probe();
-        if(i==23 || i==36 || i==38 || i==39) assert(lc.executed); /* Execution and teardown are separate outcomes. */
+        if(i==23 || i==36 || i==38 || i==39 || i==43) assert(lc.executed); /* Execution and teardown are separate outcomes. */
         else assert(!lc.executed);
         assert(smmu[0x808/4]==(i==7?0x80030002:i==13?0x80000006:0x80000002));
         if(i<=13 || i==25 || i==26 || i==28 || i==29 || i==30 || i==37) assert(!writes);
@@ -313,9 +323,13 @@ int main(void) {
             assert(allocation && !frees && gpu[0x8c3]==(i==41?0:48));
             assert(poll_delays==(i==42?0:1000));
         }
+        if(i==43) assert(lc.checkpoints==0x1f && submits==2);
+        if(i==44 || i==45 || i==46) assert(!submits && !lc.route && !lc.checkpoints && !gpu[LC_SQE]);
+        if(i==47) assert(!submits && !lc.started && lc.checkpoints==1);
+        if(i==48) assert(submits==1 && lc.checkpoints==7 && *(uint32_t*)((uintptr_t)allocation+LC_TARGET)==0x11111111);
     }
     setup(0);
-    puts("PASS: actual A610 CP code; independent PM4/PTE model and 41 scenarios, complete core setup/bounded readback, delayed/dependent writes accepted only after exact validation; ignored ROQ/pool/fault still block translation/SQE; halt/retention/default-off guards; MODEL ONLY");
+    puts("PASS: actual combined A610 CP code; 47 scenarios, independent PM4/PTE model, ASIDPNE zero/full control mask, live context/route checks, complete0x1f only after GPU marker+scratch, failures block later stages, bounded halt/retention/default-off; MODEL ONLY");
 }
 '''
 with tempfile.TemporaryDirectory() as directory:

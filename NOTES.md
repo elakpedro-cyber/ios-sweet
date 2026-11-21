@@ -2,6 +2,46 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V40 COMBINED FIRST BLOCK READY FOR CI (2026-11-22)
+
+User explicitly requested combined block1: SMMU + SQE + first GPU memory
+write. Patch0042 (workflow0123) retains the complete chain and adds stage
+mask bits1=context,2=route,4=SQE control,8=ME_INIT completed,16=verified GPU
+marker+scratch. Expected1f only after all complete, no intermediate required
+user reboot/build. Setup bits alone are not translation/DMA proof.
+
+Consulted official Arm IHI0062D.c sections1.6.5/16.5.9: ASIDPNE is a private
+ASID/TLB-maintenance hint, not M. v40 explicitly requests hint0, SCTLR0127,
+with UNCHANGED strict mask11f7 including bit12 checked zero. No pretending
+v39 bit12 read-zero is architecturally guaranteed RAZ/WI. Isolated ASID0,
+explicit local TLB invalidation retained; no sharing of CPU page tables.
+M/TRE/AFE/CFRE/HUPCF and forbidden CFIE/CFCFG/E remain checked.
+
+Added live SCTLR/TTBR/owned SMR+S2CR/fault validation before SQE start and
+before/during both submissions. Context loss after route or during ME_INIT
+blocks subsequent work. SQE halt3/idle, no foreign route removal, disabled
+context only after halt/unroute and unconditional retention unchanged.
+No ZAP/PAS, secure register changes, graphics or user client added.
+
+Actual module47-scenario ASan/UBSan host PM4/PTE model and ARMv8.0 compile
+pass: research/gpu-cp-v40-tests.txt. Includes observed bit12-zero model,
+forced ASIDPNE1/wrong TRE/CFIE failures, M loss after route/during ME_INIT,
+strict0x1f final proof and existing timeouts/permissions/default-off tests.
+Model evidence only; hardware outcomes unknown. Linux ME_INIT payload/order
+cross-checked; Linux starts CP_ME_INIT before loading ZAP in hw_init.
+research/package_v40.py confirms zero-fuzz patch reproduces tested source;
+check_ci_cache.py YAML/shell/pinned edits and git diff --check pass.
+
+Private research/lemon_gpu_cp_v39.c is old baseline; current lemon_gpu_cp.c
+and working /home/hadirpc/lemon-gpu-probe-xnu/bsd/dev/lemon_gpu_cp.c are v40.
+research/build_gpu_cp_combined_v40_boot.py expects
+xnu/out-gpu-cp-combined-kernel/kernel.development.sweet, requires combined
+marker/checkpoint and existing firmware/ADT/layout checks. Output
+shim/out/lemon-gpu-cp-combined/boot-lemon-gpu-cp-combined-v40.img; not built.
+Next commit/push single v40 CI run under user's combined-block request, then
+STOP per preference. No phone I/O/flash/reboot in implementation turn.
+Flash/start later requires explicit approval, previous v39 full boot SHA below.
+
 ### V39 HARDWARE: ROQ/POOL PASS; STOP AT SCTLR BIT12 (2026-11-22)
 
 User returned TWRP. Read-only research/read_v39_log.py saved private

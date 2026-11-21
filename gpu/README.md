@@ -26,6 +26,29 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v40 combined SMMU/SQE/command proof (patch0042, hardware pending)
+
+The first combined block runs without intermediate diagnostic stops after
+successful checks: owned context, user stream route, SQE start, ME_INIT, then
+scratch plus GPU memory write. The final checkpoint mask is `0x1f` only if
+all five complete. Intermediate bits indicate validated setup, not DMA proof.
+GPU-written marker, scratch, ring completion and fault-free state remain
+required for `executed=1`. No graphics or secure-mode changes are included.
+
+SCTLR now explicitly requests `0x127` with the unchanged `0x11f7` comparison
+mask, including bit12 checked as zero. ASIDPNE is a TLB-maintenance hint,
+not the translation enable. This isolated ASID0 context uses explicit local
+TLB invalidation; no private-namespace hint is requested. v39's missing-bit
+readback is observed hardware behavior, not evidence the architecture makes
+the field RAZ/WI. See [Arm IHI0062D.c, sections1.6.5/16.5.9](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb).
+
+Live SCTLR/table pointer/owned route/fault checks precede SQE startup and
+both submissions and continue during completion polling. Losing context or
+route blocks later stages. The actual module passes ASan/UBSan with47 model
+scenarios and ARMv8.0 compilation, including forced wrong control bits,
+loss of M after routing and loss during ME_INIT. Existing bounded cleanup
+and retained allocations remain. Hardware success has not been demonstrated.
+
 ### v39 complete core setup before bounded validation (patch0041)
 
 Hardware v39 passed every core-config readback after the batch: ROQ1/2 and

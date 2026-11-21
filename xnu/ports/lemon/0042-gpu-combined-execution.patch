@@ -1,0 +1,107 @@
+--- a/bsd/dev/lemon_gpu_cp.c
++++ b/bsd/dev/lemon_gpu_cp.c
+@@ -26,7 +26,10 @@
+ #define LC_MARKER 0x600df00du
+ #define LC_SCRATCH 0xcafe6101u
+ #define LC_CB 0x8000u
+-#define LC_FAULT 0xc00001feu
++/* ASIDPNE=0: no private-ASID hint, explicit CB-local TLB maintenance.
++ * Keep bit12 in the comparison mask: do not accept arbitrary normalization. */
++#define LC_SCTLR 0x0127u
++#define LC_SCTLR_MASK 0x11f7u
+ #define LC_SMR 0x80010000u /* user SID0/1, never SID2 (secure). */
+ 
+ enum {
+@@ -41,7 +44,7 @@
+ static struct {
+ 	vm_offset_t gpu, smmu, memory;
+ 	uint64_t pa;
+-	uint32_t old_smr, old_s2cr, wptr;
++	uint32_t old_smr, old_s2cr, wptr, checkpoints;
+ 	int slot;
+ 	bool entered, pointer, route, started, executed;
+ } lc;
+@@ -150,6 +153,16 @@
+ 	return !(fsr&~0x600u) && !lc_read(lc.smmu,0x48) &&
+ 	    !lc_read(lc.gpu,LC_HW_FAULT*4) && !(lc_read(lc.gpu,LC_CP_INT*4)&0xf7u) &&
+ 	    !(lc_read(lc.gpu,LC_INT_STATUS*4)&0x038002c2u);
++}
++
++static bool
++lc_live_context(void)
++{
++	return lc.route && lc.slot>=0 &&
++	    (lc_read(lc.smmu,LC_CB)&LC_SCTLR_MASK)==LC_SCTLR &&
++	    lc_read64(lc.smmu,LC_CB+0x20)==lc.pa+LC_PT &&
++	    lc_read(lc.smmu,0x800+4*(unsigned)lc.slot)==LC_SMR &&
++	    !(lc_read(lc.smmu,0xc00+4*(unsigned)lc.slot)&0x030300ff) && lc_fault_free();
+ }
+ 
+ static bool
+@@ -327,12 +340,12 @@
+ static bool
+ lc_submit(void)
+ {
+-	if (lc.wptr>32) return false;
++	if (lc.wptr>32 || !lc_live_context() || (lc_read(lc.gpu,LC_SQE*4)&3)!=1) return false;
+ 	clean_dcache64(lc.pa+LC_RING,4096,TRUE);
+ 	__asm__ volatile("dsb sy" ::: "memory");
+ 	lc_write(lc.gpu,LC_WPTR*4,lc.wptr);
+ 	for (unsigned i=0; i<10000; i++) {
+-		if (!lc_fault_free()) return false;
++		if (!lc_live_context() || (lc_read(lc.gpu,LC_SQE*4)&3)!=1) return false;
+ 		if (lc_read(lc.gpu,LC_RPTR*4)==lc.wptr && !(lc_read(lc.gpu,LC_STATUS*4)&~1u)) return true;
+ 		delay(10);
+ 	}
+@@ -417,23 +430,30 @@
+ 	lc.pointer=true;
+ 	if (!lc_set64(lc.smmu,LC_CB+0x20,lc.pa+LC_PT) || !lc_streams(count,false) || !lc_tlb()) goto done;
+ 	step="context-enable";
+-	if (!lc_set(lc.smmu,LC_CB,0x1127,0x11f7) || !lc_tlb()) goto done;
++	printf("LEMON GPU CP: combined SMMU/SQE/ME_INIT/MEM_WRITE; ASIDPNE=0, strict control check\n");
++	if (!lc_set(lc.smmu,LC_CB,LC_SCTLR,LC_SCTLR_MASK) || !lc_tlb()) goto done;
++	lc.checkpoints|=1;
+ 	step="stream-attach";
+ 	if (lc_read(lc.smmu,0x800+4*(unsigned)lc.slot)!=lc.old_smr ||
+ 	    lc_read(lc.smmu,0xc00+4*(unsigned)lc.slot)!=lc.old_s2cr || !lc_streams(count,false)) goto done;
+ 	lc.route=true; /* Mark before attempts, including a partially accepted write. */
+ 	if (!lc_set(lc.smmu,0xc00+4*(unsigned)lc.slot,0,0x030300ff) ||
+ 	    !lc_set(lc.smmu,0x800+4*(unsigned)lc.slot,LC_SMR,0xffffffffu)) goto done;
++	step="stream-verify";
++	if (!lc_live_context()) goto done;
++	lc.checkpoints|=2;
+ 	step="ring-registers";
+ 	if (!lc_gset64(LC_SQE_BASE,LC_VA) || !lc_gset64(LC_RB_BASE,LC_VA+LC_RING) ||
+ 	    !lc_gset(LC_RB_CNTL,0x08000209) || !lc_gset64(LC_RPTR_ADDR,LC_VA+LC_SHADOW)) goto done;
+ 	lc.started=true;
+-	if (!lc_set(lc.gpu,LC_SQE*4,1,3)) goto done;
++	if (!lc_live_context() || !lc_set(lc.gpu,LC_SQE*4,1,3)) goto done;
++	lc.checkpoints|=4;
+ 	step="ME_INIT";
+ 	lc_put(lc_pkt7(0x48,8));
+ 	lc_put(0x2f); lc_put(3); lc_put(0x20000000);
+ 	for (unsigned i=0; i<5; i++) lc_put(0);
+ 	if (!lc_submit()) goto done;
++	lc.checkpoints|=8;
+ 	step="MEM_WRITE";
+ 	lc_put(lc_pkt7(0x10,1)); lc_put(0);
+ 	lc_put(lc_pkt4(LC_CP_SCRATCH)); lc_put(LC_SCRATCH);
+@@ -447,7 +467,9 @@
+ 	__asm__ volatile("dsb sy" ::: "memory");
+ 	lc.executed=completed && *(volatile uint32_t *)(lc.memory+LC_TARGET)==LC_MARKER &&
+ 	    lc_read(lc.gpu,LC_CP_SCRATCH*4)==LC_SCRATCH && lc_fault_free();
++	if (lc.executed) lc.checkpoints|=16;
+ 	lc_report(step);
++	printf("LEMON GPU CP: combined checkpoints=%#x expected=0x1f (context/route/SQE/ME_INIT/GPU_WRITE)\n",lc.checkpoints);
+ 	printf("LEMON GPU CP: executed=%u marker=%#x scratch=%#x; no drawing/secure-mode switch\n",
+ 	    lc.executed,*(volatile uint32_t *)(lc.memory+LC_TARGET),lc_read(lc.gpu,LC_CP_SCRATCH*4));
+ 	/* Retain every referenced buffer, including on timeout. No reset/power-down
+@@ -462,7 +484,7 @@
+ 	}
+ 	unrouted=lc_streams(count,false) && unrouted;
+ 	bool disabled=false;
+-	if (halted && unrouted && lc.pointer) disabled=lc_set(lc.smmu,LC_CB,0,0x11f7) && lc_tlb();
++	if (halted && unrouted && lc.pointer) disabled=lc_set(lc.smmu,LC_CB,0,LC_SCTLR_MASK) && lc_tlb();
+ 	printf("LEMON GPU CP: cleanup halted=%u unrouted=%u disabled=%u retained=%u bytes; clocks retained\n",
+ 	    halted,unrouted,disabled,LC_SIZE);
+ }
