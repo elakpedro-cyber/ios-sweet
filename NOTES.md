@@ -2,6 +2,41 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V33 DISABLED BANK STATE CHECK PREPARED; NO ACTIONS (2026-11-21)
+
+User approved investigating Qualcomm access path. Read-only TWRP queries:
+arm-smmu bound at59a0000.kgsl-smmu, GPU Adreno610v1, user/secure IOMMU groups
+20/21 in dmesg; /proc/iomem confirms59a0000..59affff. No debugfs directory,
+/dev/mem or loadable modules interface available; no raw recovery MMIO reads
+attempted. Source comparison uses official Xiaomi lime-q-oss arm-smmu.c,
+arm-smmu-regs.h/kgsl_iommu.c saved privately research/qualcomm-smmu.
+Downstream CB base=resource_size/2 matches59a8000. Live FDT skip-init skips
+context-bank reset; handoff/bitmap reservation uses valid translating SMR/
+S2CR entries, not zero TTBRs. Static-cb property absent, so no evidence to
+invoke SCM restore-sec-cfg blindly. V32 SCTLR.M=0 despite nonzero other fields.
+This identifies an overly strict all-zero guard, not proof that all observed
+register values are valid/accessible or that GPU translation already works.
+
+Port0035 (staged0116) permits stable nonzero SCTLR/TTBR only on no-ATS path,
+with M=0, FSR0, existing CBAR/CBA2R ownership guards and no translating stream
+to CB0. Three snapshots of configuration/TTBR/SCTLR/FSR plus repeated stream
+surveys must agree before allocation/context writes. ATS path keeps prior
+empty-bank requirement. No-ATS never writes SCTLR, ATS/PAR/ATSR or TLB regs.
+Save/restore original TTBR0/1 instead of assuming zeros, verify before free.
+No routing/global/secure/other-bank access added, no GPU DMA or rendering.
+
+Actual module ASan/UBSan host model36 alternate cases plus table corruption
+checks PASS, including exact v32 nonzero state restored, active/routed/unstable
+refusal and failed original TTBR restoration retaining buffer. Full module
+ARMv8.0 compile PASS. Port0035 clean-applies to v32 and reproduces tested
+module. Workflow YAML/bash/pinned build script checks and diff checks PASS.
+Private research/gpu-memory-disabled-bank-tests.txt, source in working XNU.
+Builder research/build_gpu_memory_v33_boot.py expects
+xnu/out-gpu-memory-disabled-kernel; new stable-bank marker required, output
+shim/out/lemon-gpu-memory-disabled/boot-lemon-gpu-memory-disabled-v33.img.
+Full macOS compile/hardware pending. No push/Actions/partition writes/reboot.
+Phone remains TWRP/v32. Next user authorizes Actions, then stop after launch.
+
 ### V32 LOG READ: BANK0 UNKNOWN STATE; NO CONTEXT WRITES (2026-11-21)
 
 User returned TWRP. Read-only userdata log via research/read_v32_log.py:

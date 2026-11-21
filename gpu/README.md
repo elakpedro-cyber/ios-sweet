@@ -164,7 +164,9 @@ and CX/GX ON verified. Patch0033 adds one combined memory test, `lemongpu=6`:
    probe runs. Verify CX, AHB/GCC buses and enable/read back SMMU HLOS vote5000.
 2. Inspect only non-secure globals and known GPU-user bank0. Require SMMUv2,
    4KiB layout, stage1 support, supported OAS and an idle, unrouted bank0
-   with empty TTBRs. No other/secure banks or inherited streams are modified.
+   with no translating stream attached. ATS testing still requires empty
+   TTBRs/SCTLR; no-ATS register-only testing accepts stable saved values with
+   SCTLR.M clear (patch0035). No other/secure banks or streams are modified.
 3. Allocate20KiB contiguous kernel memory, verify physical contiguity/address
    width, construct three4KiB table pages and map two private data pages at
    IOVA0x20000000. Clean CPU caches before table walking. No GPU stream is
@@ -184,17 +186,40 @@ and CX/GX ON verified. Patch0033 adds one combined memory test, `lemongpu=6`:
 This mode stops on unknown/occupied/protected state; it does not take over an
 existing mapping. Unsupported/fragmented capabilities are not treated as test
 success. As before, clock/rail votes are retained for recovery reinitialization.
-Host ASan/UBSan tests use an independent page walker and31 alternate cases,
+Host ASan/UBSan tests use an independent page walker and36 alternate cases,
 including stale mappings, ATS failure/bypass, cleanup failure and buffer retention;
 mode6 gating and existing power tests also pass. Actual module cross-compiles
 for ARMv8.0 with explicit-GPR MMIO stores (Qualcomm HYP zero-register workaround).
 v31 full XNU build passed, but hardware stopped before context writes because
 ID0=0x4c017e04 advertises ATOSNS. The no-ATS fallback also tests this exact
 capability snapshot in the host model, forbidding context enable and unsupported
-register accesses. Patch0034 full XNU build/hardware readback remain pending.
+register accesses. v32 full XNU build passed; fallback stopped on the nonzero
+bank state described below.
 References: [SMMUv2 definitions](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu.h),
 [context programming](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu.c),
 [Adreno user bank0](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c).
+
+v32 built and reached bank0: SCTLR=0x14136108 (M=0), FSR=0, CBAR/CBA2R=0,
+TTBR0=0x2c087de51242b820, TTBR1=0x110910d908433320. Nonzero values alone do
+not prove a live mapping. Live recovery FDT has `qcom,skip-init`, but not
+`qcom,enable-static-cb`; the downstream driver skips bank reset and reserves
+inherited banks based on valid translating SMR/S2CR entries. Its CB base is
+resource base + size/2, matching our 0x59a8000. Secure restore is conditional
+on static/slave-side-secure domains, so this evidence does not justify adding
+an SCM call. Recovery has arm-smmu bound and separate user/secure IOMMU groups;
+no debugfs or /dev/mem register-read interface is available there.
+
+Patch0035 checks bank state three times and rejects unstable snapshots,
+active translation, faults, unknown ownership fields or routed streams.
+On no-ATS hardware SCTLR is never written, including during cleanup; original
+TTBRs and all saved configuration are restored and checked before freeing.
+This remains a disabled-context register/table test, not hardware translation.
+The host model includes exact v32 register values, active/routed/unstable
+refusal and failure to restore the original nonzero TTBR. Full macOS build
+and hardware result for patch0035 are pending.
+Source: [Xiaomi Qualcomm SMMU driver](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/lime-q-oss/drivers/iommu/arm-smmu.c)
+(`arm_smmu_device_reset`, `arm_smmu_handoff_cbs`, `arm_smmu_alloc_cb`,
+`arm_smmu_restore_sec_cfg`, `arm_smmu_device_probe`).
 
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and

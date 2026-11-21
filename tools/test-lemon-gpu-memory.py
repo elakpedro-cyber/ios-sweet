@@ -52,6 +52,9 @@ mock = re.sub(r'^\s*__asm__ volatile\([^\n]+\);','',mock,flags=re.M)
 test = r'''
 static uint32_t gcc[0x80000/4],cc[0x9000/4],regs[LM_MAP_SIZE/4];
 static unsigned mode,allocations,frees,context_writes,bank_reads,ats_calls,cleaned,enabled;
+static unsigned ttbr_reads;
+static uint32_t original_sctlr;
+static uint64_t original_ttbr[2];
 static void *allocation;
 static const uint64_t physical=0x100100000ull;
 pmap_t kernel_pmap=(void*)1;
@@ -84,8 +87,10 @@ void clean_dcache64(addr64_t pa,unsigned length,bool physical_flag) {
 }
 void kmem_free(vm_map_t map,vm_offset_t va,vm_size_t size) {
     assert(map==kernel_map && va==(uintptr_t)allocation && size==LM_BYTES);
-    assert(!regs[LM_CB/4] && !(regs[(LM_CB+0x8f0)/4]&1) && !(regs[(LM_CB+0x7f4)/4]&1));
-    assert(!regs[(LM_CB+0x20)/4] && !regs[(LM_CB+0x24)/4]);
+    assert(regs[LM_CB/4]==original_sctlr && !(original_sctlr&1));
+    assert(!(regs[(LM_CB+0x8f0)/4]&1) && !(regs[(LM_CB+0x7f4)/4]&1));
+    assert(lm_read64((uintptr_t)regs,LM_CB+0x20)==original_ttbr[0]);
+    assert(lm_read64((uintptr_t)regs,LM_CB+0x28)==original_ttbr[1]);
     frees++;free(allocation);allocation=0;
 }
 static bool cb_register(unsigned o) {
@@ -109,6 +114,7 @@ static uint32_t lm_read(vm_offset_t base,unsigned o) {
            o==0x1000 || o==0x1800 || (o>=0x800 && o<0x820) ||
            (o>=0xc00 && o<0xc20) || cb_register(o));
     if(o>=LM_CB) bank_reads++;
+    if(mode==34 && o==LM_CB+0x20 && ++ttbr_reads==2) return regs[o/4]^0x1000;
     return regs[o/4];
 }
 static uint64_t lm_read64(vm_offset_t base,unsigned o) {
@@ -124,7 +130,7 @@ static void lm_write(vm_offset_t base,unsigned o,uint32_t value) {
     assert(base==(uintptr_t)regs && allocation);
     if(regs[0x20/4]&(1u<<26)) {
         assert(o!=LM_CB+0x610 && o!=LM_CB+0x7f0);
-        if(o==LM_CB) assert(value==0);
+        assert(o!=LM_CB); /* No SCTLR writes at all on the no-ATS path. */
     }
     /* No global CR0, SMR/S2CR, other banks, reset, stream or GPU writes. */
     assert(o==0x1000 || o==0x1800 || o==LM_CB || o==LM_CB+0x10 || o==LM_CB+0x30 ||
@@ -169,6 +175,7 @@ static void lm_write64(vm_offset_t base,unsigned o,uint64_t value) {
     assert(base==(uintptr_t)regs && allocation);
     assert(o==LM_CB+0x20 || o==LM_CB+0x28 || o==LM_CB+0x800);context_writes++;
     if(regs[0x20/4]&(1u<<26)) assert(o!=LM_CB+0x800);
+    if(mode==36 && o==LM_CB+0x20 && value==original_ttbr[0]) return;
     regs[o/4]=value;regs[o/4+1]=value>>32;
     if(o==LM_CB+0x800) {
         assert(enabled && (regs[LM_CB/4]&1));ats_calls++;
@@ -181,7 +188,7 @@ static void lm_write64(vm_offset_t base,unsigned o,uint64_t value) {
 }
 static void setup(unsigned m) {
     if(allocation) {free(allocation);allocation=0;} /* model-only retained-memory release */
-    mode=m;allocations=frees=context_writes=bank_reads=ats_calls=cleaned=enabled=0;
+    mode=m;allocations=frees=context_writes=bank_reads=ats_calls=cleaned=enabled=ttbr_reads=0;
     memset(gcc,0,sizeof(gcc));memset(cc,0,sizeof(cc));memset(regs,0,sizeof(regs));
     gcc[0x36004/4]=9;gcc[0x7900c/4]=0x4bf0;gcc[0x36040/4]=8;
     gcc[0x3600c/4]=gcc[0x36018/4]=1;cc[0x1540/4]=1u<<31;cc[0x1078/4]=1;
@@ -209,6 +216,18 @@ static void setup(unsigned m) {
         regs[0]=0x220406;regs[0x20/4]=0x4c017e04;regs[0x24/4]=0x20000005;
         regs[0x28/4]=0x5511;regs[0x3c/4]=0x24;
     }
+    if(m>=32) {
+        regs[LM_CB/4]=0x14136108;
+        regs[(LM_CB+0x20)/4]=0x1242b820;regs[(LM_CB+0x24)/4]=0x2c087de5;
+        regs[(LM_CB+0x28)/4]=0x08433320;regs[(LM_CB+0x2c)/4]=0x110910d9;
+        regs[(LM_CB+0x10)/4]=0x123;regs[(LM_CB+0x30)/4]=0x123456;
+        regs[(LM_CB+0x34)/4]=0x33;regs[(LM_CB+0x38)/4]=0xabc;
+    }
+    if(m==33) regs[LM_CB/4]|=1;
+    if(m==35) {regs[0x800/4]=1u<<31;regs[0xc00/4]=0;}
+    original_sctlr=regs[LM_CB/4];
+    original_ttbr[0]=lm_read64((uintptr_t)regs,LM_CB+0x20);
+    original_ttbr[1]=lm_read64((uintptr_t)regs,LM_CB+0x28);ttbr_reads=0;
 }
 int main(void) {
     uint64_t *tables=aligned_alloc(4096,LM_BYTES);assert(tables);
@@ -223,22 +242,25 @@ int main(void) {
     setup(0);lemon_gpu_memory_probe();
     assert(allocations==1 && frees==1 && ats_calls==3 && enabled==1 && !allocation);
     assert(!regs[0x1000/4] && !regs[0x1800/4] && !regs[LM_CB/4]);
-    for(unsigned m=1;m<=31;m++) {
+    for(unsigned m=1;m<=36;m++) {
         setup(m);lemon_gpu_memory_probe();
-        if(m==11 || m==12 || m==13 || m==14 || m==31) assert(allocation && !frees);
+        if(m==11 || m==12 || m==13 || m==14 || m==31 || m==36) assert(allocation && !frees);
         else assert(!allocation);
         if(m<=5 || (m>=16 && m<=28 && m!=20)) assert(!allocations && !context_writes);
         if(m==6) assert(allocations==1 && !context_writes && !frees);
         if(m==7 || m==8) assert(allocations==1 && frees==1 && !context_writes);
         if(m==9 || m==15) assert(!ats_calls && frees==1);
         if(m==10) assert(ats_calls==1 && frees==1);
-        if(m==20 || m>=29) {
+        if(m==20 || (m>=29 && m<=32) || m==36) {
             assert(allocations==1 && context_writes && !enabled && !ats_calls);
-            if(m!=31) assert(frees==1 && !regs[0x1000/4] && !regs[0x1800/4]);
+            if(m!=31 && m!=36) assert(frees==1 && !regs[0x1000/4] && !regs[0x1800/4]);
         }
+        if(m==32) assert(regs[(LM_CB+0x10)/4]==0x123 && regs[(LM_CB+0x30)/4]==0x123456 &&
+                         regs[(LM_CB+0x34)/4]==0x33 && regs[(LM_CB+0x38)/4]==0xabc);
+        if(m>=33 && m<=35) assert(!allocations && !context_writes);
     }
     setup(0);
-    puts("PASS: ATS and no-ATS/live-v31 capabilities, disabled-context readback, software table bounds/mapped/unmapped checks, unsupported registers forbidden, capability/ownership/clock gates, restore/retain on failure; no global/stream/secure writes");
+    puts("PASS: ATS/no-ATS and exact v32 disabled nonzero registers, stable snapshot gate, original TTBR/SCTLR restore, active/routed/unstable refusal, restore failure retention, bounded tables; no no-ATS SCTLR/ATS/TLB or global/stream/secure writes");
 }
 '''
 with tempfile.TemporaryDirectory() as directory:
