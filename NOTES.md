@@ -2,6 +2,27 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V36 HARDWARE: DISABLED MEMORY CONTEXT PREPARED SUCCESSFULLY (2026-11-21)
+
+User returned TWRP, read-only research/read_v36_log.py -> private
+lemon-v36-log.bin/.txt,total133018/flush31. Power stage5/5CPUs pass.
+Allocation/table/software walk ready PA102d94000,size20480. All programmed
+register readbacks match: CBA2R1,CBAR1f300,TCR2=38071,TCR=a0a02020,
+TTBR0=102d94000,TTBR1=0,CONTEXTIDR0,MAIR0=44,MAIR1=0.
+Final state SCTLR14536108 (M0),FSR400,Format2,faults0,unknown0,GFSR0,
+control_ok1. Exact outcome:
+LEMON GPU MEMORY: prepared=1 owned=1 retained=20480 translated=0; disabled/unrouted, no GPU DMA
+Memory PREPARATION checkpoint passes on hardware.20KiB intentionally retained
+for that XNU boot; user has since rebooted recovery. Do NOT infer a live GPU
+mapping, hardware page walk, DMA, CP execution or rendering from this result.
+No stream route/SCTLR enable/ATS/TLB operations occurred on this path.
+SpringBoard/backboardd exec found, no panic( found. Phone remains TWRP/v36,
+full boot SHA68458cf7a976c97a4772f94573b291541d91a62981ba9b4359350a958b84a914.
+No new code/Actions/phone writes/reboot during log read. Next implementation
+must connect an owned stream/context safely and bring up A610 firmware/core/
+ring to prove a real GPU-written marker, using prior consolidated preflight;
+ATS is unavailable, so register readback is not the translation proof.
+
 ### V36 FLASHED AND REBOOT REQUESTED (2026-11-21)
 
 User explicitly approved flash/start with "да". research/flash_v36.py passed
