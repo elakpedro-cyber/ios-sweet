@@ -4,6 +4,16 @@
 
 ### V27 RESULT / OPEN_ACK FIX PREPARED; NO ACTIONS (2026-11-21)
 
+V28 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v28.py
+verified prior full v27 boot SHA, sde49/134217728 target, local/transfer image
+hash and recovery/dtbo hashes. Wrote only boot17002496 bytes; prefix readback
+matches da8e181a27da42467a62e5d4150963c277f136888fa1ba29762e60af33277f7c.
+Full boot SHA5c1a42fc0563d7958548ba82990f6d2b36c95851801f655b6ef58a5483e1e817.
+Recovery/dtbo unchanged, userdata untouched. adb reboot returned success,
+device disconnected. Hardware result not yet observed. Next wait60 seconds,
+user returns TWRP, read persistent log OPEN success or rejected header/TX error.
+No voltage/GPU power requests in v28; physical channel success unconfirmed.
+
 V28 READY: run44893157363 SUCCESS source dd773cf033eb406b9a7bf538b551c3f6df0f15dd.
 Downloaded xnu-kernel via gh to xnu/out-rpm-ack-kernel. Kernel SHA256SUMS,
 ARM64 Mach-O and v28 rejected-header marker verified. Kernel SHA:
