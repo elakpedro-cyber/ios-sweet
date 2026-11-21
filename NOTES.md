@@ -2,6 +2,24 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V33 LOG: BUFFER READY; TCR2 READBACK/CBAR RESTORE MISMATCH (2026-11-21)
+
+User returned TWRP. Read-only log research/read_v33_log.py -> private
+lemon-v33-log.bin/.txt,total131775/flush38. Power stage5 succeeds,5/5 CPUs.
+Same SMMU capability snapshot/GFSR0/ATS0. Bank0 CBAR/CBA2R0,FSR0,
+SCTLR0x14536108,TTBR0=0x2c087ded1242b8a0,TTBR1=0x110910d908433260.
+Three snapshots stable and bank unrouted; allocation/table/software walk
+reached ready PA0x102d90000,size20480. Then TCR2(offset8010) strict readback
+expected0x11,actual0x71. Could be hardware normalization/fixed fields; not yet
+proven an access denial. Context config aborted before TTBR installation.
+Cleanup CBAR(offset1000) restore expected0,actual0x1f300, so restored=0 and
+20KiB intentionally retained for this boot. No SCTLR writes, context enable,
+ATS/TLB/GPU DMA/stream routing. User subsequently rebooted to TWRP; record
+does not claim previous hardware context restoration. Need investigate writable
+CBAR/TTBCR2 field masks and reset/type behavior before next kernel test;
+do not blindly ignore discrepancies. No new code/Actions/flash/reboot in log read.
+Last phone TWRP/v33; boot full SHA76213c15046a6113d9e19da4aef1747d694831ab6827a15e79d1924525a516d7.
+
 ### V33 FLASHED AND REBOOT REQUESTED (2026-11-21)
 
 User explicitly approved flash/start with "да". research/flash_v33.py passed
