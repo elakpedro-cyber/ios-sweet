@@ -2,6 +2,16 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V36 FLASHED AND REBOOT REQUESTED (2026-11-21)
+
+User explicitly approved flash/start with "да". research/flash_v36.py passed
+prior v35 partition hash, exact boot target/size and protected hash checks;
+wrote17018880 bytes/4155 blocks. Prefix readback matches image SHA256
+65cea65f4a15f504d09c06a70e4c8bf879e7ea3dfe67afa79631c1e2033956d2.
+Full boot SHA25668458cf7a976c97a4772f94573b291541d91a62981ba9b4359350a958b84a914.
+Recovery/dtbo unchanged. adb reboot completed successfully. Await user return
+to TWRP after2-3min to read v36 persistent log. Hardware outcome unknown.
+
 ### V36 BUILD SUCCESS; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
 
 Run44932829878 success at3752ea4a09a13f3457b43af3ba7e38a6409a0ff4.
