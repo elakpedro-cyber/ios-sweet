@@ -4,6 +4,14 @@
 
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
+ACTION STARTED, STOPPED AS REQUESTED: pushed79bcd48bc778d6015b68aa33a7c1efe002df848c.
+Run44841697461 confirmed in_progress:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44841697461
+No waiting/download/flash/reboot. User will report completion. All four patches
+apply sequentially from v23 and match tested source byte-for-byte. Next session
+check this exact run and source, download kernel, package v27; hardware OPEN
+still untested. No claim that a physical channel has been opened yet.
+
 User: open channel, launch Actions, then STOP; user will report build done.
 Patch0028 adds opt-in lemongpu=4, modes0/1/2/3 unchanged. Includes existing
 config vote then GLINK OPEN only. Require valid TOC and fresh ALL ZERO FIFO
