@@ -102,6 +102,43 @@ It logs rejected RX headers and TX space/index errors. Host tests reproduce
 the old rejection with nonzero OPEN_ACK param2 and pass after the fix in both
 OPEN/ACK orders. Hardware verification remains pending; no rail requests.
 
+Patches0030/0031 combine the next bring-up in one opt-in `lemongpu=5` boot:
+
+1. Reuse checked configuration clocks and negotiate GLINK. Consume bounded,
+   valid OPENs for other channels without binding/acknowledging them; log names,
+   continue for multiple channels. Keep strict matching for `rpm_requests`.
+2. Send four sequential ACTIVE RPM-SMD KVP requests: MX floor256, CX floor128,
+   MX enable1, CX enable1. These are corner enums, not microvolts. Normal `vlvl`
+   and SLEEP requests remain unchanged. Each request needs a matching `msg#`
+   ACK with no `err`; malformed/mismatched/fragmented ACK or timeout stops.
+3. Only after all four ACKs: validate configuration access and retained shared
+   GPLL0 at600MHz, require cold GX/disabled consumers, power CX then GX using
+   SM6115's documented reset/clamp sequence. Poll CX via hardware status1540,
+   GX via100c (the old GDSCR-only snapshot was insufficient for CX status).
+4. Configure dedicated GPU PLL1 at640MHz only if off. A running PLL must
+   already match; unknown FSM/rate is rejected. Program core320MHz/GMU200MHz
+   roots and enable GPU/bus branches with bounded readbacks. Shared PLLs are
+   never retuned. The frequencies are inferred from configuration, not measured.
+
+No core/SMMU/firmware/command submission or drawing is attempted. Each stage
+logs progress and final register status. A failure retains the reached power
+state and acknowledged floors rather than dropping voltage below an enabled
+domain. Recovery must reinitialize power afterwards; clearing retained RPM
+votes across a reboot has not been verified. This is a short boot diagnostic,
+not a runtime power manager.
+GLINK/RPM replies are restricted to single-frame ACKs up to256 bytes; unsupported
+reply forms stop the sequence. Actual voltage, domain and clock results remain
+unverified until the combined boot is tested on the phone.
+
+Host ASan/UBSan peer tests cover multiple extra channels, good/error/stale ACKs,
+partial requests/timeouts and stop-before-power gating. Separate actual-module
+MMIO tests check power order, register masks, rate readback, status failures,
+unknown retained states and absence of shared PLL/core/SMMU writes.
+References: [RPM wire format](https://github.com/torvalds/linux/blob/master/drivers/soc/qcom/smd-rpm.c),
+[corner votes](https://github.com/torvalds/linux/blob/master/drivers/pmdomain/qcom/rpmpd.c),
+[SM6115 clocks](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/gpucc-sm6115.c),
+[power domain sequence](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/gdsc.c).
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence

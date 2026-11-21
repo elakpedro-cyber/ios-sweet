@@ -32,6 +32,7 @@ mock = re.sub(r'^\s*__asm__ volatile\([^\n]+\);', '', mock, flags=re.M)
 test = r'''
 static uint32_t ram[LR_SIZE/4], box[0x1000/4];
 static unsigned scenario, writes, delays, complete, tx_commands, fail_map, reverse, suspend_peer;
+static unsigned requests;
 static struct lr_pipe tx={0x200,0x6f8},rx={0x900,0x6f8};
 vm_offset_t ml_io_map(vm_offset_t pa,vm_size_t size) {
     if(pa==LR_PA) {assert(size==LR_SIZE);return fail_map==1?0:(uintptr_t)ram;}
@@ -51,14 +52,24 @@ static void remote(unsigned cmd,unsigned id,unsigned parameter,const char *name)
     for(unsigned i=0;i<length;i+=4) ram[(rx.offset+8+(h+i)%rx.size)/4]=packet[i/4];
     ram[rx.offset/4+1]=(h+length)%rx.size;
 }
+static void remote_words(const uint32_t *packet,unsigned length) {
+    assert(!(length&7) && rx.size-used(rx)>=length+8);
+    unsigned h=ram[rx.offset/4+1];
+    for(unsigned i=0;i<length;i+=4) ram[(rx.offset+8+(h+i)%rx.size)/4]=packet[i/4];
+    ram[rx.offset/4+1]=(h+length)%rx.size;
+}
+static void extra_open(unsigned id) {
+    uint32_t p[6]={2|(id<<16),10,0,0,0,0};
+    memcpy(p+2,"glink_ssr",10);remote_words(p,24);
+}
 static void peer(void) {
     while(used(tx)) {
         unsigned t=ram[tx.offset/4];
         unsigned word=ram[(tx.offset+8+t)/4],cmd=word&0xffff,id=word>>16;
         unsigned param=ram[(tx.offset+8+(t+4)%tx.size)/4];
-        unsigned length=cmd==2?24:8;
+        unsigned length=cmd==9?56:cmd==2?24:8;
         assert(used(tx)>=length);tx_commands++;
-        assert(cmd==0 || cmd==1 || cmd==2 || cmd==4); /* no data/rail packets */
+        assert(cmd==0 || cmd==1 || cmd==2 || cmd==4 || (scenario>=8 && cmd==9));
         ram[tx.offset/4]=(t+length)%tx.size;
         if(cmd==0) {
             assert(id==1 && param==0);
@@ -76,10 +87,31 @@ static void peer(void) {
             if(scenario==3) {remote(4,2,0,0);continue;}
             if(scenario==4) {remote(2,7,13,"bad_requests");continue;}
             if(scenario==5) {remote(2,7,0xffff,0);continue;}
-            if(reverse) remote(2,7,13,"rpm_requests");
+            if(scenario==13) remote(2,7,13,"rpm_requests");
+            if(scenario==7 || scenario>=8) for(unsigned i=0;i<12;i++) extra_open(20+i);
+            if(reverse && scenario!=13) remote(2,7,13,"rpm_requests");
             remote(4,1,scenario==6?1:0,0);
-            if(!reverse) remote(2,7,13,"rpm_requests");
-        } else {assert(id==7 && !param);complete++;}
+            if(!reverse && scenario!=13) remote(2,7,13,"rpm_requests");
+        } else if(cmd==4) {assert(id==7 && !param);complete++;
+        } else {
+            assert(complete==1 && id==1 && !param);
+            uint32_t p[14];
+            for(unsigned i=0;i<14;i++) p[i]=ram[(tx.offset+8+(t+4*i)%tx.size)/4];
+            const unsigned resources[4]={0x786d7772,0x78637772,0x786d7772,0x78637772};
+            const unsigned values[4]={256,128,1,1};
+            assert(requests<4 && p[2]==40 && !p[3] && p[4]==0x00716572 && p[5]==32);
+            assert(p[6]==requests+1 && p[7]==0 && p[8]==resources[requests] && p[9]==0);
+            assert(p[10]==12 && p[11]==(requests<2?0x006c6676u:0x6e657773u) && p[12]==4 && p[13]==values[requests]);
+            requests++;
+            if(scenario==12 && requests==2) continue;
+            uint32_t reply[12]={9|(7<<16),0,20,0,0x00716572,12,0x2367736d,4,p[6],0,0,0};
+            if(scenario==9) reply[8]++;
+            if(scenario==10) {
+                reply[2]=32;reply[5]=24;reply[9]=0x00727265;reply[10]=4;reply[11]=1;
+            }
+            if(scenario==11) reply[5]=0xffffffff;
+            remote_words(reply,scenario==10?48:40);
+        }
     }
 }
 static void lr_write(vm_offset_t base,unsigned offset,uint32_t value) {
@@ -96,6 +128,7 @@ static void lr_write(vm_offset_t base,unsigned offset,uint32_t value) {
 static void setup(unsigned mode) {
     memset(ram,0,sizeof(ram));memset(box,0,sizeof(box));
     writes=delays=complete=tx_commands=fail_map=reverse=suspend_peer=0;scenario=mode;
+    requests=0;
     ram[LR_TOC/4]=0x67727430;ram[LR_TOC/4+1]=2;
     unsigned p=LR_TOC/4+2;
     ram[p]=LR_TX;ram[p+1]=tx.offset;ram[p+2]=tx.size;
@@ -109,6 +142,12 @@ int main(void) {
     setup(0);reverse=1;link=link_state();assert(lr_handshake(&link));assert(complete==1);
     setup(6);link=link_state();assert(lr_handshake(&link));assert(complete==1);
     setup(6);reverse=1;link=link_state();assert(lr_handshake(&link));assert(complete==1);
+    setup(7);link=link_state();assert(lr_handshake(&link));assert(complete==1 && link.ignored_channels==12);
+    setup(13);link=link_state();assert(lr_handshake(&link));assert(complete==1 && link.remote_id==7 && link.ignored_channels==12);
+    setup(8);assert(lemon_rpm_prepare_power());assert(requests==4);
+    for(unsigned mode=9;mode<=12;mode++) {
+        setup(mode);assert(!lemon_rpm_prepare_power());assert(requests==(mode==12?2:1));
+    }
     for(unsigned mode=1;mode<=5;mode++) {
         setup(mode);link=link_state();assert(!lr_handshake(&link));assert(!complete);
         if(mode==1) assert(delays==LR_OPEN_POLLS);
@@ -137,7 +176,7 @@ int main(void) {
     setup(0);link=link_state();link.version_ack=link.open_sent=true;
     remote(2,7,13,"rpm_requests");ram[rx.offset/4+1]=8;
     assert(lr_receive(&link)==0 && ram[rx.offset/4]==0 && !writes);
-    puts("PASS: actual GLINK handshake, both OPEN orders, malformed/version/channel IDs, timeout, fresh handoff, FIFO space, partial frame, mapping failures; write whitelist and no data/rail requests");
+    puts("PASS: GLINK handshake, multiple unbound channels, ACK validation/errors/timeouts, four ACTIVE floor/enable requests, malformed frames, FIFO wrap and write whitelist");
 }
 '''
 with tempfile.TemporaryDirectory() as directory:

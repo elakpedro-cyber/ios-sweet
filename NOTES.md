@@ -2,6 +2,56 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### COMBINED GPU POWER TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
+
+Final checks also cover the observed target OPEN -> extra OPENs -> ACK order,
+and rejected reset/clamp writes before GX power-up. Final logs:
+research/combined-rpm-tests-final.txt and combined-power-tests-final.txt.
+Reset/clamp assertion/deassertion readbacks required; source/hardware models
+still match after regenerating patch0031. All patches0025..0031 were checked
+sequentially against v23; new kernel has not been compiled by macOS CI yet.
+
+User requested merging channels + RPM request + domains/clocks in ONE boot.
+Prepared patches0030/0031, mode lemongpu=5 (default off, old modes unchanged).
+No new CI/push/phone writes/reboot; existing phone remains v28/TWRP.
+
+0030: skip/log multiple well-formed unbound channel OPENs (no target ACK for
+them), keep exact rpm_requests matching; bounded names<=32 as GLINK source.
+Handle unbound signals/close. Generic bounded FIFO TX for control/data.
+After handshake send four sequential ACTIVE requests: rwmx0/vfl256,
+rwcx0/vfl128, rwmx0/swen1, rwcx0/swen1. Corner enums NOT microvolts; preserve
+normal vlvl and SLEEP keys. Each needs valid req service/length and matching
+msg# ACK with no err; malformed/stale/error/fragmented ACK/timeout stops.
+Only single-frame ACK<=256 supported, intentionally fail closed otherwise.
+Uses RPM-SMD over intentless GLINK per mainline smd-rpm.c/rpmpd.c + live FDT.
+
+0031: only after ALL ACKs, call new bsd/dev/lemon_gpu_power.c. Config clock
+guards, cold GX/disabled consumers, shared GPLL0 read-only verified600MHz.
+CX collapse clear then poll hardware status1540 (not GDSCR106c!), bounded2ms.
+AHB/CXO on, GX reset1008/clamp1508/collapse100c sequence + status poll.
+Dedicated GPU PLL1 cold configure640MHz from upstream config, masks/readback,
+lock poll; running unknown/FSM PLL rejected (never retune running PLL).
+Core RCG101c config303 ->320MHz, GMU1120 config505 ->200MHz; bounded update/
+root status, bus/GPU branch enables/readback; no shared PLL writes, GPU core,
+SMMU, firmware or DMA. Log end stage0..5. Frequencies inferred from config,
+not measured. A stop retains reached state/floors, avoiding an unvote underneath
+potentially powered domains. Recovery must reinitialize power; clearing these
+retained RPM votes on reboot has not been verified. This is a short diagnostic,
+NOT a runtime power manager or working rendering driver. RPM ACK does not
+itself prove physical voltage; domain/clock hardware status still checked.
+
+Actual-code host ASan/UBSan tests PASS:12 extra channels, ACK good/stale/error/
+length/timeout, four exact ACTIVE KVPs, old control modes, default off and
+stop-before-power gate. Actual power module MMIO model validates sequence,
+readbacks, cold and already-correct running PLL, timeout/failure cases and
+register write masks. Full modules Cortex-A53/ARMv8.0 compile PASS. Logs in
+research/combined-all-tests.txt. All is host/model evidence, NOT hardware.
+Workflow locally stages0111/0112 and power test; no Actions started.
+Private builder research/build_gpu_combined_boot.py ready for v29, requires
+RPM POWER/GPU POWER markers and lemongpu5; input xnu/out-gpu-combined-kernel,
+output shim/out/lemon-gpu-combined/boot-lemon-gpu-combined-v29.img. No image yet.
+Next user authorizes Actions; build once, package and confirm boot write.
+
 ### V27 RESULT / OPEN_ACK FIX PREPARED; NO ACTIONS (2026-11-21)
 
 V28 HARDWARE RESULT: returned TWRP, ADB recovery connected; read userdata tail

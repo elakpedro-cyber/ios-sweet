@@ -1,0 +1,217 @@
+--- a/bsd/dev/lemon_rpm.c
++++ b/bsd/dev/lemon_rpm.c
+@@ -9,6 +9,7 @@
+ extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
+ void lemon_rpm_snapshot(void);
+ void lemon_rpm_open(void);
++bool lemon_rpm_prepare_power(void);
+ 
+ #define LR_PA 0x045f0000u
+ #define LR_SIZE 0x7000u
+@@ -78,7 +79,8 @@
+ 	vm_offset_t base, mbox;
+ 	struct lr_pipe tx, rx;
+ 	bool version_ack, open_sent, open_ack;
+-	unsigned remote_id;
++	unsigned remote_id, ignored_channels, request_id;
++	bool waiting, reply_done, reply_ok;
+ };
+ 
+ static void
+@@ -97,11 +99,35 @@
+ }
+ 
+ static bool
++lr_tx(struct lr_link *link, const uint32_t *packet, unsigned length)
++{
++	unsigned tail, head;
++	if (!length || (length & 7) || length > 256) return false;
++	if (!lr_indices(link->base, link->tx, &tail, &head)) {
++		printf("LEMON RPM OPEN: invalid TX indices\n");
++		return false;
++	}
++	unsigned used = head >= tail ? head - tail : link->tx.size - tail + head;
++	if (link->tx.size - used < length + 8) {
++		printf("LEMON RPM OPEN: TX full cmd=%u used=%u size=%u\n", packet[0] & 0xffff, used, link->tx.size);
++		return false;
++	}
++	for (unsigned i = 0; i < length; i += 4) {
++		lr_write(link->base, link->tx.offset + 8 + (head + i) % link->tx.size,
++		    packet[i / 4]);
++	}
++	lr_write(link->base, link->tx.offset + 4, (head + length) % link->tx.size);
++	/* SM6115 APCS mailbox channel0: IPC register +8, write BIT(0). */
++	lr_write(link->mbox, 8, 1);
++	return true;
++}
++
++static bool
+ lr_send(struct lr_link *link, unsigned cmd, unsigned id, uint32_t parameter,
+     const char *name)
+ {
+ 	uint32_t packet[6] = {cmd | (id << 16), parameter, 0, 0, 0, 0};
+-	unsigned length = 8, tail, head;
++	unsigned length = 8;
+ 	if (name) {
+ 		/* Only our fixed rpm_requests channel name is ever transmitted. */
+ 		if (cmd != 2 || parameter != 13) return false;
+@@ -110,22 +136,7 @@
+ 		}
+ 		length = 24;
+ 	}
+-	if (!lr_indices(link->base, link->tx, &tail, &head)) {
+-		printf("LEMON RPM OPEN: invalid TX indices\n");
+-		return false;
+-	}
+-	unsigned used = head >= tail ? head - tail : link->tx.size - tail + head;
+-	if (link->tx.size - used < length + 8) {
+-		printf("LEMON RPM OPEN: TX full cmd=%u used=%u size=%u\n", cmd, used, link->tx.size);
+-		return false;
+-	}
+-	for (unsigned i = 0; i < length; i += 4) {
+-		lr_write(link->base, link->tx.offset + 8 + (head + i) % link->tx.size,
+-		    packet[i / 4]);
+-	}
+-	lr_write(link->base, link->tx.offset + 4, (head + length) % link->tx.size);
+-	/* SM6115 APCS mailbox channel0: IPC register +8, write BIT(0). */
+-	lr_write(link->mbox, 8, 1);
++	if (!lr_tx(link, packet, length)) return false;
+ 	printf("LEMON RPM OPEN: tx cmd=%u id=%u param=%#x\n", cmd, id, parameter);
+ 	return true;
+ }
+@@ -137,6 +148,27 @@
+ }
+ 
+ /* Return -1 on invalid/unsupported input, 0 when waiting, 1 after consumption. */
++static bool
++lr_ack(struct lr_link *link, const uint32_t *data, unsigned size)
++{
++	if (size < 20 || (size & 3) || data[0] != 0x00716572u || data[1] != size - 8) return false;
++	bool found = false, error = false;
++	for (unsigned offset = 8; offset < size;) {
++		if (size - offset < 8) return false;
++		uint32_t key = data[offset / 4], length = data[offset / 4 + 1];
++		if (length > size - offset - 8) return false;
++		if (key == 0x2367736du) {
++			if (found || length != 4 || data[offset / 4 + 2] != link->request_id) return false;
++			found = true;
++		} else if (key == 0x00727265u) error = true;
++		else return false;
++		unsigned span = (length + 3) & ~3u;
++		if (span > size - offset - 8) return false;
++		offset += 8 + span;
++	}
++	return found && !error;
++}
++
+ static int
+ lr_receive(struct lr_link *link)
+ {
+@@ -148,16 +180,40 @@
+ 	unsigned cmd = word & 0xffff, id = word >> 16, length = 8;
+ 	if (cmd == 2) {
+ 		unsigned name_length = parameter & 0xffff;
+-		if (!link->version_ack || !link->open_sent || !id || name_length != 13) return -1;
+-		length = 24;
++		if (!link->version_ack || !link->open_sent || !id || !name_length || name_length > 32) return -1;
++		length = (8 + name_length + 7) & ~7u;
+ 		if (available < length) return 0;
+-		static const char name[] = "rpm_requests";
+-		for (unsigned i = 0; i < sizeof(name); i++) {
++		char name[33] = {0};
++		for (unsigned i = 0; i < name_length; i++) {
+ 			uint32_t value = lr_peek(link, tail, 8 + (i & ~3u));
+-			if ((uint8_t)(value >> (8 * (i % 4))) != (uint8_t)name[i]) return -1;
+-		}
+-		if (link->remote_id && link->remote_id != id) return -1;
+-		link->remote_id = id;
++			name[i] = (char)(value >> (8 * (i % 4)));
++			if (!name[i] && i != name_length - 1) return -1;
++		}
++		if (name[name_length - 1]) return -1;
++		bool target = name_length == 13;
++		static const char wanted[] = "rpm_requests";
++		for (unsigned i = 0; target && i < sizeof(wanted); i++) target = name[i] == wanted[i];
++		if (target) {
++			if (link->remote_id && link->remote_id != id) return -1;
++			link->remote_id = id;
++		} else {
++			if (id == link->remote_id) return -1;
++			if (link->ignored_channels++ < 16)
++				printf("LEMON RPM OPEN: skipping unbound channel id=%u name=%s\n", id, name);
++		}
++	} else if (cmd == 9) {
++		if (available < 16) return 0;
++		unsigned chunk = lr_peek(link, tail, 8), left = lr_peek(link, tail, 12);
++		if (!chunk || chunk > 256 || left) return -1;
++		length = (16 + chunk + 7) & ~7u;
++		if (available < length) return 0;
++		if (id == link->remote_id && link->waiting) {
++			uint32_t reply[64] = {0};
++			if (chunk & 3) return -1;
++			for (unsigned i = 0; i < chunk; i += 4) reply[i / 4] = lr_peek(link, tail, 16 + i);
++			link->reply_ok = lr_ack(link, reply, chunk);
++			link->reply_done = true;
++		}
+ 	} else if (cmd == 0) {
+ 		if (id != 1 || !lr_send(link, 1, 1, 0, NULL)) return -1;
+ 	} else if (cmd == 1) {
+@@ -171,7 +227,9 @@
+ 	} else if (cmd == 13) {
+ 		if (id || parameter) return -1;
+ 	} else if (cmd == 15) {
+-		if (!link->remote_id || id != link->remote_id) return -1;
++		if (!id) return -1; /* Ignore signals from unbound channels. */
++	} else if (cmd == 3) {
++		if (!id || id == link->remote_id || !lr_send(link, 11, id, 0, NULL)) return -1;
+ 	} else {
+ 		printf("LEMON RPM OPEN: unsupported rx cmd=%u id=%u param=%#x\n", cmd, id, parameter);
+ 		return -1;
+@@ -218,6 +276,47 @@
+ 	return false;
+ }
+ 
++static bool
++lr_request(struct lr_link *link, uint32_t resource, uint32_t key, unsigned value)
++{
++	/* GLINK TX_DATA + chunk/left, then40-byte RPM request and one KVP. */
++	uint32_t packet[14] = {9u | (1u << 16), 0, 40, 0,
++	    0x00716572u, 32, ++link->request_id, 0, resource, 0, 12, key, 4, value};
++	link->reply_done = link->reply_ok = false;
++	link->waiting = true;
++	printf("LEMON RPM POWER: request=%u resource=%#x key=%#x value=%u\n",
++	    link->request_id, resource, key, value);
++	if (!lr_tx(link, packet, sizeof(packet))) { link->waiting = false; return false; }
++	for (unsigned i = 0; i < LR_OPEN_POLLS; i++) {
++		if (lr_receive(link) < 0) break;
++		if (link->reply_done) break;
++		delay(100);
++	}
++	link->waiting = false;
++	printf("LEMON RPM POWER: request=%u done=%u accepted=%u\n",
++	    link->request_id, link->reply_done, link->reply_ok);
++	return link->reply_done && link->reply_ok;
++}
++
++bool
++lemon_rpm_prepare_power(void)
++{
++	struct lr_link link = {0};
++	link.base = ml_io_map(LR_PA, LR_SIZE);
++	if (!link.base || !lr_parse(link.base, &link.tx, &link.rx)) return false;
++	link.mbox = ml_io_map(LR_MBOX_PA, 0x1000);
++	if (!link.mbox || !lr_handshake(&link)) return false;
++	/* Keep normal inherited vlvl keys unchanged. Raise ACTIVE floor keys, then
++	 * enable; never send a disable/unvote after partial GPU power-up. These
++	 * are RPM corner enums, NOT microvolts: CX SVS128, MX NOM256. */
++	if (!lr_request(&link, 0x786d7772u, 0x006c6676u, 256) ||
++	    !lr_request(&link, 0x78637772u, 0x006c6676u, 128) ||
++	    !lr_request(&link, 0x786d7772u, 0x6e657773u, 1) ||
++	    !lr_request(&link, 0x78637772u, 0x6e657773u, 1)) return false;
++	printf("LEMON RPM POWER: all4 ACTIVE floor/enable requests accepted\n");
++	return true;
++}
++
+ void
+ lemon_rpm_open(void)
+ {

@@ -77,6 +77,8 @@ jobs:
           cp xnu/ports/lemon/0027-rpm-glink-checkpoint.patch dxb/patches/0108-lemon-rpm-glink-checkpoint.patch
           cp xnu/ports/lemon/0028-rpm-glink-open.patch dxb/patches/0109-lemon-rpm-glink-open.patch
           cp xnu/ports/lemon/0029-rpm-open-ack-compat.patch dxb/patches/0110-lemon-rpm-open-ack-compat.patch
+          cp xnu/ports/lemon/0030-rpm-combined-power.patch dxb/patches/0111-lemon-rpm-combined-power.patch
+          cp xnu/ports/lemon/0031-gpu-combined-clock-power.patch dxb/patches/0112-lemon-gpu-combined-clock-power.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -169,6 +171,9 @@ jobs:
 
       - name: Verify RPM GLINK channel handshake
         run: python3 tools/test-lemon-rpm-open.py --xnu dxb/xnu
+
+      - name: Verify staged SM6115 GPU power and clocks
+        run: python3 tools/test-lemon-gpu-power.py --xnu dxb/xnu
 
       - name: Package build tree for local compiles
         if: always()

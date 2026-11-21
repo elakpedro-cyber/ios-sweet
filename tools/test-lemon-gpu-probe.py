@@ -45,14 +45,17 @@ static unsigned option, maps, reads, cc_reads, threads, terminated, map_failure;
 static uint32_t cfg, qmip, vote;
 static unsigned writes, delays, ignore_write, concurrent_vote;
 static unsigned rpm_calls;
+static unsigned power_calls, rpm_ready;
 void lemon_rpm_snapshot(void) {assert(option==3);rpm_calls++;}
 void lemon_rpm_open(void) {assert(option==4);rpm_calls++;}
+bool lemon_rpm_prepare_power(void) {assert(option==5);rpm_calls++;return rpm_ready;}
+void lemon_gpu_power_probe(void) {assert(option==5 && rpm_ready);power_calls++;}
 void delay(int us) {
     assert(us==1);delays++;
     if(concurrent_vote) vote |= 0x1000;
 }
 static void lg_write(vm_offset_t base,unsigned offset,uint32_t value) {
-    assert((option==2 || option==3 || option==4) && base==1 && offset==LG_VOTE);
+    assert((option>=2 && option<=5) && base==1 && offset==LG_VOTE);
     assert(((value^vote)&~16u)==0);writes++;
     if(!ignore_write) vote=value;
 }
@@ -125,6 +128,9 @@ int main(void) {
     run(3,0,8,0x4be0,0);assert(rpm_calls==1);
     run(4,1,8,0x4be0,0);assert(rpm_calls==2);
     run(4,0,8,0x4be0,0);assert(rpm_calls==2);
+    run(5,1,8,0x4be0,0);assert(rpm_calls==3 && !power_calls);
+    rpm_ready=1;run(5,1,8,0x4be0,0);assert(rpm_calls==4 && power_calls==1);
+    run(5,0,8,0x4be0,0);assert(rpm_calls==4 && power_calls==1);
     puts("PASS: opt-in config vote only, bounded timeout, rollback owned bit, preserve other voters, input initialization order");
     puts("PASS: actual GPU probe default off, single start, gated parent clocks, mapping failures; only whitelisted read accesses");
 }
