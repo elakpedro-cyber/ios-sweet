@@ -1,0 +1,56 @@
+--- a/bsd/dev/lemon_gpu_memory.c
++++ b/bsd/dev/lemon_gpu_memory.c
+@@ -141,6 +141,21 @@
+ 		if (!ok) return false;
+ 	}
+ 	return true;
++}
++
++static bool
++lm_state(vm_offset_t base, const struct lm_context *c, const char *phase, bool allow_fsr)
++{
++	uint32_t sctlr = lm_read(base, LM_CB), fsr = lm_read(base, LM_CB + 0x58);
++	uint32_t gfsr = lm_read(base, 0x48);
++	/* TYPE0 -> Stage1 changes the meaning of non-M SCTLR fields. This is
++	 * only a disabled-context preparation; do not compare those fields as
++	 * though the original unsupported Stage2 format were still in effect.
++	 * A supported original Stage1 context retains the exact-state contract. */
++	bool control = c->reset ? !(sctlr & 1) : sctlr == c->sctlr;
++	printf("LEMON GPU MEMORY: state=%s initial_sctlr=%#x sctlr=%#x fsr=%#x gfsr=%#x cbar=%#x cba2r=%#x reset=%u control_ok=%u\n",
++	    phase,c->sctlr,sctlr,fsr,gfsr,lm_read(base,0x1000),lm_read(base,0x1800),c->reset,control);
++	return control && !gfsr && (allow_fsr || !fsr);
+ }
+ 
+ static bool
+@@ -326,7 +341,10 @@
+ 		dirty |= 1u << i;
+ 		ok = lm_set(base, lm_offsets[i], values[i]);
+ 	}
+-	if (ok) ok = lm_unrouted(base, count) && lm_read(base, LM_CB) == saved.sctlr && !lm_read(base, LM_CB + 0x58);
++	/* Always log the full final state, even if a preceding write failed. */
++	bool state_ok = lm_state(base, &saved, "configured", false);
++	bool unrouted = lm_unrouted(base, count);
++	ok = ok && state_ok && unrouted;
+ 	if (ok && saved.reset) {
+ 		/* Keep the newly owned disabled context and its tables for this boot.
+ 		 * Restoring TYPE0 would request unsupported Stage2, not restore valid S1. */
+@@ -340,7 +358,8 @@
+ 	    lm_translate(base, LM_VA + 8192, 0, true);
+ 	printf("LEMON GPU MEMORY: config=%u hardware_translation=%u; restoring private context\n",ok,ok && ats);
+ 	/* Disable and drain before restoring pointers or freeing table memory. */
+-	bool safe = ats ? lm_set(base, LM_CB, 0) : lm_read(base, LM_CB) == saved.sctlr;
++	bool safe = ats ? lm_set(base, LM_CB, 0) : true;
++	safe = lm_state(base, &saved, "cleanup-begin", true) && safe;
+ 	safe = lm_unrouted(base, count) && safe;
+ 	if (safe && ats) safe = lm_idle(base, LM_CB + 0x8f0) && lm_tlb(base);
+ 	if (safe) {
+@@ -358,7 +377,8 @@
+ 		} else {
+ 			safe = lm_restore(base, &saved, dirty) && safe;
+ 		}
+-		safe = lm_unrouted(base, count) && lm_read(base, LM_CB) == saved.sctlr && safe;
++		safe = lm_state(base, &saved, "cleanup-end", false) && safe;
++		safe = lm_unrouted(base, count) && safe;
+ 	}
+ 	if (safe) kmem_free(kernel_map, memory, LM_BYTES);
+ 	else printf("LEMON GPU MEMORY: cleanup unconfirmed; retaining %u bytes at %#llx\n",LM_BYTES,(unsigned long long)pa);

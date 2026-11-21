@@ -26,6 +26,26 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v35 final-state check (patch0037)
+
+v34 hardware matched every programmed register, but failed the final state
+guard without printing its current SCTLR/FSR. The exact hardware cause remains
+unconfirmed. The guard incorrectly required full raw SCTLR equality even
+across the unsupported TYPE0 -> Stage1 change.
+
+For reset-bank preparation only, patch0037 requires SCTLR.M=0 rather than
+equality of fields interpreted under different formats. Existing supported
+Stage1 contexts keep the strict full-SCTLR requirement. Routing, register
+readbacks and local fault checks remain; global faults now also block success
+and cleanup without being cleared. Configured/cleanup-begin/cleanup-end logs
+always include initial/current SCTLR, FSR/GFSR, CBAR/CBA2R and the guard verdict.
+No new SCTLR writes, routing or GPU commands are introduced.
+
+Actual-module56-case ASan/UBSan tests and ARMv8.0 compilation pass, including
+a reset-bank non-M change, active M rejection, local/global faults, a supported
+Stage1 non-M mismatch, and safe cleanup after a failed write with changed
+reset-format bits. This fixes a guard contract, not evidence of GPU DMA.
+
 ### v34 register contract (patch0036)
 
 The grouped SMMU correction implements explicit TBI0/TBI1 for the test's

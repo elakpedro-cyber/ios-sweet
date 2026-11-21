@@ -2,6 +2,32 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V35 FINAL STATE GUARD FIX READY (2026-11-21)
+
+User requested fixing v34 failure; continuing earlier instruction to launch
+Actions after fixes/checks, then stop. Port0037 staged0118. For an originally
+unsupported reset TYPE0 bank only, final/cleanup SCTLR check now requires M0,
+not raw equality across TYPE0->Stage1. Existing supported Stage1 retains full
+SCTLR equality. Exact programmed-register readbacks and stream ownership gates
+remain unchanged. No SCTLR writes or GPU activation added.
+New lm_state logs all fields regardless prior failure: initial/current SCTLR,
+FSR,GFSR,CBAR,CBA2R,reset and control_ok at configured/cleanup-begin/cleanup-end.
+Configured success requires FSR0/GFSR0; cleanup temporarily allows CB faults
+for owned clearing, then requires FSR0. GFSR faults always block and are not
+cleared. Exact v34 post-state still unknown until hardware retest; no claim
+that a non-M change is already confirmed as its sole cause.
+
+Actual-module56 alternate-case ASan/UBSan test and ARMv8.0 compile PASS.
+Added reset non-M acceptance, active M refusal, local/global fault cases,
+strict supported-S1 non-M mismatch, changed-reset-state failure cleanup.
+Private research/gpu-memory-state-tests.txt. Port0037 clean-applies to v34 and
+reproduces tested module; YAML/bash/exact pinned-script/diff checks PASS.
+Private research/build_gpu_memory_v35_boot.py expects
+xnu/out-gpu-memory-state-kernel, requires new state diagnostic marker, output
+shim/out/lemon-gpu-memory-state/boot-lemon-gpu-memory-state-v35.img.
+Working XNU source updated. No phone I/O/flash/reboot. Last phone TWRP/v34.
+Next push approved ongoing fixes to Actions, record run ID and stop.
+
 ### V34 LOG READ: ALL CONFIG WRITES MATCH; FINAL GUARD FAILED (2026-11-21)
 
 USB recovery reappeared after user replug. Read-only research/read_v34_log.py
