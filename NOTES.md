@@ -2,6 +2,20 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V31 BUILD SUCCESS; BOOT READY, AWAITING FLASH CONFIRMATION (2026-11-21)
+
+Run44910287337 success for607947bf9611ca39773c8d17e5f751950ad2aa5d.
+Downloaded xnu-kernel to xnu/out-gpu-memory-kernel; SHA256SUMS verified,
+ARM64 Mach-O and expected markers checked. Kernel SHA256
+65701e946da13c5f349ba9d97a36341822006e077338fc509d0a47c26d7eae53.
+research/build_gpu_memory_boot.py passed layout/ADT/RAM/DTB checks.
+Boot shim/out/lemon-gpu-memory/boot-lemon-gpu-memory-v31.img,17002496 bytes,
+SHA256 f9784eaac1166b34b7b5e696f5d7629783c947b14dc05090904e1ee63b8762b9.
+Private research/flash_v31.py prepared with prior v30 full partition hash
+bf897d4b1069d12e188bb2305cb315d5f0207a380134ac424efe53fc0cfa6203,
+exact boot target/size and recovery/dtbo preservation/readback checks.
+Not executed; no partition writes or reboot. Next: user confirms flash/start.
+
 ### V31 ACTIONS STARTED; STOPPED (2026-11-21)
 
 User approved launch with "да". Pushed commit
