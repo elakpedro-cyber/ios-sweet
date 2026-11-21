@@ -4,6 +4,12 @@
 
 ### V27 RESULT / OPEN_ACK FIX PREPARED; NO ACTIONS (2026-11-21)
 
+V28 BUILD STARTED; STOPPED: user explicitly said "запускай". Pushed
+dd773cf033eb406b9a7bf538b551c3f6df0f15dd to fork/lemon-bringup. Run44893157363
+confirmed IN_PROGRESS https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44893157363
+Stopped after launch per earlier preference. No waiting/download/flash/reboot.
+Next check this run/source, download kernel, package v28 when user says done.
+
 User stopped next build then said continue. Continued LOCAL work only; do not
 push kernel/workflow changes or start Actions until user authorizes build.
 v27 log read already: research/lemon-v27-log.bin/.txt, total123937/flush19:
