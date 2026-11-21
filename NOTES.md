@@ -4,6 +4,16 @@
 
 ### REQUIRED CLOCK FIX PREPARED; MEMORY SETUP DEFERRED, NO ACTIONS (2026-11-21)
 
+V30 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v30.py
+verified prior full v29 boot checksum, sde49/134217728 target, image/transfer
+hashes and protected recovery/dtbo hashes. Wrote only boot17002496 bytes;
+prefix readback matches53a4189f22377d40c8685b65596da9fb82105e2f1567593c7403e8cc04321f84.
+Full boot SHA bf897d4b1069d12e188bb2305cb315d5f0207a380134ac424efe53fc0cfa6203.
+Recovery/dtbo unchanged, userdata untouched. adb reboot succeeded; device
+disconnected. Hardware result unobserved. Next wait60sec, return TWRP, read
+RPM POWER/GPU POWER end-stage and required GMU/GFX branch state from log.
+No SMMU setup, firmware or rendering in this image.
+
 V30 READY: run44906323319 SUCCESS source0cf914a78f874ba628990b69abf53cd7409de8ec.
 Downloaded xnu-kernel via gh; SHA256SUMS, ARM64 Mach-O and new clock marker PASS.
 Kernel SHAc7b35fc0fb5d2e486c67160276c54f2d9c72fc6f9ff9986e7b773a94d42bdd99.
