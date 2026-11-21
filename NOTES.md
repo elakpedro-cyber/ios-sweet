@@ -2,6 +2,23 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V32 LOG READ: BANK0 UNKNOWN STATE; NO CONTEXT WRITES (2026-11-21)
+
+User returned TWRP. Read-only userdata log via research/read_v32_log.py:
+private lemon-v32-log.bin/.txt,130416 bytes,flush29. Power stage5 succeeds.
+CR0=0x220406 ID0=0x4c017e04 ID1=0x20000005 ID2=0x5511 ID7=0x24 GFSR=0 ATS=0.
+No-ATS fallback correctly reached bank0 survey without unsupported ATS access.
+Bank0 CBAR=0 CBA2R=0 SCTLR=0x14136108 FSR=0,
+TTBR0=0x2c087de51242b820 TTBR1=0x110910d908433320.
+Stopped bank0 occupied/unknown before context writes or allocation. These
+unexpected values do NOT establish a valid inherited mapping; firmware/HYP
+mediation, access/layout or unknown state remain to investigate. Do not clear
+the registers or borrow another bank blindly. Need compare downstream Qualcomm
+SMMU ownership/register access path and live recovery driver state first.
+5/5 CPUs/SGI verified; SpringBoard/backboardd exec found, no panic( found.
+No code changes/Actions/partition writes/reboot during this log check.
+Last phone TWRP with v32; full boot hash unchanged from flash record.
+
 ### V32 FLASHED AND REBOOT REQUESTED (2026-11-21)
 
 User explicitly approved flash/start with "да". research/flash_v32.py passed
