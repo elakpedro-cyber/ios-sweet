@@ -2,6 +2,27 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V40 BUILD SUCCESS; COMBINED BOOT READY, AWAIT FLASH APPROVAL (2026-11-22)
+
+User reported completion. gh confirms run44953230197 SUCCESS at
+3a3d33524352434627289680da0244dd06ab0307. Kernel artifact14727255223,
+66871551-byte ZIP verified SHA256
+94d7eee93e7fd2110e0ddb24d56d451b6578c6aadf71ecf53b8a24917d5fff5b.
+research/download_v40.py extracted kernel/SHA256SUMS only; signed JSON removed.
+xnu/out-gpu-cp-combined-kernel/kernel.development.sweet ARM64 Mach-O and
+SHA256SUMS verified; kernel SHA256
+a95fd5fa1c21401842db0a6b3f0e27cb63f3a41cb1975c89293b55116130fa0a.
+research/build_gpu_cp_combined_v40_boot.py passed combined/checkpoint and
+existing markers, exact stock SQE/ADT/layout/RAM/DTB/touch checks. Image
+shim/out/lemon-gpu-cp-combined/boot-lemon-gpu-cp-combined-v40.img,
+17055744bytes/4164blocks SHA256
+36b51ab745f9398dbaf07e9844914dcdc76ed95cf85ea234d633af4f5d3e2997.
+research/flash_v40.py prepared/compiled, NOT EXECUTED; previous full v39 boot
+SHA3549b1784e291e1f9a94570ea97b5c517f88f663f29c475fd775bf8032beeebd,
+exact target/size, protected recovery/dtbo and prefix readback checks retained.
+ADB recovery visible. No phone write/reboot or new Actions. Await explicit
+flash/start approval. Combined hardware outcome still unknown.
+
 ### APOLLO FORK REVIEW ONLY (2026-11-22)
 
 User requested assessment of aTechGeekDev/ios-apollo branch
