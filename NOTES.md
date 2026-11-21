@@ -4,6 +4,23 @@
 
 ### REQUIRED CLOCK FIX PREPARED; MEMORY SETUP DEFERRED, NO ACTIONS (2026-11-21)
 
+V30 HARDWARE SUCCESS: returned to TWRP, ADB recovery available. Read-only
+userdata tail via research/read_v30_log.py; private lemon-v30-log.bin/.txt,
+SWEETLOG total122501/flush15. GLINK handshake lcid1/rcid2 complete; all4 RPM
+requests accepted with matching ACKs again. CX/GX ON. Exact final lines:
+LEMON GPU POWER: optional CX clocks unchanged snoc=0x80000000 gfx=0
+LEMON GPU POWER: ready core320MHz GMU200MHz configuration; no GPU commands
+LEMON GPU POWER: end stage=5 cx_status=0x80001fe0 gx=0xf8222000 gfx=0x4221 gmu=0x4221
+Stage5 COMPLETE, required GX/GMU enable bit0 set and CLK_OFF31 clear. PLL/rate/
+RCG readbacks passed; nominal320/200MHz inferred from configuration, not measured.
+Optional GPUCC108c/10a4 untouched. Original line blocker resolved in this run.
+5/5 CPU/SGI verified; SpringBoard/backboardd exec found, no panic found. No GPU
+firmware/command execution/SMMU or accelerated drawing tested yet.
+Next GPU step: inspect inherited Adreno SMMU59a0000 (with required HLOS vote
+5000 + GCC buses/CX guards) before mapping memory; respect secure/user streams
+and skip-init state. No SMMU writes or new CI/flash/reboot during collection.
+Phone remains TWRP with v30 installed. Do not claim Metal/GLES acceleration.
+
 V30 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v30.py
 verified prior full v29 boot checksum, sde49/134217728 target, image/transfer
 hashes and protected recovery/dtbo hashes. Wrote only boot17002496 bytes;
