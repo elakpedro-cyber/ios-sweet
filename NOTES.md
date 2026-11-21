@@ -4,6 +4,24 @@
 
 ### V27 RESULT / OPEN_ACK FIX PREPARED; NO ACTIONS (2026-11-21)
 
+V28 HARDWARE RESULT: returned TWRP, ADB recovery connected; read userdata tail
+only via research/read_v28_log.py. Private lemon-v28-log.bin/.txt saved;
+SWEETLOG total127162/flush31. Version1/features0 and remote rpm_requests OPEN
+rcid2/name len13 accepted, then:
+LEMON RPM OPEN: rejected hdr=0x30002 param=0xa tail=0x28 head=0x48
+LEMON RPM OPEN: result=0; no voltage, power or GPU commands
+Decode: cmd2 OPEN, remote channel3, name length10. This is ANOTHER channel OPEN,
+not OPEN_ACK. Actual channel name was not logged; do not assert glink_ssr
+even though length fits. The earlier nonzero ACK-param hypothesis was not
+the demonstrated failure; patch0029 is protocol compatibility + diagnostics,
+not a proven fix of the v27 failure. Need handle/skip unrelated channel OPEN
+with bounded name/frame validation, log actual name and preserve strict target
+rpm_requests matching. Linux handles multiple channels; single-channel code
+currently aborts on the extra OPEN before seeing any target ACK behind it.
+5/5 CPUs/SGI and SpringBoard/backboardd exec seen, no panic found; CX/GX still
+222001. Physical target handshake not complete. No voltage/power requests.
+No new code/Actions/phone writes/reboot this collection; phone stays TWRP/v28.
+
 V28 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v28.py
 verified prior full v27 boot SHA, sde49/134217728 target, local/transfer image
 hash and recovery/dtbo hashes. Wrote only boot17002496 bytes; prefix readback
