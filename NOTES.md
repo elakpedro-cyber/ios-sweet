@@ -2,6 +2,18 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V32 FLASHED AND REBOOT REQUESTED (2026-11-21)
+
+User explicitly approved flash/start with "да". research/flash_v32.py passed
+prior v31 partition hash, exact boot target/size and protected hashes, wrote
+17002496 bytes to boot. Prefix readback SHA256 matches prepared image
+e5fbdbb788b4fa22a232d8d8e41ea666630daf32dca56443e1b24ed4992199d3.
+Full boot SHA256d07838d7f3202f061de10a088541a701987fd31b6be4176e433c28734cb6b7ea.
+Recovery/dtbo unchanged. adb reboot completed successfully. Await user return
+to TWRP after2-3min to read persistent v32 SMMU no-ATS test result.
+Hardware outcome unknown; this fallback checks disabled-context configuration,
+not hardware GPU translation or rendering.
+
 ### V32 SUCCESS; CACHES SAVED, BOOT READY (2026-11-21)
 
 Run44912933122 success at exact e384d62417d7a4fa7231700fae4572679d94bef2.
