@@ -2,6 +2,16 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V33 ACTIONS STARTED; STOPPED (2026-11-21)
+
+User explicitly approved launch with "да". Pushed
+e2279aed37adebf07ab3266794785afec445152b to fork/lemon-bringup.
+Run44916435156 confirmed in_progress for exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44916435156
+Includes port0035 stable disabled-bank handling and existing CI caches.
+Stopped after launch; no waiting/download/phone I/O/flash/reboot. User will
+report completion. Phone last observed TWRP/v32.
+
 ### V33 DISABLED BANK STATE CHECK PREPARED; NO ACTIONS (2026-11-21)
 
 User approved investigating Qualcomm access path. Read-only TWRP queries:
