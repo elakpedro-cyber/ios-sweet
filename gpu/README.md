@@ -26,6 +26,101 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### End-to-end preflight after v33 (2026-11-21)
+
+This is a source/ABI/asset review, not a hardware acceleration result. No new
+kernel was built or flashed for this review. Remaining stages are dependencies,
+not a promise that each will work on its first hardware run.
+
+| Stage | Evidence now | Known work before it can pass |
+| --- | --- | --- |
+| Power/clocks | v30-v33 RPM ACKs and stage5 readbacks | Diagnostic retains votes; runtime idle/resume and recovery need a power manager. Nominal320/200MHz is not a frequency measurement. |
+| SMMU configuration | v33 stable disabled bank0, buffer and software tables | Resolve TCR2 TBI policy, format-aware register snapshots and ordered restoration; CBAR restoration still fails. Do not route GPU streams yet. |
+| GPU-visible memory | Private20KiB table model only | Implement real mappings, free SID/SMR selection without overlap, ASID/TLB lifecycle, fault reporting, cache ownership and allocation lifetime. |
+| Firmware/security | Local stock SQE and A610 ZAP hashes verified | Implement metadata/segment loader, relocation/allocation and Qualcomm PAS13 authentication with bounded error handling. File presence is not an authenticated/started GPU. |
+| A610 CP/ring | Primary Linux A610 path identified; no local implementation | Port wrapper/core initialization, A610 register values, SQE/ring setup, GPU progress and fence handling. Pixel3 A630 GMU/HFI setup is unsuitable. |
+| Kernel/userspace ABI | Actual bridge/fake-backend tests pass | Implement LemonGPU service/user client: BOs/maps/imports, submit, queues, real waits and fence-delayed release. Keep service absent until hardware submission works. |
+| Mesa/EAGL build | Existing archive URL responds200; source scripts imported | Build actual iOS arm64 dylibs, validate imports/signing/exports; provide Xcode/Python paths for Intel CI. No Mesa/EAGL Mach-O artifacts have been built here. |
+| Display integration | Five hook targets match the prepared iOS cache | Implement writable SweetSurface imports, page pinning, exact row stride/format, GPU-to-CPU visibility and real presentation; test safe hook/loading behavior on this kernel. |
+
+**Immediate SMMU issues found together:**
+
+- TCR2 readback0x71 vs requested0x11 differs in TBI0/TBI1 (bits5/6), which
+  have defined address-tag semantics. This is not permission-denied evidence
+  and must not be handled by blindly ignoring every differing bit. Establish
+  an explicit untagged32-bit-IOVA policy and writable/read-as behavior first.
+- Original CBA2R.VA64=0 means the saved context is not AArch64. TTBR access
+  width also depends on its original TCR.EAE: short descriptors use32-bit
+  accesses. The current unconditional64-bit snapshots/restores are not a
+  valid general save/restore contract. UNKNOWN reset fields are not evidence
+  that an inactive bank is in use.
+- Cleanup currently restores TTBRs before TCR/TCR2 and format state. Restore
+  the original interpretation/control before restoring its table registers,
+  keeping translation disabled throughout. Only restore fields actually
+  modified, with register-specific verification.
+- CBAR failed to return from0x1f300 to its initial0. The current test must
+  continue to report cleanup failure. Type0 has stage2 semantics, while this
+  device advertises no S2 translation; that is a lead, not a proven explanation
+  for the failed write. Do not label an acceptable post-test state as an exact
+  restoration. A persistent owned context needs an explicit lifecycle instead.
+- Extend the MMIO model beyond ordinary read/write arrays: TBI readback,
+  rejected CBAR-type restoration, short/long/AArch64 register widths and
+  ordering. Existing36-case tests did not model these hardware behaviors.
+
+Reference: [ARM SMMUv2 register definitions](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb)
+(sections16.5.39/40 and CBAR),
+[Qualcomm context write order](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/lime-q-oss/drivers/iommu/arm-smmu.c)
+(`arm_smmu_write_context_bank`).
+
+**Constraints for the subsequent implementation:**
+
+- A610 chip06010000 uses132KiB GMEM, a GMU-wrapper path, `a630_sqe.fw`
+  and `a610_zap.mdt`; its4GiB quirk concerns GPU virtual addresses, not a ban
+  on physical pages above4GiB. Preserve full physical addresses. The current
+  user VA window80000000..ffffffff also needs separate non-overlapping BO
+  and imported-page ranges. Do not reuse A630 GMEM/clock fixtures as hardware
+  capabilities. Linux also selects A610-specific HWCG/GBIF/core values.
+- Local ZAP ELF's loadable segment has Qualcomm relocatable flag and PA5000;
+  that is not permission to copy firmware to physical address5000. Use the
+  authenticated loader's relocation/allocation rules. No A630 GMU firmware
+  or HFI channel is required by the identified A610 wrapper path.
+- First CP success must be an observed GPU-written scratch/memory marker
+  and an actual completion, with an intentional fault/timeout path. The fake
+  backend retires work synthetically and cannot validate DMA or pixels.
+- CPU writeback/GPU reads and GPU writes/CPU reads need opposite cache
+  maintenance, barriers and fences. A pre-submit clean alone is insufficient.
+  Do not release imported pages or tables while the GPU can still reference
+  them. Raw user pointers need validation and pinned page lists; pass neither
+  arbitrary physical addresses nor unbounded commands through the user client.
+- The existing SweetSurface implementation is the integration target, not
+  the donor's later surface patches. Preserve its stride, offsets, ownership
+  and presentation path. Set ABI capabilities from the actual implementation;
+  do not advertise unimplemented fences, per-process tables or zero-copy.
+- Mesa scripts default to an Apple-silicon Homebrew Python path and old Xcode
+  path. CI must supply actual paths. HOST=1 builds/runs macOS arm64 binaries
+  and cannot run those binaries on the current macos-15-intel runner.
+- Five matching vtable targets do not prove VM_PROT_COPY permissions, loader
+  injection, IOSurface coherence, GL completeness or correct presentation.
+  Keep the software path available until standalone GPU pixel tests pass.
+
+Sources: [A610 catalog](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_catalog.c),
+[CP/core init and ZAP sequencing](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu.c),
+[Qualcomm loader](https://github.com/torvalds/linux/blob/master/drivers/soc/qcom/mdt_loader.c).
+
+**Batching plan:** prepare the complete SMMU register contract and cleanup
+model before another run. In one guarded test collect all relevant original,
+requested and returned fields, so a mismatch is diagnosable without rebuilding
+just to print the next register. After memory ownership is proven, combine
+dependent firmware/core/ring-marker checks behind explicit success gates.
+Keep service/standalone GLES and then compositor activation as separate gates;
+they cannot safely be declared successful by a register-only boot.
+
+Rechecked actual DRM bridge/fake ABI, identity rejection,4K/16K allocation
+rounding and ARMv8.0 cross-compilation: PASS. Local20H392 cache hook target
+checks: PASS. Stock firmware manifest sizes/hashes: PASS. Mesa tarball HEAD
+was200,91661844 bytes; archive was not downloaded for this review and its
+contents/hash/build remain unverified. No real GPU command or pixels tested.
+
 On Linux/WSL (native C compiler, ASan/UBSan), against Linux's DRM UAPI headers:
 
 ```sh

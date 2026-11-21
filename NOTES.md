@@ -2,6 +2,47 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### END-TO-END GPU PREFLIGHT COMPLETED; AUDIT ONLY (2026-11-21)
+
+User asked to inspect upcoming problems before another one-fix/one-boot loop.
+Added consolidated review/batching plan near top of gpu/README.md. No driver
+code/workflow changes, Actions, download of large assets or phone I/O.
+Reviewed current memory module, donor ABI/DRM/EAGL/build scripts, SweetSurface
+patch, stock FW metadata, primary ARM SMMUv2 and Qualcomm/mainline GPU sources.
+
+Immediate grouped findings for next SMMU change:
+- TCR2 0x11->0x71 difference is defined TBI0/TBI1 bits5/6 (ARM16.5.39),
+  not reserved bits or proof of denied access. Need explicit IOVA/tag policy.
+- Initial CBA2R.VA64=0 requires checking original TCR.EAE before selecting
+  32/64-bit TTBR snapshot/restoration width; current unconditional64-bit access
+  is not generally valid for an original AArch32 short-descriptor context.
+- Cleanup restores TTBR before TCR/TCR2/format. Qualcomm writes controls
+  before table registers because they affect field interpretation. Restore
+  original interpretation first, remain disabled, verify modified fields.
+- CBAR restore0 failure still unresolved. Initial type0 means stage2 while
+  ID0 advertises no S2; this is a lead, not a confirmed cause. Do not silently
+  mask the failure or claim exact restoration. Need model hardware-normalized
+  fields, context type restrictions and format-specific access/order together.
+
+Broader dependencies confirmed: no real memory routing/DMA path, firmware/PAS13
+loader, A610 CP/ring/fence implementation, LemonGPU user client, built iOS Mesa/
+EAGL binaries or SweetSurface GPU import/coherence/presentation integration.
+A610 uses wrapper path/132KiB GMEM/4GiB GPU-VA quirk, not A630 GMU/HFI setup.
+ZAP ELF PT_LOAD PA5000 is relocatable, not absolute destination; preserve
+loader ownership/authentication and full physical addresses above4GiB.
+Documented userptr lifetime/cache/fence/IOVA/import constraints; fake backend
+cannot prove hardware completion. Current Intel CI cannot run HOST=1 arm64
+macOS binaries; supply actual Xcode/Python paths for future userspace build.
+
+Rechecks PASS: tools/test-lemon-gpu.py actual bridge/fake ABI/4K16K/gates and
+ARMv8 crosscompile, private research/gpu-preflight-tests.txt; all5 local20H392
+cache hook targets via check-lemon-gpu-cache.py (gpu-preflight-cache.txt).
+Private gpu_preflight_assets.py verified all stock FW manifest hashes/sizes,
+parsed ZAP headers; Mesa archive HEAD200/91661844 bytes only (no tarball
+download/hash/build claim). git diff --check PASS.
+Next: prepare grouped SMMU contract/model fixes based on audit, not an Actions
+run yet. Hardware uncertainties cannot all be eliminated through static review.
+
 ### V33 LOG: BUFFER READY; TCR2 READBACK/CBAR RESTORE MISMATCH (2026-11-21)
 
 User returned TWRP. Read-only log research/read_v33_log.py -> private
