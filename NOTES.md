@@ -2,6 +2,35 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V32 NO-ATS CHECK PREPARED LOCALLY; NO ACTIONS (2026-11-21)
+
+User requested changing the failed v31 check. Added port0034 after0033,
+workflow stages0115. ATOSNS no longer rejects the whole memory probe.
+All existing layout/stage1/ownership/clock/physical bounds guards retained.
+Logs now include GFSR and ATS availability. A bounded software table walk
+checks both data mappings and the unmapped following page before any context
+configuration. ATOSNS path programs/readbacks known idle, unrouted CB0 while
+keeping SCTLR disabled, then restores original registers and releases memory
+only after restoration is verified. No ATS1PR/PAR/ATSR or TLB operations on
+this path. Logs explicitly distinguish configured=1 from translated=0.
+ATS-capable path retains hardware test and disable/drain cleanup. No streams,
+global reset or other banks modified. No real GPU DMA/translation proof yet.
+
+Host actual-code ASan/UBSan tests PASS (31 alternate cases plus table corruption
+checks), including exact v31 ID/CR0 snapshot, no-ATS ignored config write,
+failed restoration retaining allocation. Mock forbids unsupported register
+accesses/context enable on all ATOSNS cases. Existing ATS cases still PASS.
+ARMv8.0 actual module cross-compile PASS. Patch0034 clean apply to tested v31
+source reproduces tested module. Non-patch git diff --check PASS.
+Private tests research/gpu-memory-no-ats-tests.txt; working XNU module updated.
+Prepared private research/build_gpu_memory_v32_boot.py; expects kernel in
+xnu/out-gpu-memory-no-ats-kernel, requires new no-ATS marker, output
+shim/out/lemon-gpu-memory-no-ats/boot-lemon-gpu-memory-no-ats-v32.img.
+Full macOS XNU build and phone outcome pending. No push/Actions/phone I/O.
+Last phone TWRP with v31, full boot hash
+63de7c4f5eba57058ecfd98d67b159f85118558709847f60b64b45cae1a4951f.
+Next: user authorizes Actions; after launch stop and wait for completion report.
+
 ### V31 LOG READ: ATS UNSUPPORTED GUARD; NO CONTEXT WRITES (2026-11-21)
 
 User returned to TWRP; ADB recovery confirmed. Read-only userdata tail via

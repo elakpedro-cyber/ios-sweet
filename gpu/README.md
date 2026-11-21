@@ -163,16 +163,19 @@ and CX/GX ON verified. Patch0033 adds one combined memory test, `lemongpu=6`:
 1. Complete the existing RPM/power/clock sequence first; otherwise no memory
    probe runs. Verify CX, AHB/GCC buses and enable/read back SMMU HLOS vote5000.
 2. Inspect only non-secure globals and known GPU-user bank0. Require SMMUv2,
-   4KiB layout, stage1/ATS support, supported OAS and an idle, unrouted bank0
+   4KiB layout, stage1 support, supported OAS and an idle, unrouted bank0
    with empty TTBRs. No other/secure banks or inherited streams are modified.
 3. Allocate20KiB contiguous kernel memory, verify physical contiguity/address
    width, construct three4KiB table pages and map two private data pages at
    IOVA0x20000000. Clean CPU caches before table walking. No GPU stream is
    attached to the test context and no DMA is submitted.
-4. Save bank configuration, verify register writability, set an AArch64
-   stage1 context, synchronize its TLB, and use ATS1PR to check both mapped
-   pages plus a fault on the following unmapped page. This tests translation,
-   not GPU access to data or drawing.
+4. Validate both mappings and the unmapped following page with a bounded
+   software table walk. Save bank configuration, verify register writability
+   and program AArch64 stage1 registers. If ATS is available, enable the
+   context, synchronize its TLB and test those addresses using ATS1PR.
+   Patch0034 handles ATOSNS=1 by keeping the context disabled: only software
+   tables and configuration readback are tested. No ATS/PAR/ATSR or TLB
+   operations occur on this path; it does not prove hardware translation.
 5. Disable/drain and restore the context, clear only test-owned bank faults,
    and free memory only after restoration is verified. On uncertain disable,
    ATS/TLB timeout or restoration, retain the allocation and log it. No global
@@ -181,11 +184,14 @@ and CX/GX ON verified. Patch0033 adds one combined memory test, `lemongpu=6`:
 This mode stops on unknown/occupied/protected state; it does not take over an
 existing mapping. Unsupported/fragmented capabilities are not treated as test
 success. As before, clock/rail votes are retained for recovery reinitialization.
-Host ASan/UBSan tests use an independent page walker and28 fault/guard cases,
+Host ASan/UBSan tests use an independent page walker and31 alternate cases,
 including stale mappings, ATS failure/bypass, cleanup failure and buffer retention;
 mode6 gating and existing power tests also pass. Actual module cross-compiles
 for ARMv8.0 with explicit-GPR MMIO stores (Qualcomm HYP zero-register workaround).
-Full XNU build and hardware translation results are still pending.
+v31 full XNU build passed, but hardware stopped before context writes because
+ID0=0x4c017e04 advertises ATOSNS. The no-ATS fallback also tests this exact
+capability snapshot in the host model, forbidding context enable and unsupported
+register accesses. Patch0034 full XNU build/hardware readback remain pending.
 References: [SMMUv2 definitions](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu.h),
 [context programming](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu.c),
 [Adreno user bank0](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c).

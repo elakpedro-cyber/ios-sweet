@@ -1,4 +1,4 @@
-"""Run actual SMMU/buffer/ATS test with a page-walking MMIO model and fault cases."""
+"""Test SMMU ATS and disabled-context fallback with a page-walking MMIO model."""
 import argparse
 from pathlib import Path
 import re
@@ -104,6 +104,7 @@ static uint32_t lm_read(vm_offset_t base,unsigned o) {
         assert(o==0x1540 || o==0x1078 || o==0x5000);return cc[o/4];
     }
     assert(base==(uintptr_t)regs && o<LM_MAP_SIZE);
+    if(regs[0x20/4]&(1u<<26)) assert(o!=LM_CB+0x8f0 && o!=LM_CB+0x50 && o!=LM_CB+0x54);
     assert(o==0 || o==0x20 || o==0x24 || o==0x28 || o==0x3c || o==0x48 ||
            o==0x1000 || o==0x1800 || (o>=0x800 && o<0x820) ||
            (o>=0xc00 && o<0xc20) || cb_register(o));
@@ -121,6 +122,10 @@ static void lm_write(vm_offset_t base,unsigned o,uint32_t value) {
         return;
     }
     assert(base==(uintptr_t)regs && allocation);
+    if(regs[0x20/4]&(1u<<26)) {
+        assert(o!=LM_CB+0x610 && o!=LM_CB+0x7f0);
+        if(o==LM_CB) assert(value==0);
+    }
     /* No global CR0, SMR/S2CR, other banks, reset, stream or GPU writes. */
     assert(o==0x1000 || o==0x1800 || o==LM_CB || o==LM_CB+0x10 || o==LM_CB+0x30 ||
            o==LM_CB+0x34 || o==LM_CB+0x38 || o==LM_CB+0x3c || o==LM_CB+0x58 ||
@@ -128,6 +133,8 @@ static void lm_write(vm_offset_t base,unsigned o,uint32_t value) {
     context_writes++;
     if(mode==9 && o==LM_CB+0x34) return;
     if(mode==15 && o==0x1800 && value==1) return;
+    if(mode==30 && o==LM_CB+0x30 && value) return;
+    if(mode==31 && o==LM_CB+0x30 && !value) return;
     if(mode==13 && enabled && o==LM_CB && value==0) return;
     if(mode==14 && enabled && o==LM_CB+0x30 && value==0) return;
     if(o==LM_CB+0x58) {regs[o/4]&=~value;return;}
@@ -161,6 +168,7 @@ static uint64_t walk(uint32_t va) {
 static void lm_write64(vm_offset_t base,unsigned o,uint64_t value) {
     assert(base==(uintptr_t)regs && allocation);
     assert(o==LM_CB+0x20 || o==LM_CB+0x28 || o==LM_CB+0x800);context_writes++;
+    if(regs[0x20/4]&(1u<<26)) assert(o!=LM_CB+0x800);
     regs[o/4]=value;regs[o/4+1]=value>>32;
     if(o==LM_CB+0x800) {
         assert(enabled && (regs[LM_CB/4]&1));ats_calls++;
@@ -197,23 +205,40 @@ static void setup(unsigned m) {
     if(m==26) regs[0x1800/4]=1u<<16;
     if(m==27) regs[(LM_CB+0x58)/4]=2;
     if(m==28) {regs[0x800/4]=1u<<31;regs[0xc00/4]=0x30000;}
+    if(m>=29) {
+        regs[0]=0x220406;regs[0x20/4]=0x4c017e04;regs[0x24/4]=0x20000005;
+        regs[0x28/4]=0x5511;regs[0x3c/4]=0x24;
+    }
 }
 int main(void) {
+    uint64_t *tables=aligned_alloc(4096,LM_BYTES);assert(tables);
+    memset(tables,0,LM_BYTES);assert(lm_tables((uintptr_t)tables,physical,36));
+    assert(lm_walk((uintptr_t)tables,physical,LM_VA)==physical+12288);
+    assert(lm_walk((uintptr_t)tables,physical,LM_VA+4096)==physical+16384);
+    assert(lm_walk((uintptr_t)tables,physical,LM_VA+8192)==1);
+    tables[LM_VA>>30]=(physical+LM_BYTES)|3; /* Out-of-allocation table pointer. */
+    assert(lm_walk((uintptr_t)tables,physical,LM_VA)==1);
+    tables[LM_VA>>30]=physical|1; /* Block descriptor is not a table. */
+    assert(lm_walk((uintptr_t)tables,physical,LM_VA)==1);free(tables);
     setup(0);lemon_gpu_memory_probe();
     assert(allocations==1 && frees==1 && ats_calls==3 && enabled==1 && !allocation);
     assert(!regs[0x1000/4] && !regs[0x1800/4] && !regs[LM_CB/4]);
-    for(unsigned m=1;m<=28;m++) {
+    for(unsigned m=1;m<=31;m++) {
         setup(m);lemon_gpu_memory_probe();
-        if(m==11 || m==12 || m==13 || m==14) assert(allocation && !frees);
+        if(m==11 || m==12 || m==13 || m==14 || m==31) assert(allocation && !frees);
         else assert(!allocation);
-        if(m<=5 || m>=16) assert(!allocations && !context_writes);
+        if(m<=5 || (m>=16 && m<=28 && m!=20)) assert(!allocations && !context_writes);
         if(m==6) assert(allocations==1 && !context_writes && !frees);
         if(m==7 || m==8) assert(allocations==1 && frees==1 && !context_writes);
         if(m==9 || m==15) assert(!ats_calls && frees==1);
         if(m==10) assert(ats_calls==1 && frees==1);
+        if(m==20 || m>=29) {
+            assert(allocations==1 && context_writes && !enabled && !ats_calls);
+            if(m!=31) assert(frees==1 && !regs[0x1000/4] && !regs[0x1800/4]);
+        }
     }
     setup(0);
-    puts("PASS: actual SMMU private table walk, two mapped pages/unmapped guard, capability/ownership/clock gates, PTE bounds, ATS mismatch/timeout, rejected writes, restore/drain before free, retain on unsafe cleanup; no global/stream/secure writes");
+    puts("PASS: ATS and no-ATS/live-v31 capabilities, disabled-context readback, software table bounds/mapped/unmapped checks, unsupported registers forbidden, capability/ownership/clock gates, restore/retain on failure; no global/stream/secure writes");
 }
 '''
 with tempfile.TemporaryDirectory() as directory:

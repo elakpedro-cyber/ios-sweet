@@ -1,0 +1,98 @@
+--- a/bsd/dev/lemon_gpu_memory.c
++++ b/bsd/dev/lemon_gpu_memory.c
+@@ -135,6 +135,20 @@
+ 	return true;
+ }
+ 
++static uint64_t
++lm_walk(vm_offset_t memory, uint64_t pa, uint32_t va)
++{
++	uint64_t table = pa;
++	static const unsigned shifts[] = {30,21,12};
++	for (unsigned level = 0; level < 3; level++) {
++		if (table < pa || table >= pa + 12288 || (table & 4095)) return 1;
++		uint64_t pte = ((uint64_t *)(memory + table - pa))[(va >> shifts[level]) & 511];
++		if ((pte & 3) != 3) return 1;
++		table = pte & 0x0000fffffffff000ull;
++	}
++	return table;
++}
++
+ void
+ lemon_gpu_memory_probe(void)
+ {
+@@ -165,25 +179,28 @@
+ 	if (!base) { printf("LEMON GPU MEMORY: SMMU mapping failed; stop\n"); return; }
+ 	uint32_t cr0 = lm_read(base, 0), id0 = lm_read(base, 0x20);
+ 	uint32_t id1 = lm_read(base, 0x24), id2 = lm_read(base, 0x28), id7 = lm_read(base, 0x3c);
++	uint32_t gfsr = lm_read(base, 0x48);
++	bool ats = !(id0 & (1u << 26));
+ 	unsigned count = id0 & 0xff, banks = id1 & 0xff, oas_code = (id2 >> 4) & 15;
+ 	static const unsigned widths[] = {32,36,40,42,44,48};
+-	printf("LEMON GPU MEMORY: CR0=%#x ID0=%#x ID1=%#x ID2=%#x ID7=%#x\n",cr0,id0,id1,id2,id7);
++	printf("LEMON GPU MEMORY: CR0=%#x ID0=%#x ID1=%#x ID2=%#x ID7=%#x GFSR=%#x ATS=%u\n",cr0,id0,id1,id2,id7,gfsr,ats);
+ 	unsigned cb_base = (1u << (((id1 >> 28) & 7) + 1)) * 4096u;
+ 	if ((PAGE_SIZE != 4096) || ((id7 >> 4) & 15) != 2 || !(id0 & (1u << 30)) ||
+-	    !(id0 & (1u << 27)) || (id0 & ((1u << 26) | (1u << 8))) ||
++	    !(id0 & (1u << 27)) || (id0 & (1u << 8)) ||
+ 	    (id1 & 0x80ff0000u) || !banks || banks > 8 || cb_base != LM_CB ||
+ 	    !(id2 & (1u << 12)) || oas_code > 5 || (cr0 & 9) || !count || count > 128 ||
+-	    lm_read(base, 0x48)) {
++	    gfsr) {
+ 		printf("LEMON GPU MEMORY: unsupported/protected/global-fault state; no context writes\n");
+ 		return;
+ 	}
++	if (!ats) printf("LEMON GPU MEMORY: ATS unavailable; disabled-context readback/software walk only\n");
+ 	if (!lm_unrouted(base, count)) return;
+ 	uint32_t cbar = lm_read(base, 0x1000), cba2r = lm_read(base, 0x1800);
+ 	uint32_t sctlr = lm_read(base, LM_CB), fsr_before = lm_read(base, LM_CB + 0x58);
+ 	uint64_t ttbr0 = lm_read64(base, LM_CB + 0x20), ttbr1 = lm_read64(base, LM_CB + 0x28);
+ 	printf("LEMON GPU MEMORY: bank0 cbar=%#x cba2r=%#x sctlr=%#x fsr=%#x ttbr=%#llx/%#llx\n",
+ 	    cbar, cba2r, sctlr, fsr_before, (unsigned long long)ttbr0, (unsigned long long)ttbr1);
+-	if (sctlr || fsr_before || lm_read(base, LM_CB + 0x8f0) || ttbr0 || ttbr1 ||
++	if (sctlr || fsr_before || (ats && lm_read(base, LM_CB + 0x8f0)) || ttbr0 || ttbr1 ||
+ 	    (cba2r & ~1u) || (cbar & 0xffu) || (cbar & 0x30000u) > 0x10000u) {
+ 		printf("LEMON GPU MEMORY: bank0 occupied/unknown; no context writes\n");
+ 		return;
+@@ -201,6 +218,13 @@
+ 	if (!valid || !lm_tables(memory, pa, widths[oas_code])) {
+ 		kmem_free(kernel_map, memory, LM_BYTES);
+ 		printf("LEMON GPU MEMORY: buffer/physical range invalid; stop\n");
++		return;
++	}
++	if (lm_walk(memory, pa, LM_VA) != pa + 12288 ||
++	    lm_walk(memory, pa, LM_VA + 4096) != pa + 16384 ||
++	    lm_walk(memory, pa, LM_VA + 8192) != 1) {
++		kmem_free(kernel_map, memory, LM_BYTES);
++		printf("LEMON GPU MEMORY: software table validation failed; stop\n");
+ 		return;
+ 	}
+ 	*(uint32_t *)(memory + 12288) = 0x4c454d4f;
+@@ -219,13 +243,15 @@
+ 	    lm_set(base, LM_CB + 0x30, (1u << 23) | (2u << 12) | 32) &&
+ 	    lm_set64(base, LM_CB + 0x20, pa) && lm_set64(base, LM_CB + 0x28, 0) &&
+ 	    lm_set(base, LM_CB + 0x38, 0x44) && lm_set(base, LM_CB + 0x3c, 0);
+-	if (ok) ok = lm_unrouted(base, count) && lm_set(base, LM_CB, 0x1127) && lm_tlb(base);
+-	if (ok) ok = lm_translate(base, LM_VA, pa + 12288, false) &&
++	if (ok) ok = lm_unrouted(base, count) && lm_read(base, LM_CB) == 0;
++	if (ok && ats) ok = lm_set(base, LM_CB, 0x1127) && lm_tlb(base);
++	if (ok && ats) ok = lm_translate(base, LM_VA, pa + 12288, false) &&
+ 	    lm_translate(base, LM_VA + 4096, pa + 16384, false) &&
+ 	    lm_translate(base, LM_VA + 8192, 0, true);
+-	printf("LEMON GPU MEMORY: translation result=%u; restoring private context\n",ok);
++	printf("LEMON GPU MEMORY: config=%u hardware_translation=%u; restoring private context\n",ok,ok && ats);
+ 	/* Disable and drain before restoring pointers or freeing table memory. */
+-	bool safe = lm_set(base, LM_CB, 0) && lm_idle(base, LM_CB + 0x8f0) && lm_tlb(base);
++	bool safe = lm_set(base, LM_CB, 0);
++	if (safe && ats) safe = lm_idle(base, LM_CB + 0x8f0) && lm_tlb(base);
+ 	if (safe) {
+ 		uint32_t fsr = lm_read(base, LM_CB + 0x58);
+ 		if (fsr) lm_write(base, LM_CB + 0x58, fsr); /* Initial FSR was zero. */
+@@ -237,6 +263,6 @@
+ 	}
+ 	if (safe) kmem_free(kernel_map, memory, LM_BYTES);
+ 	else printf("LEMON GPU MEMORY: cleanup unconfirmed; retaining %u bytes at %#llx\n",LM_BYTES,(unsigned long long)pa);
+-	printf("LEMON GPU MEMORY: end translated=%u restored=%u; no streams routed or GPU DMA\n",ok,safe);
++	printf("LEMON GPU MEMORY: end configured=%u translated=%u restored=%u; no streams routed or GPU DMA\n",ok,ok && ats,safe);
+ }
+ #endif
