@@ -2,6 +2,25 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V32 SUCCESS; CACHES SAVED, BOOT READY (2026-11-21)
+
+Run44912933122 success at exact e384d62417d7a4fa7231700fae4572679d94bef2.
+Job19m45s (14:15:00..14:34:45Z), Build16m29s; cold run did not speed up.
+ccache1075 cacheable calls/1076,0 hits/1075 misses,~0.1GB. Both compiler and
+KDK cache saved successfully. Warm run performance still unmeasured; <=6min
+not established. Private full log research/v32-actions.log.
+Downloaded xnu-kernel to xnu/out-gpu-memory-no-ats-kernel; SHA256SUMS and
+ARM64 Mach-O checked. Kernel SHA256
+876e207b2351fecab97c34819511613eac5edb1780f2570f0b472fd52208c034.
+research/build_gpu_memory_v32_boot.py passed layout/RAM/ADT/DTB/marker checks.
+Boot shim/out/lemon-gpu-memory-no-ats/boot-lemon-gpu-memory-no-ats-v32.img,
+17002496 bytes SHA256
+e5fbdbb788b4fa22a232d8d8e41ea666630daf32dca56443e1b24ed4992199d3.
+Private research/flash_v32.py prepared for previous full v31 boot hash
+63de7c4f5eba57058ecfd98d67b159f85118558709847f60b64b45cae1a4951f,
+with exact target/size/readback and protected recovery/dtbo checks.
+ADB recovery confirmed. No partition writes/reboot; await user flash approval.
+
 ### V32 WITH CI CACHES QUEUED; STOPPED (2026-11-21)
 
 User approved launch with "давай". Pushed
