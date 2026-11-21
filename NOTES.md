@@ -4,6 +4,16 @@
 
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
+V27 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v27.py
+verified prior v26 full boot hash, sde49/134217728 target, image/transfer hash
+and recovery/dtbo checksums. Wrote only boot17002496 bytes, readback prefix
+matches7882bddc1fdff8d7652f961ab30eb02dbbe766147bdf2875e8111c2da5b4b745.
+Full boot SHA e063cea8a32150b35a1ea544da8fb6a08241b1b6034a88156fdcdbf6d0c7690c.
+Recovery/dtbo unchanged; userdata untouched. adb reboot succeeded, phone
+disconnected. Actual RPM OPEN result not yet observed. Next wait60 seconds,
+user returns TWRP, read persistent log LEMON RPM OPEN lines. No voltage/GPU
+power requests in this image; OPEN success still needs hardware confirmation.
+
 V27 READY: run44845635960 SUCCESS source894910f85dda59ef3161840dc3bcf74281ad82b8.
 Downloaded xnu-kernel via gh; kernel SHA256SUMS, ARM64 Mach-O and OPEN marker
 verified. Kernel SHA314080ee802d24f7535e858f6fa631961b10467777698c98b87cc01c75b11983.
