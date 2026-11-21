@@ -2,6 +2,27 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V38 BUILD SUCCESS; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
+
+User reported completion. gh TLS timeout; GitHub connector confirms run
+44947366043 SUCCESS at aa78c46f8c4a42bec39ae8863bb8d80d933a0c34.
+Artifact14724199372 xnu-kernel,66873431-byte ZIP, verified SHA256
+9e7a73cc9355067beae23c844eb3a49c3c6a374ec1db8ddb5449d2a9c94ad55f.
+Private download_v38.py extracted kernel/SHA256SUMS only; signed JSON removed.
+xnu/out-gpu-cp-clocks-kernel/kernel.development.sweet ARM64 Mach-O and
+SHA256SUMS verified. Kernel SHA256
+22ec8d60f613d64106b42f810fe99d3fc2767beed3f90234f186965938f815c3.
+research/build_gpu_cp_clocks_v38_boot.py passed required clock/CP/memory
+markers, exact private SQE/ADT round-trip, boot layout/RAM/DTB checks.
+Image shim/out/lemon-gpu-cp-clocks/boot-lemon-gpu-cp-clocks-v38.img,
+17055744bytes/4164blocks, SHA256
+d9c631c6ba317a5bdf72d2b966d3c09f7f20b9319e496c8283e7182c8427231d.
+research/flash_v38.py prepared/compiled, NOT EXECUTED. Previous full v37
+boot SHA6d5e002bd6a626660d2a82638c881caf48bdbd16d94f9fe09086cdda85bd6bf4,
+exact target/size/recovery/dtbo and prefix readback checks retained.
+ADB recovery visible. No phone writes/reboot or new Actions. Await explicit
+flash/start confirmation; then execute guarded script and separate adb reboot.
+
 ### V38 ACTIONS STARTED; STOPPED (2026-11-21)
 
 User said "делай" after v38 preparation. Pushed
