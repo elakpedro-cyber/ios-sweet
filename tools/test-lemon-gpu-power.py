@@ -104,16 +104,16 @@ static void setup(unsigned mode) {
     if(mode==10) cc[0x100/4]=0x80000007;
 }
 int main(void) {
-    setup(0);lemon_gpu_power_probe();
+    setup(0);assert(lemon_gpu_power_probe());
     assert((cc[0x1054/4]&0x80000001u)==1 && (cc[0x1098/4]&0x80000001u)==1);
     assert(!(cc[0x101c/4]&2) && !(cc[0x1120/4]&2));
     assert(gcc[0x79004/4]==(0x3456|0x8000) && reset_writes==2);
     assert(cc[0x108c/4]==0 && cc[0x10a4/4]==0x80004220);
     setup(0);cc[0x100/4]=0x80000007;cc[0x104/4]=0x21;
     cc[0x108/4]=0x55555555;cc[0x10c/4]=0x55;cc[0x110/4]=0x01200003;
-    lemon_gpu_power_probe();assert(!pll_writes && (cc[0x1054/4]&0x80000001u)==1);
+    assert(lemon_gpu_power_probe());assert(!pll_writes && (cc[0x1054/4]&0x80000001u)==1);
     for(unsigned mode=1;mode<=14;mode++) {
-        setup(mode);lemon_gpu_power_probe();assert(!(cc[0x1054/4]&1));
+        setup(mode);assert(!lemon_gpu_power_probe());assert(!(cc[0x1054/4]&1));
         if(mode==1) assert(!reset_writes && !pll_writes);
         if(mode==2 || mode==5) assert(!pll_writes);
         if(mode==6 || mode==7 || mode==8 || mode==9) assert(!writes);

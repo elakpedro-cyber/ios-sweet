@@ -2,6 +2,47 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### COMBINED MEMORY TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
+
+User requested combining SMMU survey, buffer/tables and translation check.
+Patch0033 adds opt-in lemongpu6. Existing power probe now returns stage5 bool;
+memory runs only after verified config/RPM/domain/clocks success. Old mode5
+behavior unchanged. New bsd/dev/lemon_gpu_memory.c checks required buses/CX,
+sets GPUCC HLOS SMMU vote5000 then reads SMMU59a0000 (size10000).
+No phone I/O/push/Actions/flash/reboot in this work; last phone state v30/TWRP.
+
+Conservative capability guard: SMMUv2 major2,4KiB registers/4K translation,
+CB base8000,1..8 banks, NUMS2CB0, NUMSMRG1..128, SMS/S1TS, ATS available,
+OAS code0..5, no EXID/client-disabled/global fault state. Only known Adreno
+GPU-user CB0 (Linux arm-smmu-qcom pins GPU to0 + live FDT gpu-offseta8000).
+No other/secure context pages accessed. Refuse CB0 if valid translation SMR
+references it, SCTLR/FSR/ATSR active, retained TTBRs, unknown CBAR/CBA2R VMID.
+Do not infer firmware ownership solely from disabled translation.
+
+When guards pass: allocate contiguous20KiB (3 table pages+2 data pages), verify
+all physical pages and OAS bounds, three-level4K AArch64 stage1 tables mapping
+IOVA20000000/20001000 only; clean dcache. Save bank registers, writable probe,
+configure private CB0 with no SMR/S2CR changes, no DMA. ATS1PR checks two expected
+PAs and fault at20002000. No shader/firmware/CP execution or GPU data test.
+Disable/drain ATS+TLB, restore saved config/readbacks, clear only bank faults
+from initial FSR0. Free only if cleanup is confirmed; otherwise retain20KiB
+to avoid a page walker using freed memory. No global reset/unvote. Explicit
+x9/w9 STR for SMMU MMIO avoids Qualcomm HYP WZR/XZR store bug noted by Linux.
+
+Actual-code ASan/UBSan MMIO model with independent PTE walker and28 guard/fault
+cases PASS; module ARMv8.0 compile PASS including real assembly. Known mapped/
+unmapped translations, blocked writes, physical bounds/contiguity, active or
+protected state, bad ATS PAR, timeout, disable/restore failures/retention tested.
+Mode6 stop-before-memory gates and existing power tests PASS. This is MODEL
+evidence; full macOS XNU compilation/hardware unverified. Logs private
+research/gpu-memory-tests.txt, memory-gate-tests.txt, memory-power-tests.txt.
+Local workflow stages0114 + memory test. v31 builder research/build_gpu_memory_boot.py
+prepared, input xnu/out-gpu-memory-kernel/kernel.development.sweet, output
+shim/out/lemon-gpu-memory/boot-lemon-gpu-memory-v31.img; lemongpu6, memory marker
+required. No new kernel/image. Next user authorizes Actions, then flash approval.
+References documented in gpu/README.md; donor Pixel3 used only as reference,
+no A630 bank/GMU constants copied into A610 mapping.
+
 ### REQUIRED CLOCK FIX PREPARED; MEMORY SETUP DEFERRED, NO ACTIONS (2026-11-21)
 
 V30 HARDWARE SUCCESS: returned to TWRP, ADB recovery available. Read-only

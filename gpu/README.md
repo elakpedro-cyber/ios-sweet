@@ -157,6 +157,39 @@ and its inherited stream/context ownership has not been inspected on XNU.
 References: [Xiaomi clocks](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/lime-q-oss/drivers/clk/qcom/gpucc-bengal.c),
 [Xiaomi branch policy](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/lime-q-oss/drivers/clk/qcom/clk-branch.c).
 
+v30 hardware reached power stage5: required GPU/GMU clocks enabled, RPM ACKs
+and CX/GX ON verified. Patch0033 adds one combined memory test, `lemongpu=6`:
+
+1. Complete the existing RPM/power/clock sequence first; otherwise no memory
+   probe runs. Verify CX, AHB/GCC buses and enable/read back SMMU HLOS vote5000.
+2. Inspect only non-secure globals and known GPU-user bank0. Require SMMUv2,
+   4KiB layout, stage1/ATS support, supported OAS and an idle, unrouted bank0
+   with empty TTBRs. No other/secure banks or inherited streams are modified.
+3. Allocate20KiB contiguous kernel memory, verify physical contiguity/address
+   width, construct three4KiB table pages and map two private data pages at
+   IOVA0x20000000. Clean CPU caches before table walking. No GPU stream is
+   attached to the test context and no DMA is submitted.
+4. Save bank configuration, verify register writability, set an AArch64
+   stage1 context, synchronize its TLB, and use ATS1PR to check both mapped
+   pages plus a fault on the following unmapped page. This tests translation,
+   not GPU access to data or drawing.
+5. Disable/drain and restore the context, clear only test-owned bank faults,
+   and free memory only after restoration is verified. On uncertain disable,
+   ATS/TLB timeout or restoration, retain the allocation and log it. No global
+   reset, SMR/S2CR routing, other banks or secure state writes are performed.
+
+This mode stops on unknown/occupied/protected state; it does not take over an
+existing mapping. Unsupported/fragmented capabilities are not treated as test
+success. As before, clock/rail votes are retained for recovery reinitialization.
+Host ASan/UBSan tests use an independent page walker and28 fault/guard cases,
+including stale mappings, ATS failure/bypass, cleanup failure and buffer retention;
+mode6 gating and existing power tests also pass. Actual module cross-compiles
+for ARMv8.0 with explicit-GPR MMIO stores (Qualcomm HYP zero-register workaround).
+Full XNU build and hardware translation results are still pending.
+References: [SMMUv2 definitions](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu.h),
+[context programming](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu.c),
+[Adreno user bank0](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c).
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence
