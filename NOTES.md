@@ -2,6 +2,30 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V39 HARDWARE: ROQ/POOL PASS; STOP AT SCTLR BIT12 (2026-11-22)
+
+User returned TWRP. Read-only research/read_v39_log.py saved private
+lemon-v39-log.bin/.txt:127604bytes/flush13.5/5CPU SGI, power stage5, owned
+memory prep pass (PA102dbd000,FSR400/Format2,faults0,GFSR0). GPU HWCG top
+aaa8aa82 accepted; same diagnostic100/533 differences as v38.
+
+After full known config batch ALL readbacks matched, wait_us0/healthy1:
+ROQ2=00800060,ROQ1=40201b16,POOL48,POOL_DBG47,CP_ADDR1 and GBIF/QOS.
+Previous ROQ blocker passed on hardware. This establishes batch path works,
+not whether elapsed time or a particular later register caused visibility.
+AHB_CNTL1 accepted. TTBR0 replacement PA102dd2000 readback matches.
+
+Next stop at context-enable: SCTLR requested1127 returned0127, mask11f7.
+Only requested bit12 absent (Linux header names S1_ASIDPNE); M1 did read
+back, but no stream attached and no SQE/command started. FSR400/GFSR0,
+RPTR/WPTR0,STATUS1,HW_FAULT0/CP_INT0/INT0,SQE0; executed0,marker11111111,
+scratch0. Cleanup halt1/unrouted1/disabled1, SCTLR0 readback confirmed;
+77824bytes retained. No GPU DMA/execution proof. FAR281508202486/syn50004
+without fault bits is not a new fault. SpringBoard/backboardd exec present;
+no panic( found. No flash/reboot/Actions during log read; phone TWRP/v39.
+Next investigate ASIDPNE implementation/meaning and required SCTLR contract
+for this SMMU before changing mask/value. No new patch or CI prepared.
+
 ### V39 FLASHED; REBOOT REQUESTED, AWAIT HARDWARE LOG (2026-11-22)
 
 User explicitly approved flash/start with "да". research/flash_v39.py passed

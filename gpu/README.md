@@ -26,7 +26,16 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
-### v39 complete core setup before bounded validation (patch0041, prepared)
+### v39 complete core setup before bounded validation (patch0041)
+
+Hardware v39 passed every core-config readback after the batch: ROQ1/2 and
+pool values matched with no polling delay, as did GBIF/QOS/address mode.
+This resolves the earlier readback blocker on that path without establishing
+which later write or timing difference was responsible. It then accepted the
+new table pointer but stopped enabling SMMU: SCTLR requested `0x1127`, read
+`0x127` (bit12, S1_ASIDPNE, absent). No stream/SQE was started and no GPU
+command ran. Cleanup confirmed the unrouted context disabled; no SMMU fault
+bits or panic appeared. The next SCTLR contract needs investigation.
 
 Linux writes ROQ1/2 and memory-pool configuration during `hw_init`, before
 starting SQE; its ROQ size read occurs later in state capture. The Pixel3
@@ -44,7 +53,8 @@ possibilities and improves failure diagnostics; hardware cause remains unknown.
 The actual module passes ASan/UBSan with 41 scenarios and ARMv8.0 compilation.
 Additional models cover a delayed ROQ response, ROQ visibility after pool setup,
 ignored ROQ1/pool writes and a fault during validation. These are simulated
-conditions, not observed hardware explanations. CI/hardware v39 not run yet.
+conditions, not observed hardware explanations. CI v39 passed; hardware
+progress and the next blocker are recorded above.
 References: Linux [initialization sequence](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu.c)
 and [state capture](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu_state.c).
 
