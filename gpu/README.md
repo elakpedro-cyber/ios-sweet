@@ -26,6 +26,54 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v34 register contract (patch0036)
+
+The grouped SMMU correction implements explicit TBI0/TBI1 for the test's
+untagged32-bit IOVAs (TCR2=0x38070|OAS, SEP=upstream). Both TTBR regions
+have explicit valid4K granules/32-bit sizes; TTBR1 walks remain disabled.
+This also avoids sign extension at bit31 for future high32-bit IOVAs.
+Every bit still has exact readback;
+unexpected PASize/AS or other field changes remain failures, not masked errors.
+Every register operation prints requested/returned values.
+
+Snapshot interpretation now starts with CBAR.TYPE, then CBA2R and TCR.EAE.
+For an existing Stage1 context, short descriptors use32-bit TTBR accesses;
+AArch32 long/AArch64 use64-bit accesses. Only attempted writes are restored,
+with format/control restored before table words. Failed control restoration
+prevents table writes under the wrong interpretation and retains the allocation.
+
+Important qualification to the earlier audit: CBAR.TYPE0 denotes Stage2, not
+Stage1 short descriptors. Stage2 has no TTBR1, CONTEXTIDR, TCR2 or MAIRs and
+always uses long descriptors. Therefore the actual initial TYPE0/no-S2 bank
+is not a valid context to snapshot as either Stage1 format. Patch0036 reads
+only common control/fault/ownership state there; it does not read or restore
+the undefined Stage1 registers seen in earlier logs.
+
+Only the exact disabled/unrouted CBAR0/CBA2R0/no-S2/no-ATS case is claimable.
+After stable repeated snapshots and successful complete register programming,
+the20KiB table/buffer allocation is intentionally retained with a new disabled,
+unrouted Stage1 context for this boot. It logs `prepared=1 owned=1 translated=0`.
+No SCTLR write, stream attachment, ATS/TLB operation, GPU DMA or service is added.
+Re-entry stops before any MMIO. This is ownership/preparation, not restoration
+of the initial unsupported TYPE0 or hardware translation success.
+
+Failure never attempts the known-invalid TYPE0 rollback. If pointers were
+attempted, clear both under confirmed Stage1/64-bit format before freeing;
+otherwise the allocation has never been installed. Fault clearing, unchanged
+disabled SCTLR and no routed stream must also be verified. Uncertain cleanup
+retains memory and reports failure, rather than claiming exact restoration.
+An existing supported Stage1 context follows the reversible test path instead.
+
+Actual-module ASan/UBSan tests cover50 alternate cases, including the observed
+TBI normalization/type0 restriction, no reads of undefined Stage2 registers,
+short/long/AArch64 widths and restore order, rejected critical/control/table
+writes, fault clearing, stream ownership changes, intentional ownership,
+duplicate entry and retention on unsafe cleanup. ARMv8.0 module compilation
+passes. Full macOS build and real hardware results remain pending.
+References: [ARM SMMUv2](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb)
+(16.5.39/40,17.1/2),
+[Qualcomm register programming](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/lime-q-oss/drivers/iommu/arm-smmu.c).
+
 ### End-to-end preflight after v33 (2026-11-21)
 
 This is a source/ABI/asset review, not a hardware acceleration result. No new

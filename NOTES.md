@@ -2,6 +2,44 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V34 GROUPED SMMU CONTRACT READY; ACTIONS AUTHORIZED (2026-11-21)
+
+User requested grouped fixes, then explicitly instructed starting Actions when
+done. Port0036 staged0117; no phone I/O during implementation/testing.
+TCR2 explicit SEP=upstream/TBI0/TBI1/AS/OAS (0x38071 for observed OAS1), no
+ignored-bit masks. TCR gives both regions valid4K/32-bit size/OSH, TTBR1 walks
+disabled. Every32/64-bit write logs requested/returned and exact comparison.
+
+Qualified the earlier audit: CBAR.TYPE0 is Stage2, whose TTBR1, TCR2,
+CONTEXTIDR/MAIRs are undefined; do NOT interpret it as Stage1 short-descriptor
+format. New snapshot reads only common SCTLR/FSR/ownership registers there.
+Existing Stage1: choose TTBR width using VA64/EAE, save supported registers,
+restore only attempted writes with format/control before table words. Abort
+restoration on format/control mismatch; never write tables in wrong format.
+
+Exact disabled/unrouted CBAR0/CBA2R0/no-S2/no-ATS case is treated as unconfigured
+bank (stable repeated snapshots required), not a restorable supported context.
+Success deliberately retains20KiB plus its new disabled/unrouted Stage1 context
+for this boot, logs prepared=1 owned=1 translated=0, blocks duplicate entry.
+This is a declared lifecycle change: no claim of exact initial TYPE0 restoration.
+No SCTLR/stream/global/other-bank writes, ATS/TLB/GPU DMA/service on this path.
+Failure never retries invalid TYPE0 rollback. If table pointers were attempted,
+detach them only under confirmed S1/64-bit and unchanged ownership before free;
+otherwise allocation was never installed. Uncertain cleanup retains memory.
+
+Actual-module ASan/UBSan50 alternate scenarios + bounded table tests PASS:
+TBI/type0 normalization, no undefined reset-S2 reads, short/long/AArch64 access,
+control-before-table restoration, critical/control/table rejection, supported
+S2/nested refusal, fault clearing, changed stream ownership, retention/detachment
+and duplicate entry. ARMv8.0 module compile PASS. Port0036 clean applies to v33
+and reproduces tested source. Workflow YAML/bash/exact pinned-script tests and
+non-patch diff checks PASS. Private research/gpu-memory-contract-tests.txt.
+Working XNU module updated. Private research/build_gpu_memory_v34_boot.py:
+input xnu/out-gpu-memory-contract-kernel, new contract marker required; output
+shim/out/lemon-gpu-memory-contract/boot-lemon-gpu-memory-contract-v34.img.
+Full macOS compile/hardware result pending. Next push to launch approved v34,
+record run ID, then STOP as user preference. Last phone TWRP/v33, no writes.
+
 ### END-TO-END GPU PREFLIGHT COMPLETED; AUDIT ONLY (2026-11-21)
 
 User asked to inspect upcoming problems before another one-fix/one-boot loop.

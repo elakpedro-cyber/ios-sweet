@@ -1,0 +1,220 @@
+--- a/bsd/dev/lemon_gpu_memory.c
++++ b/bsd/dev/lemon_gpu_memory.c
+@@ -18,6 +18,15 @@
+ #define LM_CB 0x8000u
+ #define LM_BYTES (5u * 4096u)
+ #define LM_VA 0x20000000u
++static vm_offset_t lm_owned_memory;
++
++/* Format/control registers first; TTBRs are tracked separately in bits7/8. */
++static const unsigned lm_offsets[] = {0x1800,0x1000,LM_CB+0x10,LM_CB+0x30,LM_CB+0x34,LM_CB+0x38,LM_CB+0x3c};
++struct lm_context {
++	uint32_t cba2r, cbar, sctlr, fsr, regs[5];
++	uint64_t ttbr[2];
++	bool reset, wide;
++};
+ 
+ static uint32_t
+ lm_read(vm_offset_t base, unsigned offset)
+@@ -67,6 +76,7 @@
+ {
+ 	lm_write(base, offset, value);
+ 	uint32_t actual = lm_read(base, offset);
++	printf("LEMON GPU MEMORY: reg=%#x requested=%#x returned=%#x\n", offset, value, actual);
+ 	if (actual == value) return true;
+ 	printf("LEMON GPU MEMORY: write rejected offset=%#x expected=%#x actual=%#x\n", offset, value, actual);
+ 	return false;
+@@ -76,7 +86,61 @@
+ lm_set64(vm_offset_t base, unsigned offset, uint64_t value)
+ {
+ 	lm_write64(base, offset, value);
+-	return lm_read64(base, offset) == value;
++	uint64_t actual = lm_read64(base, offset);
++	printf("LEMON GPU MEMORY: reg64=%#x requested=%#llx returned=%#llx\n",
++	    offset, (unsigned long long)value, (unsigned long long)actual);
++	return actual == value;
++}
++
++static bool
++lm_capture(vm_offset_t base, uint32_t id0, struct lm_context *c)
++{
++	c->cba2r = lm_read(base, 0x1800);
++	c->cbar = lm_read(base, 0x1000);
++	c->sctlr = lm_read(base, LM_CB);
++	c->fsr = lm_read(base, LM_CB + 0x58);
++	if ((c->sctlr & 1) || c->fsr || (c->cba2r & ~1u) || (c->cbar & 0xffu)) return false;
++	/* TYPE0 without S2 support is an unconfigured bank, not a valid S1
++	 * snapshot. TTBR1/TCR2/CONTEXTIDR/MAIR are undefined in this format. */
++	c->reset = !c->cbar && !c->cba2r && !(id0 & (1u << 29));
++	if (c->reset) return true;
++	if ((c->cbar & 0x30000u) != 0x10000u) return false;
++	for (unsigned i = 0; i < 5; i++) c->regs[i] = lm_read(base, lm_offsets[i + 2]);
++	c->wide = (c->cba2r & 1) || (c->regs[1] & (1u << 31));
++	for (unsigned i = 0; i < 2; i++) {
++		unsigned offset = LM_CB + 0x20 + i * 8;
++		c->ttbr[i] = c->wide ? lm_read64(base, offset) : lm_read(base, offset);
++	}
++	return true;
++}
++
++static bool
++lm_same(const struct lm_context *a, const struct lm_context *b)
++{
++	if (a->cba2r != b->cba2r || a->cbar != b->cbar || a->sctlr != b->sctlr ||
++	    a->fsr != b->fsr || a->reset != b->reset || a->wide != b->wide) return false;
++	for (unsigned i = 0; i < 5; i++) if (a->regs[i] != b->regs[i]) return false;
++	return a->ttbr[0] == b->ttbr[0] && a->ttbr[1] == b->ttbr[1];
++}
++
++static bool
++lm_restore(vm_offset_t base, const struct lm_context *c, unsigned dirty)
++{
++	/* Do not restore table words under the test format. A rejected format
++	 * or control restoration stops before any format-dependent table write. */
++	for (unsigned i = 0; i < 4; i++) {
++		uint32_t value = i == 0 ? c->cba2r : i == 1 ? c->cbar : c->regs[i - 2];
++		if ((dirty & (1u << i)) && !lm_set(base, lm_offsets[i], value)) return false;
++	}
++	for (unsigned i = 4; i < 7; i++)
++		if ((dirty & (1u << i)) && !lm_set(base, lm_offsets[i], c->regs[i - 2])) return false;
++	for (unsigned i = 0; i < 2; i++) {
++		if (!(dirty & (1u << (7 + i)))) continue;
++		unsigned offset = LM_CB + 0x20 + i * 8;
++		bool ok = c->wide ? lm_set64(base, offset, c->ttbr[i]) : lm_set(base, offset, (uint32_t)c->ttbr[i]);
++		if (!ok) return false;
++	}
++	return true;
+ }
+ 
+ static bool
+@@ -152,6 +216,7 @@
+ void
+ lemon_gpu_memory_probe(void)
+ {
++	if (lm_owned_memory) { printf("LEMON GPU MEMORY: disabled context already owned; stop\n"); return; }
+ 	printf("LEMON GPU MEMORY: combined survey/buffer/translation test; no GPU DMA\n");
+ 	vm_offset_t gcc = ml_io_map(0x01400000, 0x80000);
+ 	if (!gcc || (lm_read(gcc, 0x36004) & 0x80000001u) != 1 ||
+@@ -195,34 +260,25 @@
+ 	}
+ 	if (!ats) printf("LEMON GPU MEMORY: ATS unavailable; disabled-context readback/software walk only\n");
+ 	if (!lm_unrouted(base, count)) return;
+-	uint32_t cbar = lm_read(base, 0x1000), cba2r = lm_read(base, 0x1800);
+-	uint32_t sctlr = lm_read(base, LM_CB), fsr_before = lm_read(base, LM_CB + 0x58);
+-	uint64_t ttbr0 = lm_read64(base, LM_CB + 0x20), ttbr1 = lm_read64(base, LM_CB + 0x28);
+-	printf("LEMON GPU MEMORY: bank0 cbar=%#x cba2r=%#x sctlr=%#x fsr=%#x ttbr=%#llx/%#llx\n",
+-	    cbar, cba2r, sctlr, fsr_before, (unsigned long long)ttbr0, (unsigned long long)ttbr1);
+-	if ((sctlr & 1) || (ats && (sctlr || ttbr0 || ttbr1)) || fsr_before ||
+-	    (ats && lm_read(base, LM_CB + 0x8f0)) ||
+-	    (cba2r & ~1u) || (cbar & 0xffu) || (cbar & 0x30000u) > 0x10000u) {
++	struct lm_context saved = {0};
++	if (!lm_capture(base, id0, &saved) ||
++	    (ats && (saved.reset || saved.sctlr || saved.ttbr[0] || saved.ttbr[1])) ||
++	    (ats && lm_read(base, LM_CB + 0x8f0))) {
+ 		printf("LEMON GPU MEMORY: bank0 occupied/unknown; no context writes\n");
+ 		return;
+ 	}
+-	static const unsigned offsets[] = {0x1000,0x1800,LM_CB+0x10,LM_CB+0x30,LM_CB+0x34,LM_CB+0x38,LM_CB+0x3c};
+-	uint32_t saved[7];
+-	for (unsigned i = 0; i < 7; i++) saved[i] = lm_read(base, offsets[i]);
++	printf("LEMON GPU MEMORY: snapshot cbar=%#x cba2r=%#x sctlr=%#x reset=%u wide=%u tcr2=%#x tcr=%#x ttbr=%#llx/%#llx\n",
++	    saved.cbar,saved.cba2r,saved.sctlr,saved.reset,saved.wide,saved.regs[0],saved.regs[1],
++	    (unsigned long long)saved.ttbr[0],(unsigned long long)saved.ttbr[1]);
+ 	for (unsigned pass = 0; pass < 2; pass++) {
+ 		delay(1);
+-		bool stable = lm_read(base, LM_CB) == sctlr &&
+-		    lm_read(base, LM_CB + 0x58) == fsr_before &&
+-		    lm_read64(base, LM_CB + 0x20) == ttbr0 &&
+-		    lm_read64(base, LM_CB + 0x28) == ttbr1 &&
+-		    lm_read(base, 0x1000) == cbar && lm_read(base, 0x1800) == cba2r;
+-		for (unsigned i = 0; i < 7; i++) stable = (lm_read(base, offsets[i]) == saved[i]) && stable;
+-		if (!stable || !lm_unrouted(base, count)) {
++		struct lm_context again = {0};
++		if (!lm_capture(base, id0, &again) || !lm_same(&saved, &again) || !lm_unrouted(base, count)) {
+ 			printf("LEMON GPU MEMORY: bank0 snapshot unstable/routed; no context writes\n");
+ 			return;
+ 		}
+ 	}
+-	if (!ats) printf("LEMON GPU MEMORY: disabled/unrouted bank0 stable; preserving SCTLR and original TTBRs\n");
++	printf("LEMON GPU MEMORY: format-aware bank0 contract; untagged32 IOVA, explicit TBI0/TBI1\n");
+ 	vm_offset_t memory = 0;
+ 	if (kmem_alloc_contig(kernel_map, &memory, LM_BYTES, PAGE_MASK, 0, 0,
+ 	    KMA_DATA | KMA_ZERO, VM_KERN_MEMORY_IOKIT) != KERN_SUCCESS || !memory) {
+@@ -250,34 +306,62 @@
+ 	clean_dcache64(pa, LM_BYTES, TRUE);
+ 	__asm__ volatile("dsb sy" ::: "memory");
+ 	printf("LEMON GPU MEMORY: buffer/table pages ready pa=%#llx size=%u\n",(unsigned long long)pa,LM_BYTES);
+-	/* Snapshot before any mutation; bank0 is unrouted and disabled. */
+-	bool ok = lm_set(base, LM_CB + 0x34, 0x4c4d0000);
+-	ok = lm_set(base, LM_CB + 0x34, saved[4]) && ok;
+-	if (ok) ok = lm_set(base, 0x1800, 1) && lm_set(base, 0x1000, 0x1f300) &&
+-	    lm_set(base, LM_CB + 0x10, 16 | oas_code) &&
+-	    lm_set(base, LM_CB + 0x30, (1u << 23) | (2u << 12) | 32) &&
+-	    lm_set64(base, LM_CB + 0x20, pa) && lm_set64(base, LM_CB + 0x28, 0) &&
+-	    lm_set(base, LM_CB + 0x38, 0x44) && lm_set(base, LM_CB + 0x3c, 0);
+-	if (ok) ok = lm_unrouted(base, count) && lm_read(base, LM_CB) == sctlr;
++	/* TBI is explicit policy, not an ignored readback mask. Only untagged
++	 * 32-bit IOVAs are mapped; every programmed bit still needs exact readback. */
++	/* SEP=upstream also keeps future high32-bit IOVAs from sign-extending
++	 * at bit31. Give disabled TTBR1 a valid 4K granule/32-bit size too. */
++	uint32_t tcr = (2u << 30) | (2u << 28) | (1u << 23) | (32u << 16) | (2u << 12) | 32;
++	uint32_t values[] = {1,0x1f300,(7u << 15) | 0x70u | oas_code,tcr,0,0x44,0};
++	unsigned dirty = 0;
++	bool ok = true;
++	for (unsigned i = 0; ok && i < 4; i++) {
++		dirty |= 1u << i;
++		ok = lm_set(base, lm_offsets[i], values[i]);
++	}
++	for (unsigned i = 0; ok && i < 2; i++) {
++		dirty |= 1u << (7 + i);
++		ok = lm_set64(base, LM_CB + 0x20 + i * 8, i ? 0 : pa);
++	}
++	for (unsigned i = 4; ok && i < 7; i++) {
++		dirty |= 1u << i;
++		ok = lm_set(base, lm_offsets[i], values[i]);
++	}
++	if (ok) ok = lm_unrouted(base, count) && lm_read(base, LM_CB) == saved.sctlr && !lm_read(base, LM_CB + 0x58);
++	if (ok && saved.reset) {
++		/* Keep the newly owned disabled context and its tables for this boot.
++		 * Restoring TYPE0 would request unsupported Stage2, not restore valid S1. */
++		lm_owned_memory = memory;
++		printf("LEMON GPU MEMORY: prepared=1 owned=1 retained=%u translated=0; disabled/unrouted, no GPU DMA\n",LM_BYTES);
++		return;
++	}
+ 	if (ok && ats) ok = lm_set(base, LM_CB, 0x1127) && lm_tlb(base);
+ 	if (ok && ats) ok = lm_translate(base, LM_VA, pa + 12288, false) &&
+ 	    lm_translate(base, LM_VA + 4096, pa + 16384, false) &&
+ 	    lm_translate(base, LM_VA + 8192, 0, true);
+ 	printf("LEMON GPU MEMORY: config=%u hardware_translation=%u; restoring private context\n",ok,ok && ats);
+ 	/* Disable and drain before restoring pointers or freeing table memory. */
+-	bool safe = ats ? lm_set(base, LM_CB, 0) : lm_read(base, LM_CB) == sctlr;
++	bool safe = ats ? lm_set(base, LM_CB, 0) : lm_read(base, LM_CB) == saved.sctlr;
++	safe = lm_unrouted(base, count) && safe;
+ 	if (safe && ats) safe = lm_idle(base, LM_CB + 0x8f0) && lm_tlb(base);
+ 	if (safe) {
+ 		uint32_t fsr = lm_read(base, LM_CB + 0x58);
+ 		if (fsr) lm_write(base, LM_CB + 0x58, fsr); /* Initial FSR was zero. */
+ 		safe = lm_read(base, LM_CB + 0x58) == 0;
+-		safe = lm_set64(base, LM_CB + 0x20, ttbr0) && safe;
+-		safe = lm_set64(base, LM_CB + 0x28, ttbr1) && safe;
+-		for (unsigned i = 7; i > 0; i--) safe = lm_set(base, offsets[i-1], saved[i-1]) && safe;
+-		safe = lm_unrouted(base, count) && lm_read(base, LM_CB) == sctlr && safe;
++		if (saved.reset) {
++			/* There was no valid context to restore. On failure detach test
++			 * pointers only under confirmed S1/64-bit format; never write TYPE0. */
++			if (dirty & (3u << 7)) {
++				safe = lm_read(base,0x1800) == 1 && lm_read(base,0x1000) == 0x1f300 && safe;
++				if (safe) safe = lm_set64(base,LM_CB+0x20,0) && lm_set64(base,LM_CB+0x28,0);
++			}
++			printf("LEMON GPU MEMORY: reset-bank failure cleanup; exact_restore=0\n");
++		} else {
++			safe = lm_restore(base, &saved, dirty) && safe;
++		}
++		safe = lm_unrouted(base, count) && lm_read(base, LM_CB) == saved.sctlr && safe;
+ 	}
+ 	if (safe) kmem_free(kernel_map, memory, LM_BYTES);
+ 	else printf("LEMON GPU MEMORY: cleanup unconfirmed; retaining %u bytes at %#llx\n",LM_BYTES,(unsigned long long)pa);
+-	printf("LEMON GPU MEMORY: end configured=%u translated=%u restored=%u; no streams routed or GPU DMA\n",ok,ok && ats,safe);
++	printf("LEMON GPU MEMORY: end configured=%u translated=%u restored=%u detached=%u; no streams routed or GPU DMA\n",ok,ok && ats,safe && !saved.reset,safe && saved.reset);
+ }
+ #endif
