@@ -2,6 +2,29 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V38 HARDWARE: CLOCK CONFIG ACCEPTED, ROQ2 STILL ZERO (2026-11-22)
+
+User returned TWRP. Read-only research/read_v38_log.py saved private
+lemon-v38-log.bin/.txt:142376bytes/flush54.5/5CPU SGI, power stage5 and
+owned disabled memory prep pass (PA102d9b000,FSR400/Format2,no faults,GFSR0).
+SQE firmware identity valid. GPU-side46-entry HWCG programmed, top clock
+readback aaa8aa82 matches. Most entries match; exceptions explicitly observed:
+dword100 RBBM_CLOCK_HYST_RB_CCU0 requested40f00 returnedf00; dword533
+RBBM_ISDB_CNT requested182 returned0. These individual reads were diagnostic,
+not success guards. Do not infer every clock block is operational from top
+register acceptance alone. Clock setup did NOT resolve v37 ROQ blocker.
+
+ROQ2 byte2308/dword8c2 still requested00800060 returned0. CP stopped at
+core-registers, RPTR/WPTR0,STATUS1,HW_FAULT0/CP_INT0/INT0,SQE0,
+FSR400/GFSR0. Marker11111111 untouched, scratch0, executed0. Cleanup
+halted1/unrouted1/disabled0;77824bytes retained. No SQE start, translating
+stream/context or GPU command was attempted. FAR38150c202086/syndrome50004
+without a fault bit is not proof of a new translation fault. SpringBoard/
+backboardd exec present; no panic( found. No flash/reboot/Actions in this turn.
+Phone stays TWRP with v38 installed. Next investigate CP register visibility,
+internal reset/protection/clock prerequisites; do not bypass ROQ blindly or
+claim GPU DMA/acceleration. Hardware root cause remains unconfirmed.
+
 ### V38 FLASHED; REBOOT REQUESTED, AWAIT HARDWARE RESULT (2026-11-21)
 
 User explicitly approved flash/start with "да". research/flash_v38.py passed

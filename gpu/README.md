@@ -26,7 +26,15 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
-### v38 GPU-side clocks and SQE halt (patch0040, hardware pending)
+### v38 GPU-side clocks and SQE halt (patch0040)
+
+Hardware v38 accepted top clock control `0xaaa8aa82`, but ROQ2 still read
+zero and the strict guard stopped before translation or CP startup. Most
+clock entries matched; RB/CCU hysteresis read `0xf00` for `0x40f00`, and
+ISDB control read zero for `0x182`. These were logged, not validated as equal.
+The added clock setup did not resolve the blocker. `executed=0`, marker
+unchanged, no local/global SMMU fault, and iOS userspace still started.
+No command execution or GPU acceleration has been demonstrated.
 
 v37 stopped before translation/commands: ROQ2 read back zero after writing
 `0x00800060`. Linux reads this register to determine ROQ size, so the strict
@@ -45,7 +53,8 @@ instead of enabling the engine. Failure to acknowledge halt or become idle
 prevents context disabling; referenced buffers remain retained. Cold entry
 rejects any nonzero SQE control. The actual-module ASan/UBSan model passes
 36 fault cases and ARMv8.0 compilation, including clock failure, strict ROQ
-rejection and acknowledged halt with a busy engine. Hardware remains untested.
+rejection and acknowledged halt with a busy engine. Hardware did not reach
+SQE startup, so the active-engine halt path remains untested on the phone.
 See Linux [ROQ read and SQE halt](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu_state.c).
 
 ### v37 first CP/SQE checkpoint (patch0039)
