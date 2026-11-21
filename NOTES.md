@@ -4,6 +4,17 @@
 
 ### COMBINED GPU POWER TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
 
+V29 READY: run44900330721 SUCCESS, source182087ceb445b0a3a613365557b19e7e984d6080.
+Downloaded xnu-kernel via gh; verified SHA256SUMS, ARM64 Mach-O, combined power
+markers. Kernel SHAe14e4e8032b4d055f1de4815a81035bd582fe8772e9388c98e9bc8eb54b9a45c.
+Packaged research/build_gpu_combined_boot.py, all boot layout/ADT/RAM/DTB PASS.
+Image17002496 bytes: shim/out/lemon-gpu-combined/boot-lemon-gpu-combined-v29.img
+SHA70abbcd0a748a7ec39646dcf7e3bd76164b855999df2d4a7bd728d2ee32a781a.
+lemongpu5, other args unchanged. Phone ADB recovery available, v28 still installed.
+Prepared research/flash_v29.py with exact prior v28 full boot hash, protected
+recovery/dtbo checks, transfer/readback hashes; NOT executed. Await concrete
+boot write/launch confirmation per AGENTS. No new CI/phone writes/reboot.
+
 V29 ACTIONS STARTED; STOPPED: user explicitly said "запускай". Pushed
 182087ceb445b0a3a613365557b19e7e984d6080 to fork/lemon-bringup. Run44900330721
 confirmed IN_PROGRESS https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44900330721
