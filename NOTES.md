@@ -2,6 +2,23 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V40 FLASHED; REBOOT REQUESTED, AWAIT COMBINED HARDWARE LOG (2026-11-22)
+
+User explicitly approved flash/start with "да". research/flash_v40.py passed
+previous full v39 boot SHA, exact target/size and recovery/dtbo checks.
+Wrote17055744bytes/4164blocks. Prefix readback matches image SHA256
+36b51ab745f9398dbaf07e9844914dcdc76ed95cf85ea234d633af4f5d3e2997.
+Full v40 boot SHA256
+8c227733a7d7149470fcfc4303195ddc3de4c9965de4e91c0894503063c452b4.
+Recovery/dtbo unchanged; flash script did not write userdata. Separate adb
+reboot completed successfully. Hardware result UNKNOWN. User instruction:
+after iOS lock-screen clocks appear, wait20-30sec then return TWRP; if no
+clock screen within3min, return TWRP anyway. Adapt read_v39_log.py output
+names to v40 and read persistent log without writes. Key: SCTLR0127 full
+mask11f7, combined checkpoints expected1f, final step, executed, GPU marker/
+scratch, SMMU/global/CP faults and halt/unroute/disable cleanup. No new Actions.
+Do not infer GPU DMA/execution from successful iOS boot alone.
+
 ### V40 BUILD SUCCESS; COMBINED BOOT READY, AWAIT FLASH APPROVAL (2026-11-22)
 
 User reported completion. gh confirms run44953230197 SUCCESS at
