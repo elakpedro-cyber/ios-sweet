@@ -2,6 +2,21 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V38 FLASHED; REBOOT REQUESTED, AWAIT HARDWARE RESULT (2026-11-21)
+
+User explicitly approved flash/start with "да". research/flash_v38.py passed
+previous full v37 boot SHA, exact boot target/size, recovery/dtbo checks.
+Wrote17055744bytes/4164blocks. Prefix readback matches image SHA256
+d9c631c6ba317a5bdf72d2b966d3c09f7f20b9319e496c8283e7182c8427231d.
+Full v38 boot SHA256
+ecd7282aa0f90786ecccc947a07630558e9b3afa6c5a0493b766f741b1dc17dd.
+Recovery/dtbo unchanged; userdata not written by flash script. Separate adb
+reboot completed successfully. Hardware outcome unknown. Allow2-3min then
+user returns TWRP; adapt read_v37_log.py output names to v38, read persistent
+log without writes. Key: core-clock readbacks/top aaa8aa82, ROQ2, CP step,
+executed marker/scratch, SMMU/global faults and halt/idle cleanup. Do not
+infer successful GPU execution from lock screen alone. No new Actions.
+
 ### V38 BUILD SUCCESS; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
 
 User reported completion. gh TLS timeout; GitHub connector confirms run
