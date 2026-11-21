@@ -26,6 +26,23 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v36 FSR field correction (patch0038)
+
+v35 hardware confirms all register readbacks and unchanged SCTLR, but reports
+FSR=0x400, GFSR=0. The actual blocker was our full-register zero test: FSR bits
+10:9 are Format, and value2 identifies AArch64. No fault bits were set.
+Patch0038 separates Format0x600 from fault mask0xc00001fe; unknown remaining
+status bits still reject the operation. Snapshots and final/cleanup checks
+accept Format-only status. Cleanup writes only owned W1C fault bits, never
+the read-only Format field. Logs show raw FSR, decoded format, faults and
+unknown bits separately. Existing SCTLR/routing/global-fault gates remain.
+Actual-module60-case ASan/UBSan tests and ARMv8.0 compilation pass, with the
+model now deriving read-only Format from the programmed context format.
+This reproduces v35's0x400 and tests genuine/unknown/unclearable faults too.
+Sources: [Linux FSR masks](https://github.com/torvalds/linux/blob/master/drivers/iommu/arm/arm-smmu/arm-smmu.h),
+[ARM SMMUv2 FSR definition](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb).
+Hardware verification of patch0038 remains pending; no GPU DMA is proven.
+
 ### v35 final-state check (patch0037)
 
 v34 hardware matched every programmed register, but failed the final state

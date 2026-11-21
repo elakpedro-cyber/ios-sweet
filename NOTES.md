@@ -2,6 +2,35 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V35 READ; ROOT CAUSE FOUND, V36 FSR FIX READY (2026-11-21)
+
+After user replug, read-only research/read_v35_log.py saved private
+lemon-v35-log.bin/.txt,total138098/flush53. Power stage5/5CPUs pass, all SMMU
+programming readbacks match. State configured and cleanup show SCTLR unchanged
+14536108,FSR400,GFSR0. Both local/global fault masks are zero: FSR400 is
+Format=2 (AArch64), not a fault. Previous exact-SCTLR hypothesis was not the
+observed cause. Existing full FSR zero checks falsely rejected format bits
+and attempted clearing a read-only format indicator, causing retained20KiB.
+SpringBoard/backboardd exec found; no panic( found. User has returned TWRP.
+
+Continuing requested fix with earlier auto-Actions-after-checks instruction:
+port0038 staged0119 separates FSR Format mask600 and fault maskc00001fe.
+Capture/state/cleanup accept format-only status; unknown other status still
+blocks. Cleanup writes ONLY owned W1C fault bits, never Format. Diagnostics
+include raw FSR,format,faults,unknown. No new SCTLR/routing/global writes/DMA.
+Actual-module60-case ASan/UBSan and ARMv8 compile PASS, model now supplies
+read-only Format0/200/400 according to context. Tests reproduce v35 Format2,
+reject real/unknown faults and retain on uncleared faults. Existing56 cases
+still PASS. Private research/gpu-memory-fsr-tests.txt. Port0038 clean apply
+reproduces module; workflow YAML/bash/pinned-script/diff checks PASS.
+Private research/build_gpu_memory_v36_boot.py expects
+xnu/out-gpu-memory-fsr-kernel; output
+shim/out/lemon-gpu-memory-fsr/boot-lemon-gpu-memory-fsr-v36.img, new marker.
+Full macOS/hardware verification pending. No phone write/reboot. Last phone
+TWRP/v35, full boot SHA9bea0af425b4dc92c9b125b9b0f97b1e45cc82323775acbc47bbdef7a0a586c9.
+Next push/run v36 then stop after launch; do not claim hardware preparation
+success until a real log reports prepared=1/owned=1.
+
 ### V35 FLASHED AND REBOOT REQUESTED (2026-11-21)
 
 User explicitly approved flash/start with "да". research/flash_v35.py passed

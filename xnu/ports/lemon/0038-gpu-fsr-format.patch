@@ -1,0 +1,54 @@
+--- a/bsd/dev/lemon_gpu_memory.c
++++ b/bsd/dev/lemon_gpu_memory.c
+@@ -18,6 +18,8 @@
+ #define LM_CB 0x8000u
+ #define LM_BYTES (5u * 4096u)
+ #define LM_VA 0x20000000u
++#define LM_FSR_FORMAT 0x600u
++#define LM_FSR_FAULT 0xc00001feu
+ static vm_offset_t lm_owned_memory;
+ 
+ /* Format/control registers first; TTBRs are tracked separately in bits7/8. */
+@@ -99,7 +101,7 @@
+ 	c->cbar = lm_read(base, 0x1000);
+ 	c->sctlr = lm_read(base, LM_CB);
+ 	c->fsr = lm_read(base, LM_CB + 0x58);
+-	if ((c->sctlr & 1) || c->fsr || (c->cba2r & ~1u) || (c->cbar & 0xffu)) return false;
++	if ((c->sctlr & 1) || (c->fsr & ~LM_FSR_FORMAT) || (c->cba2r & ~1u) || (c->cbar & 0xffu)) return false;
+ 	/* TYPE0 without S2 support is an unconfigured bank, not a valid S1
+ 	 * snapshot. TTBR1/TCR2/CONTEXTIDR/MAIR are undefined in this format. */
+ 	c->reset = !c->cbar && !c->cba2r && !(id0 & (1u << 29));
+@@ -148,14 +150,17 @@
+ {
+ 	uint32_t sctlr = lm_read(base, LM_CB), fsr = lm_read(base, LM_CB + 0x58);
+ 	uint32_t gfsr = lm_read(base, 0x48);
++	uint32_t faults = fsr & LM_FSR_FAULT;
++	uint32_t unknown = fsr & ~(LM_FSR_FAULT | LM_FSR_FORMAT);
+ 	/* TYPE0 -> Stage1 changes the meaning of non-M SCTLR fields. This is
+ 	 * only a disabled-context preparation; do not compare those fields as
+ 	 * though the original unsupported Stage2 format were still in effect.
+ 	 * A supported original Stage1 context retains the exact-state contract. */
+ 	bool control = c->reset ? !(sctlr & 1) : sctlr == c->sctlr;
+-	printf("LEMON GPU MEMORY: state=%s initial_sctlr=%#x sctlr=%#x fsr=%#x gfsr=%#x cbar=%#x cba2r=%#x reset=%u control_ok=%u\n",
+-	    phase,c->sctlr,sctlr,fsr,gfsr,lm_read(base,0x1000),lm_read(base,0x1800),c->reset,control);
+-	return control && !gfsr && (allow_fsr || !fsr);
++	printf("LEMON GPU MEMORY: state=%s initial_sctlr=%#x sctlr=%#x fsr=%#x format=%u faults=%#x unknown=%#x gfsr=%#x cbar=%#x cba2r=%#x reset=%u control_ok=%u\n",
++	    phase,c->sctlr,sctlr,fsr,(fsr & LM_FSR_FORMAT) >> 9,faults,unknown,gfsr,
++	    lm_read(base,0x1000),lm_read(base,0x1800),c->reset,control);
++	return control && !unknown && !gfsr && (allow_fsr || !faults);
+ }
+ 
+ static bool
+@@ -363,9 +368,9 @@
+ 	safe = lm_unrouted(base, count) && safe;
+ 	if (safe && ats) safe = lm_idle(base, LM_CB + 0x8f0) && lm_tlb(base);
+ 	if (safe) {
+-		uint32_t fsr = lm_read(base, LM_CB + 0x58);
+-		if (fsr) lm_write(base, LM_CB + 0x58, fsr); /* Initial FSR was zero. */
+-		safe = lm_read(base, LM_CB + 0x58) == 0;
++		uint32_t faults = lm_read(base, LM_CB + 0x58) & LM_FSR_FAULT;
++		if (faults) lm_write(base, LM_CB + 0x58, faults); /* Only owned W1C faults; never Format. */
++		safe = !(lm_read(base, LM_CB + 0x58) & ~LM_FSR_FORMAT);
+ 		if (saved.reset) {
+ 			/* There was no valid context to restore. On failure detach test
+ 			 * pointers only under confirmed S1/64-bit format; never write TYPE0. */
