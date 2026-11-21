@@ -21,10 +21,12 @@ header = '''
 #define ARM64_BOARD_CONFIG_SWEET 1
 #define LEMON_4K 1
 typedef uintptr_t vm_offset_t, vm_size_t;
+extern void delay(int);
 '''
 test = r'''
 static uint32_t memory[LR_SIZE/4], saved[LR_SIZE/4];
 static unsigned map_fail;
+void delay(int us) {(void)us;assert(!"snapshot must not poll");}
 vm_offset_t ml_io_map(vm_offset_t pa,vm_size_t size) {
     assert(pa==LR_PA && size==LR_SIZE);return map_fail?0:(uintptr_t)memory;
 }

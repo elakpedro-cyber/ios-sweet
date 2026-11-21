@@ -80,6 +80,19 @@ up to64 pending bytes per direction without opening a channel or advancing
 pointers. It makes no voltage or CX/GX requests. This is a prerequisite
 diagnostic; it does not enable GPU power or rendering.
 
+v26 verified the RPM TOC and empty zeroed FIFO pointers on hardware.
+Patch0028 adds opt-in `lemongpu=4`: negotiate version1/features0, send OPEN
+for `rpm_requests` (local channel1), validate remote OPEN and matching local
+OPEN_ACK, then acknowledge the remote channel. A single bounded poll loop
+allows at most5 seconds. Only fresh zeroed FIFOs are accepted; no resets or
+stale queue adoption. Writes are limited to TX data/head, RX tail and APCS
+mailbox0 BIT0 at0x0f111008. No RPM data/voltage requests are sent. Success means
+the OPEN handshake completed, not that voltage control or GPU power works.
+The peer model tests both OPEN orders, wrong version/channel/name, timeout,
+partial frames, full/wrapped FIFOs, mapping failures and the write whitelist.
+See [GLINK protocol](https://github.com/torvalds/linux/blob/master/drivers/rpmsg/qcom_glink_native.c)
+and [SM6115 mailbox](https://github.com/torvalds/linux/blob/master/drivers/mailbox/qcom-apcs-ipc-mailbox.c).
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence

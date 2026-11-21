@@ -2,6 +2,32 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
+
+User: open channel, launch Actions, then STOP; user will report build done.
+Patch0028 adds opt-in lemongpu=4, modes0/1/2/3 unchanged. Includes existing
+config vote then GLINK OPEN only. Require valid TOC and fresh ALL ZERO FIFO
+indices from v26 handoff; no resets/old queue adoption. Map APCS0f111000,
+IPC+8 BIT0, validated live FDT + Linux sm6115 mailbox data. Negotiates
+version1/features0, sends OPEN rpm_requests lcid1, checks matching ACK and
+exact remote name/CID, replies remote OPEN_ACK. Accepts both OPEN/ACK orders,
+handles version, READ_NOTIF and known channel signals. No RPM data packets,
+rail/voltage requests, GPU power/PLL changes. Single50000x100us max poll5s,
+invalid layout/index/packet/mapping/congestion aborts; no unbounded waits.
+On success endpoint only opened, no background RX worker or voltage API yet.
+
+Actual-module ASan/UBSan peer tests PASS: both OPEN orders, silent/wrong
+version/ACK CID/name/length, partial frame, nonzero handoff, TX full and TX/RX
+wrap, map failure, real entrypoint; host-write whitelist and no data/rail
+commands. ARMv8.0 cross compile PASS. Existing RPM snapshot and GPU tests
+including mode4 gate PASS. Reverse patch dry-run PASS. Working XNU tree
+/home/hadirpc/lemon-gpu-probe-xnu updated. CI stages patch0109 + handshake test.
+Private v27 builder research/build_rpm_open_boot.py: requires OPEN marker,
+lemongpu=4; input xnu/out-rpm-open-kernel/kernel.development.sweet; output
+shim/out/lemon-rpm-open/boot-lemon-rpm-open-v27.img. No image built yet.
+Phone left TWRP with v26; no phone writes/reboots in this work.
+NEXT: launch build and record run, STOP without waiting/downloading/flashing.
+
 ### GPU POWER REQUEST: RPM TRANSPORT PREREQUISITE FOUND (2026-11-21)
 
 V26 HARDWARE READOUT (2026-11-21): returned to TWRP, recovery ADB connected.

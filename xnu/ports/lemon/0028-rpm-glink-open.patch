@@ -1,0 +1,198 @@
+--- a/bsd/dev/lemon_rpm.c
++++ b/bsd/dev/lemon_rpm.c
+@@ -1,4 +1,4 @@
+-/* SM6115 RPM GLINK handoff checkpoint. Read-only; no rail votes or FIFO writes.
++/* SM6115 RPM GLINK handoff checkpoint. Mode3 snapshot; mode4 GLINK open only, no rail votes.
+  * Layout: Linux drivers/rpmsg/qcom_glink_rpm.c; addresses: live lemon FDT.
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)
+@@ -7,6 +7,7 @@
+ #include <machine/machine_routines.h>
+ extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
+ void lemon_rpm_snapshot(void);
++void lemon_rpm_open(void);
+ 
+ #define LR_PA 0x045f0000u
+ #define LR_SIZE 0x7000u
+@@ -69,6 +70,158 @@
+ 	return true;
+ }
+ 
++#define LR_MBOX_PA 0x0f111000u
++#define LR_OPEN_POLLS 50000u
++
++struct lr_link {
++	vm_offset_t base, mbox;
++	struct lr_pipe tx, rx;
++	bool version_ack, open_sent, open_ack;
++	unsigned remote_id;
++};
++
++static void
++lr_write(vm_offset_t base, unsigned offset, uint32_t value)
++{
++	*(volatile uint32_t *)(base + offset) = value;
++	__asm__ volatile("dsb oshst" ::: "memory");
++}
++
++static bool
++lr_indices(vm_offset_t base, struct lr_pipe pipe, unsigned *tail, unsigned *head)
++{
++	*tail = lr_read(base, pipe.offset);
++	*head = lr_read(base, pipe.offset + 4);
++	return *tail < pipe.size && *head < pipe.size && !((*tail | *head) & 7);
++}
++
++static bool
++lr_send(struct lr_link *link, unsigned cmd, unsigned id, uint32_t parameter,
++    const char *name)
++{
++	uint32_t packet[6] = {cmd | (id << 16), parameter, 0, 0, 0, 0};
++	unsigned length = 8, tail, head;
++	if (name) {
++		/* Only our fixed rpm_requests channel name is ever transmitted. */
++		if (cmd != 2 || parameter != 13) return false;
++		for (unsigned i = 0; i < 13; i++) {
++			packet[2 + i / 4] |= (uint32_t)(uint8_t)name[i] << (8 * (i % 4));
++		}
++		length = 24;
++	}
++	if (!lr_indices(link->base, link->tx, &tail, &head)) return false;
++	unsigned used = head >= tail ? head - tail : link->tx.size - tail + head;
++	if (link->tx.size - used < length + 8) return false;
++	for (unsigned i = 0; i < length; i += 4) {
++		lr_write(link->base, link->tx.offset + 8 + (head + i) % link->tx.size,
++		    packet[i / 4]);
++	}
++	lr_write(link->base, link->tx.offset + 4, (head + length) % link->tx.size);
++	/* SM6115 APCS mailbox channel0: IPC register +8, write BIT(0). */
++	lr_write(link->mbox, 8, 1);
++	printf("LEMON RPM OPEN: tx cmd=%u id=%u param=%#x\n", cmd, id, parameter);
++	return true;
++}
++
++static uint32_t
++lr_peek(struct lr_link *link, unsigned tail, unsigned offset)
++{
++	return lr_read(link->base, link->rx.offset + 8 + (tail + offset) % link->rx.size);
++}
++
++/* Return -1 on invalid/unsupported input, 0 when waiting, 1 after consumption. */
++static int
++lr_receive(struct lr_link *link)
++{
++	unsigned tail, head;
++	if (!lr_indices(link->base, link->rx, &tail, &head)) return -1;
++	unsigned available = head >= tail ? head - tail : link->rx.size - tail + head;
++	if (available < 8) return 0;
++	uint32_t word = lr_peek(link, tail, 0), parameter = lr_peek(link, tail, 4);
++	unsigned cmd = word & 0xffff, id = word >> 16, length = 8;
++	if (cmd == 2) {
++		unsigned name_length = parameter & 0xffff;
++		if (!link->version_ack || !link->open_sent || !id || name_length != 13) return -1;
++		length = 24;
++		if (available < length) return 0;
++		static const char name[] = "rpm_requests";
++		for (unsigned i = 0; i < sizeof(name); i++) {
++			uint32_t value = lr_peek(link, tail, 8 + (i & ~3u));
++			if ((uint8_t)(value >> (8 * (i % 4))) != (uint8_t)name[i]) return -1;
++		}
++		if (link->remote_id && link->remote_id != id) return -1;
++		link->remote_id = id;
++	} else if (cmd == 0) {
++		if (id != 1 || !lr_send(link, 1, 1, 0, NULL)) return -1;
++	} else if (cmd == 1) {
++		/* We offer version1/features0; an ACK must match that offer. */
++		if (id != 1 || parameter != 0) return -1;
++		link->version_ack = true;
++	} else if (cmd == 4) {
++		if (!link->open_sent || id != 1 || parameter != 0) return -1;
++		link->open_ack = true;
++	} else if (cmd == 13) {
++		if (id || parameter) return -1;
++	} else if (cmd == 15) {
++		if (!link->remote_id || id != link->remote_id) return -1;
++	} else {
++		printf("LEMON RPM OPEN: unsupported rx cmd=%u id=%u param=%#x\n", cmd, id, parameter);
++		return -1;
++	}
++	lr_write(link->base, link->rx.offset, (tail + length) % link->rx.size);
++	if (cmd == 13) lr_write(link->mbox, 8, 1);
++	printf("LEMON RPM OPEN: rx cmd=%u id=%u param=%#x\n", cmd, id, parameter);
++	return 1;
++}
++
++static bool
++lr_handshake(struct lr_link *link)
++{
++	unsigned tt, th, rt, rh;
++	if (!lr_indices(link->base, link->tx, &tt, &th) ||
++	    !lr_indices(link->base, link->rx, &rt, &rh) || tt || th || rt || rh) {
++		printf("LEMON RPM OPEN: handoff is not fresh zeroed FIFOs; no writes\n");
++		return false;
++	}
++	if (!lr_send(link, 0, 1, 0, NULL)) return false;
++	for (unsigned i = 0; i < LR_OPEN_POLLS; i++) {
++		if (lr_receive(link) < 0) return false;
++		if (link->version_ack && !link->open_sent) {
++			if (!lr_send(link, 2, 1, 13, "rpm_requests")) return false;
++			link->open_sent = true;
++		}
++		if (link->open_ack && link->remote_id) {
++			if (!lr_send(link, 4, link->remote_id, 0, NULL)) return false;
++			printf("LEMON RPM OPEN: channel handshake complete lcid=1 rcid=%u; no rail requests\n",
++			    link->remote_id);
++			return true;
++		}
++		delay(100);
++	}
++	printf("LEMON RPM OPEN: timeout version_ack=%u open_ack=%u rcid=%u\n",
++	    link->version_ack, link->open_ack, link->remote_id);
++	return false;
++}
++
++void
++lemon_rpm_open(void)
++{
++	struct lr_link link = {0};
++	link.base = ml_io_map(LR_PA, LR_SIZE);
++	if (!link.base || !lr_parse(link.base, &link.tx, &link.rx)) {
++		printf("LEMON RPM OPEN: invalid mapping/layout; no writes\n");
++		return;
++	}
++	link.mbox = ml_io_map(LR_MBOX_PA, 0x1000);
++	if (!link.mbox) {
++		printf("LEMON RPM OPEN: mailbox mapping failed; no writes\n");
++		return;
++	}
++	bool ok = lr_handshake(&link);
++	printf("LEMON RPM OPEN: result=%u; no voltage, power or GPU commands\n", ok);
++}
++
++
+ void
+ lemon_rpm_snapshot(void)
+ {
+--- a/bsd/dev/lemon_gpu.c
++++ b/bsd/dev/lemon_gpu.c
+@@ -15,6 +15,7 @@
+ extern kern_return_t thread_terminate(thread_t);
+ void lemon_gpu_init(void);
+ extern void lemon_rpm_snapshot(void);
++extern void lemon_rpm_open(void);
+ 
+ #define LG_GCC_PA 0x01400000u
+ #define LG_GCC_SIZE 0x80000u
+@@ -129,10 +130,11 @@
+ 	if (lg_started) return;
+ 	lg_started = true;
+ 	PE_parse_boot_argn("lemongpu", &mode, sizeof(mode));
+-	if (mode == 2 || mode == 3) {
++	if (mode == 2 || mode == 3 || mode == 4) {
+ 		if (lg_config_enable()) {
+ 			lg_snapshot();
+ 			if (mode == 3) lemon_rpm_snapshot();
++			if (mode == 4) lemon_rpm_open();
+ 		}
+ 		return;
+ 	}
