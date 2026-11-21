@@ -2,6 +2,48 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V40 HARDWARE LOG; V41 FIX READY FOR COMBINED-BLOCK CI (2026-11-22)
+
+User returned TWRP. Read-only research/read_v40_log.py saved private
+lemon-v40-log.bin/.txt:130661bytes/flush17.5/5CPU SGI,power stage5, memory
+prep PA102dbd000,core-config all pass. SCTLR0127 fullmask11f7 PASS; new TTBR
+PA102dd2000, S2CR0,SMR80010000, SQE/RB/base controls readbacks pass. SQE1
+accepted, combined checkpoints7 (context/route/SQE). Then instruction fetch
+at firmware VA20000000 fails permission: FSR408 (Format400+PF8), FAR20000000,
+FSYNR050043 (IND1/WNR0),CP_INT80,GFSR0,RPTR0/WPTR0,STATUS1. ME_INIT was
+not submitted because live guard detected fault before WPTR. executed0,
+marker11111111 untouched/scratch0. No successful instruction/command/DMA
+proof. SpringBoard/backboardd exec present, no panic( found.
+
+Cleanup halted1; owned SMR successfully restored0. Saved S2CR4a20ff requested
+but read0, causing old combined restored/unroute verdict false and disabled0.
+77824bytes retained as intended. Returned recovery since then, phone TWRP/v40.
+No flash/reboot/Actions while reading log; boot full SHA recorded below.
+
+Continuing user's combined-block1 objective, patch0043/workflow0124 fixes
+SQE PTE permissions: ONLY code8pages RO+X, ring RO+NX/data RW+NX, guards/tables
+unmapped. All code had PXN+UXN set in v40; instruction fetch now explicitly
+modeled. Updated test fails against originalv40 at positive executed assertion,
+passes actual fixed module49 scenarios under ASan/UBSan + ARMv8.0 compile.
+Private logs gpu-cp-v41-before.txt (expected failure),gpu-cp-v41-tests.txt.
+New cases force execute fault and reproduce ignored saved S2CR restore.
+
+Cleanup separates inactive S2CR restoration from actual unroute: verify owned
+SMR invalid and scan every other route before disabling halted context; still
+report restored0 if old S2CR rejected, never free referenced memory or touch
+foreign routes. No new MMIO registers/secure-mode changes. Complete combined
+ME_INIT/memory marker proof remains required; hardware fix not tested yet.
+
+research/package_v41.py checks zero-fuzz patch equals tested source; YAML/
+all shell/pinned edits and diff check pass. Private lemon_gpu_cp_v40.c is old
+baseline, current lemon_gpu_cp.c and working XNU CP source nowv41.
+research/build_gpu_cp_exec_v41_boot.py expects
+xnu/out-gpu-cp-exec-kernel/kernel.development.sweet, requires RO+X/cleanup
+and combined markers, same firmware/ADT/layout checks. Output
+shim/out/lemon-gpu-cp-exec/boot-lemon-gpu-cp-exec-v41.img, not built yet.
+Next push one v41 Actions run then STOP per preference; no flash until later
+explicit approval. No Apollo donor production code imported.
+
 ### V40 FLASHED; REBOOT REQUESTED, AWAIT COMBINED HARDWARE LOG (2026-11-22)
 
 User explicitly approved flash/start with "да". research/flash_v40.py passed

@@ -26,6 +26,27 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v41 SQE execute permission and cleanup (patch0043, prepared)
+
+v40 hardware passed context enable, route attach and SQE control startup
+(`checkpoints=0x7`). Before any WPTR submission, SMMU reported permission
+fault `FSR=0x408`, `FAR=0x20000000`, `FSYNR0=0x50043` (instruction read),
+and CP interrupt `0x80`. SQE pages had both PXN/UXN set. No ME_INIT completion
+or GPU-written marker was observed. This is a real routed instruction request
+fault, not successful execution or DMA proof.
+
+Patch0043 makes only the eight read-only SQE pages executable in GPU tables.
+Ring and data remain NX, code remains RO, and guard/table pages remain
+unmapped. A new instruction-fetch model reproduces v40's failure and passes
+after this change; all49 scenarios and ARMv8.0 compilation pass.
+
+v40 also rejected restoring its initially invalid slot's S2CR (`0x4a20ff`
+read back zero), despite removing the SMR successfully. Cleanup now reports
+saved-entry restoration separately from verified unroute. Confirmed SQE halt,
+invalid owned SMR and no other route to the context permit context disabling;
+failure to restore inactive S2CR remains visible as `restored=0`. Buffers stay
+retained, foreign routes remain untouched. Hardware v41 is untested.
+
 ### v40 combined SMMU/SQE/command proof (patch0042, hardware pending)
 
 The first combined block runs without intermediate diagnostic stops after

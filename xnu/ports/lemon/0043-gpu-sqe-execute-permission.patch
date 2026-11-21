@@ -1,0 +1,50 @@
+--- a/bsd/dev/lemon_gpu_cp.c
++++ b/bsd/dev/lemon_gpu_cp.c
+@@ -299,13 +299,15 @@
+ 	uint64_t *l1=(uint64_t *)(lc.memory+LC_PT), *l2=l1+512, *l3=l2+512;
+ 	l1[LC_VA>>30]=(lc.pa+LC_PT+4096)|3;
+ 	l2[(LC_VA>>21)&511]=(lc.pa+LC_PT+8192)|3;
+-	/* Normal NC, AF/nG, OSH/NS, non-executable; no tables mapped to GPU. */
++	/* Normal NC, AF/nG, OSH/NS; no tables mapped to GPU. */
+ 	uint64_t flags=3ull|(1u<<5)|(2u<<8)|(1u<<10)|(1u<<11)|(3ull<<53);
+ 	for (unsigned i=0; i<12; i++) {
+ 		if (i==8) continue; /* guard page between microcode and ring. */
+ 		unsigned ap=(i<8 || i==9)?3:1; /* code/ring RO, targets RW; unprivileged allowed. */
+-		l3[((LC_VA>>12)&511)+i]=(lc.pa+i*4096)|flags|((uint64_t)ap<<6);
+-	}
++		uint64_t permissions=i<8 ? flags & ~(3ull<<53) : flags;
++		l3[((LC_VA>>12)&511)+i]=(lc.pa+i*4096)|permissions|((uint64_t)ap<<6);
++	}
++	printf("LEMON GPU CP: permissions SQE=RO+X ring=RO+NX data=RW+NX\n");
+ 	clean_dcache64(lc.pa,LC_SIZE,TRUE);
+ 	__asm__ volatile("dsb sy" ::: "memory");
+ 	return true;
+@@ -474,18 +476,22 @@
+ 	    lc.executed,*(volatile uint32_t *)(lc.memory+LC_TARGET),lc_read(lc.gpu,LC_CP_SCRATCH*4));
+ 	/* Retain every referenced buffer, including on timeout. No reset/power-down
+ 	 * is inferred from a halt register alone. Remove only our stream route. */
+-	bool halted=lc_halt(), unrouted=true;
++	bool halted=lc_halt(), unrouted=true, restored=true;
+ 	if (lc.route) {
+ 		uint32_t smr=lc_read(lc.smmu,0x800+4*(unsigned)lc.slot);
+ 		uint32_t s2cr=lc_read(lc.smmu,0xc00+4*(unsigned)lc.slot);
+-		if ((smr!=LC_SMR && smr!=lc.old_smr) || (s2cr&0x030300ff)) unrouted=false;
+-		else unrouted=lc_set(lc.smmu,0x800+4*(unsigned)lc.slot,lc.old_smr,0xffffffffu) &&
+-		    lc_set(lc.smmu,0xc00+4*(unsigned)lc.slot,lc.old_s2cr,0x030300ff);
++		if ((smr!=LC_SMR && smr!=lc.old_smr) || (s2cr&0x030300ff)) { unrouted=false; restored=false; }
++		else {
++			unrouted=lc_set(lc.smmu,0x800+4*(unsigned)lc.slot,lc.old_smr,0xffffffffu);
++			/* An invalid SMR cannot route traffic, even if the inactive S2CR
++			 * rejects restoration. Log that separately, then scan all routes. */
++			restored=unrouted && lc_set(lc.smmu,0xc00+4*(unsigned)lc.slot,lc.old_s2cr,0x030300ff);
++		}
+ 	}
+ 	unrouted=lc_streams(count,false) && unrouted;
+ 	bool disabled=false;
+ 	if (halted && unrouted && lc.pointer) disabled=lc_set(lc.smmu,LC_CB,0,LC_SCTLR_MASK) && lc_tlb();
+-	printf("LEMON GPU CP: cleanup halted=%u unrouted=%u disabled=%u retained=%u bytes; clocks retained\n",
+-	    halted,unrouted,disabled,LC_SIZE);
++	printf("LEMON GPU CP: cleanup halted=%u unrouted=%u disabled=%u restored=%u retained=%u bytes; clocks retained\n",
++	    halted,unrouted,disabled,restored,LC_SIZE);
+ }
+ #endif

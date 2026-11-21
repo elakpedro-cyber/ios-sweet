@@ -94,6 +94,7 @@ jobs:
           cp xnu/ports/lemon/0040-gpu-core-clocks.patch dxb/patches/0121-lemon-gpu-core-clocks.patch
           cp xnu/ports/lemon/0041-gpu-core-config-readback.patch dxb/patches/0122-lemon-gpu-core-config-readback.patch
           cp xnu/ports/lemon/0042-gpu-combined-execution.patch dxb/patches/0123-lemon-gpu-combined-execution.patch
+          cp xnu/ports/lemon/0043-gpu-sqe-execute-permission.patch dxb/patches/0124-lemon-gpu-sqe-execute-permission.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
