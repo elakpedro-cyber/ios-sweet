@@ -2,6 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V37 FLASHED; REBOOT REQUESTED, AWAIT HARDWARE LOG (2026-11-21)
+
+User explicitly approved flash/start with "да". ADB recovery visible.
+research/flash_v37.py passed previous full v36 boot SHA, exact boot path/size,
+recovery/dtbo checks. Wrote17055744 bytes/4164blocks; readback prefix SHA256
+185b4c2d8cd6d0e9edd92196e69512aff34884b5bb47c5d75dd0a7762084de7e.
+Full v37 boot SHA256
+6d5e002bd6a626660d2a82638c881caf48bdbd16d94f9fe09086cdda85bd6bf4.
+Recovery/dtbo unchanged; userdata not written by flash script.
+Separate adb reboot completed successfully. Hardware outcome UNKNOWN.
+Wait2-3min, ask screen result, then user returns TWRP for persistent GPU CP
+log read. Existing research/read_v36_log.py reads userdata tail without writes;
+adapt output names for v37. Do not infer CP execution from iOS lock screen.
+No Actions launched. Original v37 run red only due known host-test cast error,
+fixed in65c4880 (not rerun on macOS); kernel/boot unchanged by harness fix.
+
 ### V37 TEST HARNESS FIXED; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
 
 User supplied exact failed-step log: Apple Clang -Werror,-Wconstant-conversion
