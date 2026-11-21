@@ -4,6 +4,12 @@
 
 ### REQUIRED CLOCK FIX PREPARED; MEMORY SETUP DEFERRED, NO ACTIONS (2026-11-21)
 
+V30 ACTIONS STARTED; STOPPED: user explicitly said "запускай". Pushed
+0cf914a78f874ba628990b69abf53cd7409de8ec to fork/lemon-bringup. Run44906323319
+confirmed IN_PROGRESS https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44906323319
+Stopped after launch per earlier preference. No waiting/download/phone writes
+or reboot. Next check this run/source and package v30 after user reports done.
+
 User: investigate108c, combine memory setup if possible, otherwise line only.
 Compared official Xiaomi MiCode lime-q-oss gpucc-bengal.c and clk-branch.c:
 108c CX_SNOC_DVM is HALT_DELAY, waits10us, no enable-bit readback requirement.
