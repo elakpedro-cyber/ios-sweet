@@ -4,6 +4,12 @@
 
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
+FIX BUILD STARTED; STOPPED: source894910f85dda59ef3161840dc3bcf74281ad82b8
+run44845635960 confirmed IN_PROGRESS:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44845635960
+Do not inspect old run for current outcome. No waiting/download/flash/reboot;
+user will report completion. Full kernel fix not yet CI-verified.
+
 ATTEMPT2 COMPILE FAILURE FIXED (2026-11-21): run44841697461 attempt2 FAILURE,
 job136658847414 Build. Actual compiler error lemon_rpm.c:199 undeclared delay.
 Forgot kern/clock.h; previous host harness supplied delay declaration and
