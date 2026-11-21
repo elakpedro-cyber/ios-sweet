@@ -2,6 +2,14 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V34 ACTIONS STARTED; STOPPED (2026-11-21)
+
+Pushed approved grouped change626c28f10fe7e69d07fcd86cf95efcd09ba487ad
+to fork/lemon-bringup. Run44919803108 confirmed in_progress for exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44919803108
+Stopped after launch; no wait/download/phone I/O/flash/reboot. User reports
+completion. Next verify run/source, download/build v34 boot, ask flash approval.
+
 ### V34 GROUPED SMMU CONTRACT READY; ACTIONS AUTHORIZED (2026-11-21)
 
 User requested grouped fixes, then explicitly instructed starting Actions when
