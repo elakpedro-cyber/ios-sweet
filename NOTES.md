@@ -2,6 +2,43 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V39 PREPARED LOCALLY; NO ACTIONS/PHONE WRITES (2026-11-22)
+
+User left phone in TWRP. Compared Linux hw_init/state capture and Pixel3
+0137 CP patch. Linux completes ROQ1/2/pool writes without immediate equality
+checks; ROQ read is later in snapshot. Donor logs readbacks but does not gate
+ROQ. No donor empirical ROQ log found. This does NOT prove WO or delayed
+readback on our A610. Do not present timing/dependency as established cause.
+
+Patch0041 stages existing known core writes as a batch, then exact readback
+of EACH with up to1ms bounded delay/fault checks. Logs all results even after
+a mismatch. All values must match and be fault-free before AHB default-error
+response, table pointer, translating stream/context or SQE start. No new GPU
+register addresses/values, no retries of writes, no secure-register bypass.
+Permanent ROQ0 remains a hard stop. Improves diagnostics of ROQ1/pool too;
+no claim that v39 will fix hardware. Existing clock/ownership/halt/retention
+guards preserved. Private research/lemon_gpu_cp_v38.c is previous baseline;
+current lemon_gpu_cp.c and working XNU module now v39.
+
+Actual CP module41-scenario ASan/UBSan host model and ARMv8.0 compile pass,
+research/gpu-cp-v39-tests.txt. New scenarios: delayed read response (5us),
+ROQ response dependent on pool setup, ignored ROQ1/pool and fault during
+validation. These are MODEL cases only. An initially misplaced injected
+fault fired before config; test injection corrected to validation phase.
+research/package_v39.py confirms zero-fuzz patch reproduces tested source;
+workflow stages0041 as0122; check_ci_cache.py YAML/all shell edits pass;
+git diff --check passes. Existing Apple Clang explicit casts preserved.
+
+Private research/build_gpu_cp_config_v39_boot.py expects
+xnu/out-gpu-cp-config-kernel/kernel.development.sweet, requires new batch
+marker and existing v38 markers/firmware/ADT/layout/RAM/touch checks. Output
+shim/out/lemon-gpu-cp-config/boot-lemon-gpu-cp-config-v39.img; no kernel or
+boot built yet. Changes LOCAL ONLY, no push/Actions, no phone writes/reboot.
+Only phone access: adb get-state confirmed recovery. Phone remains TWRP/v38.
+Next launch request: push fork/lemon-bringup, confirm exact run SHA/ID then
+STOP. User reports completion. Flash/start later requires explicit approval,
+previous full v38 boot SHA below. Hardware root cause still unknown.
+
 ### V38 HARDWARE: CLOCK CONFIG ACCEPTED, ROQ2 STILL ZERO (2026-11-22)
 
 User returned TWRP. Read-only research/read_v38_log.py saved private

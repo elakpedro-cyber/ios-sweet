@@ -56,6 +56,8 @@ test=r'''
 static uint32_t gpu[0x40000/4],smmu[0x10000/4],gcc[0x80000/4],cc[0x9000/4];
 static uint32_t fw[8066],chip;
 static unsigned scenario,option,maps,writes,gpu_writes,submits,allocations,frees,cleans,flushes,processed,clock_writes;
+static unsigned poll_delays;
+static uint32_t pending_roq;
 static void *allocation;
 static const uint64_t physical=0x103100000ull,prepared=0x102d94000ull;
 vm_map_t kernel_map=(void*)1;
@@ -81,7 +83,7 @@ vm_offset_t ml_io_map(vm_offset_t pa,vm_size_t size) {
     if(pa==0x1400000) {assert(size==sizeof(gcc));return (uintptr_t)gcc;}
     assert(pa==0x5900000 && size==sizeof(gpu));return scenario==8?0:(uintptr_t)gpu;
 }
-void delay(int us) {assert(us==1 || us==10);}
+void delay(int us) {assert(us==1 || us==10);poll_delays++;}
 int kmem_alloc_contig(vm_map_t map,vm_offset_t *out,vm_size_t bytes,vm_offset_t mask,
     ppnum_t max,ppnum_t pmask,unsigned flags,unsigned tag) {
     assert(map==kernel_map && bytes==0x13000 && mask==4095 && !max && !pmask);
@@ -125,7 +127,10 @@ static uint32_t lc_read(vm_offset_t base,unsigned off) {
             off==0x8058 || off==0x8060 || off==0x8064 || off==0x8068 || off==0x87f4);
         return off==0x8058?smmu[off/4]|0x400:smmu[off/4];
     }
-    assert(base==(uintptr_t)gpu && off<sizeof(gpu));return gpu[off/4];
+    assert(base==(uintptr_t)gpu && off<sizeof(gpu));
+    if(scenario==38 && off==LC_ROQ2*4 && poll_delays<5) return 0;
+    if(scenario==42 && off==LC_ROQ2*4 && gpu[LC_POOL]==48) {smmu[0x8058/4]=2;return 0;}
+    return gpu[off/4];
 }
 static uint64_t lc_read64(vm_offset_t base,unsigned off) {
     assert(base==(uintptr_t)smmu && (off==0x8020 || off==0x8028 || off==0x8060));
@@ -237,6 +242,13 @@ static void lc_write(vm_offset_t base,unsigned off,uint32_t value) {
         assert(gpu[0xae]==0xaaa8aa82 && gpu[0x118]==0x222 && clock_writes==46);
     }
     if(scenario==14 && reg==0x8c2) return;
+    if(scenario==39 && reg==0x8c2) {pending_roq=value;return;}
+    if(scenario==39 && reg==0x8c3) {
+        assert(gpu[0x8c1]==0x40201b16 && value==48);
+        gpu[0x8c2]=pending_roq;
+    }
+    if(scenario==40 && reg==0x8c1) return;
+    if(scenario==41 && reg==0x8c3) return;
     if(scenario==19 && reg==0x808 && value==1) return;
     if(scenario==23 && reg==0x808 && value==3) return;
     if(scenario==36 && reg==0x808 && value==3) gpu[LC_STATUS]=4;
@@ -250,6 +262,7 @@ static void setup(unsigned mode) {
     memset(cc,0,sizeof(cc));memset(gcc,0,sizeof(gcc));memset(fw,0,sizeof(fw));
     scenario=mode;option=7;chip=0x06010000;
     maps=writes=gpu_writes=submits=allocations=frees=cleans=flushes=processed=clock_writes=0;
+    poll_delays=pending_roq=0;
     fw[1]=0x197;
     cc[0x1540/4]=cc[0x100c/4]=1u<<31;
     cc[0x1078/4]=cc[0x1054/4]=cc[0x1098/4]=cc[0x5000/4]=1;
@@ -279,10 +292,10 @@ int main(void) {
     assert(lc.executed && submits==2 && flushes==1 && allocation && !frees);
     assert(!(smmu[0x8000/4]&1) && smmu[0x800/4]==0 && gpu[LC_SQE]==3);
     unsigned previous=writes;lemon_gpu_cp_probe();assert(writes==previous);
-    for(unsigned i=1;i<=37;i++) {
+    for(unsigned i=1;i<=42;i++) {
         if(i==27) continue;
         setup(i);lemon_gpu_cp_probe();
-        if(i==23 || i==36) assert(lc.executed); /* Execution and teardown are separate outcomes. */
+        if(i==23 || i==36 || i==38 || i==39) assert(lc.executed); /* Execution and teardown are separate outcomes. */
         else assert(!lc.executed);
         assert(smmu[0x808/4]==(i==7?0x80030002:i==13?0x80000006:0x80000002));
         if(i<=13 || i==25 || i==26 || i==28 || i==29 || i==30 || i==37) assert(!writes);
@@ -293,9 +306,16 @@ int main(void) {
         if(i==33) assert(*(uint32_t*)((uintptr_t)allocation+LC_TARGET)==LC_MARKER && !lc.executed);
         if(i==14 || i==34 || i==35) assert(!submits && !lc.pointer && !lc.route && allocation && !frees && !gpu[LC_SQE]);
         if(i==36) assert(gpu[LC_SQE]==3 && (smmu[0x8000/4]&1));
+        if(i==38) assert(poll_delays==5 && submits==2);
+        if(i==39) assert(pending_roq==0x00800060 && submits==2);
+        if(i==14 || i==40 || i==41 || i==42) {
+            assert(!submits && !lc.pointer && !lc.route && !gpu[LC_SQE] && !gpu[LC_AHB]);
+            assert(allocation && !frees && gpu[0x8c3]==(i==41?0:48));
+            assert(poll_delays==(i==42?0:1000));
+        }
     }
     setup(0);
-    puts("PASS: actual A610 CP code; independent PM4/PTE model, GPU marker+scratch, RO SQE/ring and unmapped guards, 36 fault cases, internal-clock ordering, SQE halt/idle timeout, strict ROQ guard, retention/default off/re-entry; MODEL ONLY, no real GPU tested");
+    puts("PASS: actual A610 CP code; independent PM4/PTE model and 41 scenarios, complete core setup/bounded readback, delayed/dependent writes accepted only after exact validation; ignored ROQ/pool/fault still block translation/SQE; halt/retention/default-off guards; MODEL ONLY");
 }
 '''
 with tempfile.TemporaryDirectory() as directory:

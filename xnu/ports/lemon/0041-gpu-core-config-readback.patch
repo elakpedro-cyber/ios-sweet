@@ -1,0 +1,50 @@
+--- a/bsd/dev/lemon_gpu_cp.c
++++ b/bsd/dev/lemon_gpu_cp.c
+@@ -150,6 +150,24 @@
+ 	return !(fsr&~0x600u) && !lc_read(lc.smmu,0x48) &&
+ 	    !lc_read(lc.gpu,LC_HW_FAULT*4) && !(lc_read(lc.gpu,LC_CP_INT*4)&0xf7u) &&
+ 	    !(lc_read(lc.gpu,LC_INT_STATUS*4)&0x038002c2u);
++}
++
++static bool
++lc_expect(unsigned reg, uint32_t wanted)
++{
++	uint32_t got=0;
++	unsigned waited=0;
++	bool healthy=false;
++	for (;;) {
++		got=lc_read(lc.gpu,reg*4);
++		healthy=lc_fault_free();
++		if (!healthy || got==wanted || waited==1000) break;
++		delay(1);
++		waited++;
++	}
++	printf("LEMON GPU CP: config reg=%#x requested=%#x returned=%#x wait_us=%u healthy=%u\n",
++	    reg,wanted,got,waited,healthy);
++	return healthy && got==wanted;
+ }
+ 
+ static bool
+@@ -381,10 +399,20 @@
+ 		{LC_GBIF_QSB,0x00071620},{LC_GBIF_QSB+1,0x00071620},
+ 		{LC_GBIF_QSB+2,0x00071620},{LC_GBIF_QSB+3,0x00071620},{LC_QOS,3},
+ 		{LC_CP_ADDR,1},{LC_ROQ2,0x00800060},{LC_ROQ1,0x40201b16},
+-		{LC_POOL,48},{LC_POOL_DBG,47},{LC_AHB,1}
++		{LC_POOL,48},{LC_POOL_DBG,47}
+ 	};
+-	for (unsigned i=0; ok && i<sizeof(init)/sizeof(init[0]); i++) ok=lc_gset(init[i][0],init[i][1]);
++	/* Linux writes this setup before reading it later in snapshots. Complete
++	 * the known configuration first; no stream or SQE is enabled here. */
++	printf("LEMON GPU CP: core-config batch readback; SQE stays disabled\n");
++	for (unsigned i=0; i<sizeof(init)/sizeof(init[0]); i++) lc_write(lc.gpu,init[i][0]*4,init[i][1]);
++	for (unsigned i=0; i<sizeof(init)/sizeof(init[0]); i++) {
++		bool matched=lc_expect(init[i][0],init[i][1]);
++		ok=matched && ok; /* Log every register even after a mismatch. */
++	}
+ 	if (!ok) goto done;
++	/* Change the default AHB error response only after accessible config is
++	 * verified, as the previous checkpoint did. Never bypass a mismatch. */
++	if (!lc_gset(LC_AHB,1)) goto done;
+ 	step="table-pointer";
+ 	lc.pointer=true;
+ 	if (!lc_set64(lc.smmu,LC_CB+0x20,lc.pa+LC_PT) || !lc_streams(count,false) || !lc_tlb()) goto done;

@@ -26,6 +26,28 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v39 complete core setup before bounded validation (patch0041, prepared)
+
+Linux writes ROQ1/2 and memory-pool configuration during `hw_init`, before
+starting SQE; its ROQ size read occurs later in state capture. The Pixel3
+donor logs early readbacks without requiring ROQ equality. Neither establishes
+that our A610 zero readback is normal or that the register is write-only.
+
+Patch0041 finishes the existing known core-configuration writes first, then
+checks every value with a bounded wait of up to 1ms per register. All matches
+and fault checks must pass before the AHB error-response change, table-pointer
+replacement, stream attach or SQE startup. A mismatch still stops execution;
+other configuration values are logged even after that mismatch. No register
+addresses or configuration values are added. This tests timing/dependency
+possibilities and improves failure diagnostics; hardware cause remains unknown.
+
+The actual module passes ASan/UBSan with 41 scenarios and ARMv8.0 compilation.
+Additional models cover a delayed ROQ response, ROQ visibility after pool setup,
+ignored ROQ1/pool writes and a fault during validation. These are simulated
+conditions, not observed hardware explanations. CI/hardware v39 not run yet.
+References: Linux [initialization sequence](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu.c)
+and [state capture](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu_state.c).
+
 ### v38 GPU-side clocks and SQE halt (patch0040)
 
 Hardware v38 accepted top clock control `0xaaa8aa82`, but ROQ2 still read
