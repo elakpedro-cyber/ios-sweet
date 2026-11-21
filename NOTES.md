@@ -2,6 +2,14 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V37 ACTIONS STARTED; STOPPED (2026-11-21)
+
+Pushed b3795827fe65ab0dd671c5c1c11ee9c6557ab132 to fork/lemon-bringup.
+gh confirmed run44943150288 in_progress at the exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44943150288
+STOP after launch per prior user instruction; wait for user completion report.
+No phone access/writes/reboot, artifact download or real v37 boot packaging.
+
 ### V37 READY FOR CI; USER RESUMED (2026-11-21)
 
 User resumed with "продолжи". Finished v37 first CP/SQE checkpoint patch0039,
