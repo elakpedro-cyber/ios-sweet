@@ -1,0 +1,46 @@
+--- a/bsd/dev/lemon_rpm.c
++++ b/bsd/dev/lemon_rpm.c
+@@ -110,9 +110,15 @@
+ 		}
+ 		length = 24;
+ 	}
+-	if (!lr_indices(link->base, link->tx, &tail, &head)) return false;
++	if (!lr_indices(link->base, link->tx, &tail, &head)) {
++		printf("LEMON RPM OPEN: invalid TX indices\n");
++		return false;
++	}
+ 	unsigned used = head >= tail ? head - tail : link->tx.size - tail + head;
+-	if (link->tx.size - used < length + 8) return false;
++	if (link->tx.size - used < length + 8) {
++		printf("LEMON RPM OPEN: TX full cmd=%u used=%u size=%u\n", cmd, used, link->tx.size);
++		return false;
++	}
+ 	for (unsigned i = 0; i < length; i += 4) {
+ 		lr_write(link->base, link->tx.offset + 8 + (head + i) % link->tx.size,
+ 		    packet[i / 4]);
+@@ -159,7 +165,8 @@
+ 		if (id != 1 || parameter != 0) return -1;
+ 		link->version_ack = true;
+ 	} else if (cmd == 4) {
+-		if (!link->open_sent || id != 1 || parameter != 0) return -1;
++		/* Linux matches OPEN_ACK by local channel ID; param2 is not checked. */
++		if (!link->open_sent || id != 1) return -1;
+ 		link->open_ack = true;
+ 	} else if (cmd == 13) {
+ 		if (id || parameter) return -1;
+@@ -186,7 +193,14 @@
+ 	}
+ 	if (!lr_send(link, 0, 1, 0, NULL)) return false;
+ 	for (unsigned i = 0; i < LR_OPEN_POLLS; i++) {
+-		if (lr_receive(link) < 0) return false;
++		if (lr_receive(link) < 0) {
++			unsigned tail, head;
++			if (lr_indices(link->base, link->rx, &tail, &head) && tail != head) {
++				printf("LEMON RPM OPEN: rejected hdr=%#x param=%#x tail=%#x head=%#x\n",
++				    lr_peek(link, tail, 0), lr_peek(link, tail, 4), tail, head);
++			} else printf("LEMON RPM OPEN: invalid RX indices\n");
++			return false;
++		}
+ 		if (link->version_ack && !link->open_sent) {
+ 			if (!lr_send(link, 2, 1, 13, "rpm_requests")) return false;
+ 			link->open_sent = true;

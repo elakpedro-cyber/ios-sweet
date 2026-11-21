@@ -77,7 +77,7 @@ static void peer(void) {
             if(scenario==4) {remote(2,7,13,"bad_requests");continue;}
             if(scenario==5) {remote(2,7,0xffff,0);continue;}
             if(reverse) remote(2,7,13,"rpm_requests");
-            remote(4,1,0,0);
+            remote(4,1,scenario==6?1:0,0);
             if(!reverse) remote(2,7,13,"rpm_requests");
         } else {assert(id==7 && !param);complete++;}
     }
@@ -107,6 +107,8 @@ static struct lr_link link_state(void) {
 int main(void) {
     setup(0);struct lr_link link=link_state();assert(lr_handshake(&link));assert(complete==1 && tx_commands==4);
     setup(0);reverse=1;link=link_state();assert(lr_handshake(&link));assert(complete==1);
+    setup(6);link=link_state();assert(lr_handshake(&link));assert(complete==1);
+    setup(6);reverse=1;link=link_state();assert(lr_handshake(&link));assert(complete==1);
     for(unsigned mode=1;mode<=5;mode++) {
         setup(mode);link=link_state();assert(!lr_handshake(&link));assert(!complete);
         if(mode==1) assert(delays==LR_OPEN_POLLS);

@@ -2,6 +2,31 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V27 RESULT / OPEN_ACK FIX PREPARED; NO ACTIONS (2026-11-21)
+
+User stopped next build then said continue. Continued LOCAL work only; do not
+push kernel/workflow changes or start Actions until user authorizes build.
+v27 log read already: research/lemon-v27-log.bin/.txt, total123937/flush19:
+GLINK version tx0/v1/features0, rx VERSION and VERSION_ACK success, tx OPEN
+rpm_requests lcid1, rx OPEN rcid2/name len13, then result0. No local OPEN_ACK
+received/accepted in log. Rejected header NOT logged, so actual cause unknown;
+do not claim confirmed firmware OPEN_ACK param2 value. 5/5 CPU/SGI verified,
+SpringBoard/backboardd exec, no panic found; live valid touch events also seen.
+Phone remains TWRP/v27, boot full SHA e063cea8a32150b35a1ea544da8fb6a08241b1b6034a88156fdcdbf6d0c7690c.
+
+Patch0029 fixes an independent protocol mismatch: OPEN_ACK matched by local
+CID only as Linux qcom_glink_rx_open_ack; remove ungrounded param2==0 check,
+keep open_sent and CID1 checks. Log rejected RX header/param/indices and TX
+full/invalid index errors. No power/voltage/data requests or extra writes.
+Added peer scenario6 nonzero ACK param2: reproduces failure before fix, passes
+after fix in both OPEN/ACK orders. Existing invalid CID and other rejection
+tests still PASS. Actual-module ASan/UBSan + all GPU/RPM tests and Cortex-A53
+cross compiles PASS. Logs research/rpm-ack-before-fix.txt / after-fix.txt.
+Workflow stages patch0110 locally. Private v28 builder prepared from v27:
+research/build_rpm_ack_boot.py, input xnu/out-rpm-ack-kernel/kernel.development.sweet,
+output shim/out/lemon-rpm-ack/boot-lemon-rpm-ack-v28.img; requires new reject
+marker, lemongpu4 unchanged. No full kernel/image built, no new CI or phone I/O.
+
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
 V27 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v27.py

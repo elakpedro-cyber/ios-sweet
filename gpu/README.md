@@ -93,6 +93,15 @@ partial frames, full/wrapped FIFOs, mapping failures and the write whitelist.
 See [GLINK protocol](https://github.com/torvalds/linux/blob/master/drivers/rpmsg/qcom_glink_native.c)
 and [SM6115 mailbox](https://github.com/torvalds/linux/blob/master/drivers/mailbox/qcom-apcs-ipc-mailbox.c).
 
+v27 hardware negotiated version1/features0 and received the remote OPEN for
+`rpm_requests` with remote channel2, but exited with result0 before completing
+the handshake. The rejected header was not logged, so its exact cause is
+unknown. Patch0029 removes the extra OPEN_ACK param2==0 requirement (Linux
+matches the local channel ID only), retaining the local ID and state checks.
+It logs rejected RX headers and TX space/index errors. Host tests reproduce
+the old rejection with nonzero OPEN_ACK param2 and pass after the fix in both
+OPEN/ACK orders. Hardware verification remains pending; no rail requests.
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence
