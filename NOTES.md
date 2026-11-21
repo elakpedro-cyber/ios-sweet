@@ -2,6 +2,16 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V40 COMBINED FIRST BLOCK ACTIONS STARTED; STOPPED (2026-11-22)
+
+Pushed3a3d33524352434627289680da0244dd06ab0307 to fork/lemon-bringup.
+gh confirmed run44953230197 in_progress at exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44953230197
+STOP after launch per user preference; await completion report. No phone
+access, flash/reboot, artifact download or boot packaging. Phone last TWRP/v39.
+Then verify CI/tests/artifact, use private combined v40 builder below and
+obtain explicit flash/start approval. Combined hardware result still unknown.
+
 ### V40 COMBINED FIRST BLOCK READY FOR CI (2026-11-22)
 
 User explicitly requested combined block1: SMMU + SQE + first GPU memory
