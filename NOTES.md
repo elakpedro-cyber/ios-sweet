@@ -2,6 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V39 BUILD SUCCESS; BOOT READY, AWAIT FLASH APPROVAL (2026-11-22)
+
+User reported completion. gh TLS timeout; connector confirms run44950310523
+SUCCESS at1372139f1e5b065f03172055db2c759f3e992bd8. Kernel artifact14725503105,
+66869450-byte ZIP verified SHA256
+3aade1d4fb65575cdd1d22264776922276bb5f7ebc295b2a1acb94696edaf50b.
+research/download_v39.py extracted kernel/SHA256SUMS only; signed JSON removed.
+xnu/out-gpu-cp-config-kernel/kernel.development.sweet ARM64 Mach-O and
+SHA256SUMS verified; kernel SHA256
+1d8dcca808f742f315247767bedddeff0022f9360501ed895f6b2fb3a497d4db.
+research/build_gpu_cp_config_v39_boot.py passed new batch/clock/CP markers,
+firmware/ADT/layout/RAM/DTB checks. Image
+shim/out/lemon-gpu-cp-config/boot-lemon-gpu-cp-config-v39.img,
+17055744bytes/4164blocks SHA256
+1359b936d69bdb8e7e6d8c9fe679e4889513ab430d730d88258db69c2c93f809.
+research/flash_v39.py prepared/compiled, NOT EXECUTED; requires previous full
+v38 boot SHAecd7282aa0f90786ecccc947a07630558e9b3afa6c5a0493b766f741b1dc17dd,
+exact target/size, recovery/dtbo checks and readback. ADB recovery visible.
+No phone write/reboot or new Actions. Await explicit flash/start approval.
+
 ### V39 ACTIONS QUEUED; STOPPED (2026-11-22)
 
 User explicitly approved Actions launch with "да". Pushed
