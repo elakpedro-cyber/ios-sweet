@@ -2,6 +2,24 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V36 BUILD SUCCESS; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
+
+Run44932829878 success at3752ea4a09a13f3457b43af3ba7e38a6409a0ff4.
+gh artifact fetch TLS timeout; connector artifact14719075356,66843171 bytes,
+ZIP SHA25667a7b1f276f1dcac043b26b43733b47de63466cc998d1b22282f6dc3d73317e6
+verified against metadata before extracting kernel/SHA256SUMS. Temporary
+signed-link JSON removed. Kernel xnu/out-gpu-memory-fsr-kernel SHA256
+7116537ed3eaca14c556f9dcab83b237697bcb02a2abc7b4d64a9106ea070d6d,
+SHA256SUMS/ARM64 Mach-O verified. research/build_gpu_memory_v36_boot.py
+passed required markers/layout/RAM/ADT/DTB. Boot
+shim/out/lemon-gpu-memory-fsr/boot-lemon-gpu-memory-fsr-v36.img,
+17018880 bytes/4155 blocks SHA256
+65cea65f4a15f504d09c06a70e4c8bf879e7ea3dfe67afa79631c1e2033956d2.
+Private research/flash_v36.py prepared with prior full v35 boot SHA
+9bea0af425b4dc92c9b125b9b0f97b1e45cc82323775acbc47bbdef7a0a586c9,
+exact target/size/readback/protected hashes. ADB recovery confirmed. No phone
+writes/reboot; await explicit flash/start approval.
+
 ### V36 ACTIONS STARTED; STOPPED (2026-11-21)
 
 Pushed3752ea4a09a13f3457b43af3ba7e38a6409a0ff4 to fork/lemon-bringup.
