@@ -4,6 +4,16 @@
 
 ### COMBINED GPU POWER TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
 
+V29 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v29.py
+verified prior full v28 boot SHA, sde49/134217728, image/transfer hashes and
+protected recovery/dtbo hashes. Wrote only boot17002496 bytes; prefix readback
+matches70abbcd0a748a7ec39646dcf7e3bd76164b855999df2d4a7bd728d2ee32a781a.
+Full boot SHA0e3d79490d09ad0743af86119e379fe3998994540379840ee3d704464baa9c79.
+Recovery/dtbo unchanged, userdata untouched. adb reboot returned success;
+device disconnected. Actual combined RPM/power/clock results unobserved.
+Next wait60sec, return TWRP, read LEMON RPM OPEN / RPM POWER / GPU POWER logs.
+No claim of GPU power or graphics acceleration until real hardware log checked.
+
 V29 READY: run44900330721 SUCCESS, source182087ceb445b0a3a613365557b19e7e984d6080.
 Downloaded xnu-kernel via gh; verified SHA256SUMS, ARM64 Mach-O, combined power
 markers. Kernel SHAe14e4e8032b4d055f1de4815a81035bd582fe8772e9388c98e9bc8eb54b9a45c.
