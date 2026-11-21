@@ -2,6 +2,23 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V31 LOG READ: ATS UNSUPPORTED GUARD; NO CONTEXT WRITES (2026-11-21)
+
+User returned to TWRP; ADB recovery confirmed. Read-only userdata tail via
+research/read_v31_log.py saved private lemon-v31-log.bin/.txt,128005 bytes,
+flush24. All4 RPM requests accepted; GPU power stage5 again succeeds.
+SMMU survey: CR0=0x220406 ID0=0x4c017e04 ID1=0x20000005 ID2=0x5511 ID7=0x24.
+Stopped at unsupported/protected/global-fault guard before context writes,
+buffer allocation or table/ATS tests. ID0 bit26 ATOSNS is set, sufficient to
+trigger this guard. Local primary Linux arm-smmu.h defines ATOSNS BIT26;
+arm-smmu.c enables TRANS_OPS for SMMUv2 only when this bit is clear.
+Thus the proposed ATS self-test is unavailable here, not evidence that normal
+GPU stream translation is unavailable. Other unprinted guard state (GFSR)
+not ruled out. Need adapt validation path rather than simply remove guard
+and issue unsupported ATS. Bank0 state/ownership still unexamined in hardware.
+5/5 CPUs/SGI verified, SpringBoard/backboardd exec found; no panic( found.
+No new Actions, code changes, partition writes or reboot in this log check.
+
 ### V31 FLASHED AND REBOOT REQUESTED (2026-11-21)
 
 User explicitly approved flash/start with "да". research/flash_v31.py passed
