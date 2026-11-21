@@ -4,6 +4,12 @@
 
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
+RESTARTED: user reported Actions had been disabled and they re-enabled it.
+Ran gh run rerun44841697461; API confirmed attempt2 IN_PROGRESS, same source
+79bcd48bc778d6015b68aa33a7c1efe002df848c, conclusion null. Stopped after launch
+as requested earlier. No download/phone writes/reboot. Next check attempt2,
+not cancelled attempt1, when user reports completion.
+
 BUILD BLOCKED (2026-11-21): user reported done, checked exact run44841697461
 source79bcd48. Actual conclusion CANCELLED, not success. Job136651405449
 started00:07:44Z, completed00:16:35Z. Check-run annotation exactly:
