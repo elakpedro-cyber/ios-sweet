@@ -4,6 +4,28 @@
 
 ### COMBINED GPU POWER TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
 
+V29 HARDWARE RESULT: returned TWRP, ADB recovery available. Read-only userdata
+tail via research/read_v29_log.py -> lemon-v29-log.bin/.txt, total133642/flush35.
+GLINK handshake COMPLETE lcid1/rcid2; actual extra channel is glink_ssr rcid3,
+successfully skipped. All4 RPM requests have matching ACK accepted=1:
+MX floor256, CX floor128, MX enable1, CX enable1. First proven RPM request path.
+GPU: begin cx222001/cx_status5ff4/gx222001; CX on and GX on both logged.
+PLL1 cold mode0/user1/L0 configured; PLL lock/readbacks and core/GMU RCG
+updates passed (otherwise stage4 unreachable). Frequencies only config-derived.
+Stopped stage4 at GPUCC CX_SNOC_DVM branch108c:
+LEMON GPU POWER: timeout reg=0x108c value=0 mask=0x80000001 wanted=0x1
+LEMON GPU POWER: end stage=4 cx_status=0x80001fe0 gx=0xf8222000 gfx=0x80004220 gmu=0x80004220
+CX/GX physical PWR_ON bits verified. Earlier three GCC bus branches returned
+success, then108c enable-bit readback failed. Do not assume CLK_OFF: value0
+has CLK_OFF31 CLEAR but enable0 CLEAR too. Could be unsupported/RO/optional
+branch or overly strict readback; exact cause requires downstream Bengal
+clock driver/live FDT comparison. Do not blindly remove safety checks.
+GMU/GFX final branches not enabled (sequence short-circuited before1098,
+10a4,1054). No GPU commands/rendering/firmware/SMMU yet. Mainline generic
+108c branch may be unnecessary on this board; next inspect required clocks.
+5/5 CPUs/SGI and SpringBoard/backboardd exec seen; no panic found.
+No new code/Actions/phone writes/reboot during collection. Phone stays TWRP/v29.
+
 V29 FLASHED AND REBOOT SENT: user explicitly confirmed "да". flash_v29.py
 verified prior full v28 boot SHA, sde49/134217728, image/transfer hashes and
 protected recovery/dtbo hashes. Wrote only boot17002496 bytes; prefix readback
