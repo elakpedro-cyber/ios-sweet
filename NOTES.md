@@ -2,6 +2,49 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### STOPPED AT USER REQUEST; V37 CP WORK IN PROGRESS (2026-11-21)
+
+User explicitly said "остановись пока что". STOP work until user resumes.
+No Actions/push/phone I/O/flash/reboot during this implementation turn.
+Phone last TWRP/v36. Existing v36 disabled memory preparation remains verified.
+
+Unfinished v37: private research/lemon_gpu_cp.c and working XNU
+/home/hadirpc/lemon-gpu-probe-xnu/bsd/dev/lemon_gpu_cp.c implement opt-in mode7
+first CP/SQE checkpoint. Independent A610 wrapper path (GBIF/QSB/ROQ48-pool),
+private77824-byte allocation,8 SQE pages RO/ring RO/data+shadow RW, guard page
+and table pages unmapped, full36-bit PA, user SID0/1 mask1, refuse overlapping
+streams/occupied CB0. Bounded TLB/RPTR/idle polls; stock SQE read from proposed
+/lemon-gpu ADT node; CP_ME_INIT then NOP/scratch/MEM_WRITE/WAIT_IDLE.
+Result requires actual marker+scratch+no fault; execution/teardown outcomes
+separate. No ZAP/PAS/secure-mode switch/TRUST/graphics/framebuffer/user client.
+Retains every referenced buffer, removes only owned stream, disables context
+only after halt and unrouted confirmation; no power drop/reset assumptions.
+
+Private research/lemon_gpu_memory.c + working XNU expose owned-context query;
+original backed up research/lemon_gpu_memory_v36.c. Query tests added to
+tools/test-lemon-gpu-memory.py, NOT RUN yet after query change. Outer probe
+working XNU bsd/dev/lemon_gpu.c opts mode7 into existing power/memory gates,
+then CP; private original research/lemon_gpu_v36.c/new lemon_gpu_v37.c.
+Working bsd/conf/files has CP source added, private xnu-files-v36/v37 snapshots.
+tools/test-lemon-gpu-probe.py updated for mode7 gates, NOT RUN yet.
+
+New untracked tools/test-lemon-gpu-cp.py actual-module ASan/UBSan independent
+PM4 decoder/PTE walker passed default-off/re-entry/positive model and32 fault
+cases. ARMv8.0 actual module compile PASS. Private research/gpu-cp-tests.txt.
+This is MODEL evidence only. No patch0039, workflow staging, v37 builder/ADT
+firmware packaging, complete gate regression, macOS build or hardware result.
+Stock SQE is local private a630_sqe.fw32264 bytes/version016ee197; no firmware
+added to git. Proposed ADT chip-id06010000 + sqe-firmware still unimplemented.
+
+Review item before resuming tests/package: target page is flushed only on the
+successful second-submit path; failure diagnostics currently may print cached
+target data (executed stays false). Consider a safe final target flush for
+diagnostics without turning a failed submit into success. Core init is a
+minimal CP-only subset, not full A610 graphics init/HWCG/UBWC/ZAP. Preserve
+this limitation; do not copy Pixel3 GMU/HFI constants or claim acceleration.
+Leave current uncommitted WIP tests/private sources in place; only this stop
+handoff is committed. Wait for user before further work.
+
 ### V36 HARDWARE: DISABLED MEMORY CONTEXT PREPARED SUCCESSFULLY (2026-11-21)
 
 User returned TWRP, read-only research/read_v36_log.py -> private
