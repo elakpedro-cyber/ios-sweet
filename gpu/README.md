@@ -26,6 +26,33 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v37 first CP/SQE checkpoint (patch0039)
+
+Opt-in `lemongpu=7` extends the existing power and owned-memory gates with a
+bounded A610 command-processor test. A private ADT node supplies the stock
+`a630_sqe.fw` and A610 chip ID; firmware is not committed. The private local
+builder validates its exact identity before embedding it in the boot payload.
+
+The test allocates 76KiB, maps SQE/ring read-only and marker/shadow read-write,
+and leaves guard/table pages unmapped. It attaches only user SID0/1 to the
+owned context, rejecting overlapping routes. ME_INIT precedes a fixed
+NOP/scratch/MEM_WRITE/WAIT_IDLE sequence. Success requires completed ring
+consumption, the actual GPU-written marker, matching scratch and no faults.
+Execution and cleanup results are logged separately. Buffers remain allocated
+until reboot, including on failure; cleanup removes only the owned route and
+disables the context only after confirmed halt and detachment.
+
+The actual module passed an independent PM4/PTE host model with 32 fault
+cases under ASan/UBSan and an ARMv8.0 compile. The 60 memory cases and outer
+power/memory/CP gates also pass. These are software tests, not hardware proof.
+Core setup is deliberately a minimal A610 CP subset. No ZAP/PAS, secure-mode
+switch, graphics/HWCG/UBWC setup, framebuffer access or GPU user client is
+introduced. This checkpoint does not accelerate the iOS interface.
+Register/packet references: Linux
+[A6xx implementation](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu.c),
+[A610 catalog](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_catalog.c),
+[register definitions](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/registers/adreno/a6xx.xml).
+
 ### v36 FSR field correction (patch0038)
 
 Hardware v36 passed the preparation checkpoint: `prepared=1 owned=1`,20KiB

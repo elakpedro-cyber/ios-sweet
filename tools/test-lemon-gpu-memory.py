@@ -320,7 +320,13 @@ int main(void) {
     assert(allocations==1 && frees==1 && ats_calls==3 && enabled==1 && !allocation);
     assert(regs[0x1000/4]==original_cbar && regs[0x1800/4]==original_cba2r && !regs[LM_CB/4]);
     for(unsigned m=1;m<=60;m++) {
-        setup(m);lemon_gpu_memory_probe();
+        setup(m);
+        vm_offset_t context_base=0;uint64_t context_pa=0;
+        assert(!lemon_gpu_memory_context(&context_base,&context_pa));
+        lemon_gpu_memory_probe();
+        bool owned=lemon_gpu_memory_context(&context_base,&context_pa);
+        assert(owned==(lm_owned_memory!=0));
+        if(owned) assert(context_base==(uintptr_t)regs && context_pa==physical);
         if(m==11 || m==12 || m==13 || m==14 || m==31 || m==36 || m==32 || m==37 || m==42 || m==43 || m==45 || m==50 || m==51 || m==52 || m==54 || m==55 || m==57 || m==59 || m==60) assert(allocation && !frees);
         else assert(!allocation);
         if(m<=5 || (m>=16 && m<=28 && m!=20)) assert(!allocations && !context_writes);

@@ -46,18 +46,19 @@ static uint32_t cfg, qmip, vote;
 static unsigned writes, delays, ignore_write, concurrent_vote;
 static unsigned rpm_calls;
 static unsigned power_calls, rpm_ready;
-static unsigned memory_calls, power_complete;
+static unsigned memory_calls, cp_calls, power_complete;
 void lemon_rpm_snapshot(void) {assert(option==3);rpm_calls++;}
 void lemon_rpm_open(void) {assert(option==4);rpm_calls++;}
-bool lemon_rpm_prepare_power(void) {assert(option==5 || option==6);rpm_calls++;return rpm_ready;}
-bool lemon_gpu_power_probe(void) {assert((option==5 || option==6) && rpm_ready);power_calls++;return power_complete;}
-void lemon_gpu_memory_probe(void) {assert(option==6 && rpm_ready && power_complete);memory_calls++;}
+bool lemon_rpm_prepare_power(void) {assert(option==5 || option==6 || option==7);rpm_calls++;return rpm_ready;}
+bool lemon_gpu_power_probe(void) {assert((option==5 || option==6 || option==7) && rpm_ready);power_calls++;return power_complete;}
+void lemon_gpu_memory_probe(void) {assert((option==6 || option==7) && rpm_ready && power_complete);memory_calls++;}
+void lemon_gpu_cp_probe(void) {assert(option==7 && memory_calls && rpm_ready && power_complete);cp_calls++;}
 void delay(int us) {
     assert(us==1);delays++;
     if(concurrent_vote) vote |= 0x1000;
 }
 static void lg_write(vm_offset_t base,unsigned offset,uint32_t value) {
-    assert((option>=2 && option<=6) && base==1 && offset==LG_VOTE);
+    assert((option>=2 && option<=7) && base==1 && offset==LG_VOTE);
     assert(((value^vote)&~16u)==0);writes++;
     if(!ignore_write) vote=value;
 }
@@ -136,6 +137,9 @@ int main(void) {
     rpm_ready=0;run(6,1,8,0x4be0,0);assert(power_calls==1 && !memory_calls);
     rpm_ready=1;run(6,1,8,0x4be0,0);assert(power_calls==2 && !memory_calls);
     power_complete=1;run(6,1,8,0x4be0,0);assert(power_calls==3 && memory_calls==1);
+    rpm_ready=0;run(7,1,8,0x4be0,0);assert(!cp_calls && memory_calls==1);
+    rpm_ready=1;power_complete=0;run(7,1,8,0x4be0,0);assert(!cp_calls && memory_calls==1);
+    power_complete=1;run(7,1,8,0x4be0,0);assert(cp_calls==1 && memory_calls==2);
     puts("PASS: opt-in config vote only, bounded timeout, rollback owned bit, preserve other voters, input initialization order");
     puts("PASS: actual GPU probe default off, single start, gated parent clocks, mapping failures; only whitelisted read accesses");
 }

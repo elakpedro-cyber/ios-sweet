@@ -90,6 +90,7 @@ jobs:
           cp xnu/ports/lemon/0036-gpu-memory-register-contract.patch dxb/patches/0117-lemon-gpu-memory-register-contract.patch
           cp xnu/ports/lemon/0037-gpu-memory-state-check.patch dxb/patches/0118-lemon-gpu-memory-state-check.patch
           cp xnu/ports/lemon/0038-gpu-fsr-format.patch dxb/patches/0119-lemon-gpu-fsr-format.patch
+          cp xnu/ports/lemon/0039-gpu-cp-checkpoint.patch dxb/patches/0120-lemon-gpu-cp-checkpoint.patch
           # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
@@ -216,6 +217,9 @@ jobs:
 
       - name: Verify guarded Adreno SMMU memory self-test
         run: python3 tools/test-lemon-gpu-memory.py --xnu dxb/xnu
+
+      - name: Verify guarded A610 CP checkpoint
+        run: python3 tools/test-lemon-gpu-cp.py --xnu dxb/xnu
 
       - name: Package build tree for local compiles
         if: always()

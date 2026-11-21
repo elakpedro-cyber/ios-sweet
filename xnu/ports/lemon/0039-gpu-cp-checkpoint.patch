@@ -1,0 +1,428 @@
+--- a/bsd/dev/lemon_gpu.c
++++ b/bsd/dev/lemon_gpu.c
+@@ -19,6 +19,7 @@
+ extern bool lemon_rpm_prepare_power(void);
+ extern bool lemon_gpu_power_probe(void);
+ extern void lemon_gpu_memory_probe(void);
++extern void lemon_gpu_cp_probe(void);
+ 
+ #define LG_GCC_PA 0x01400000u
+ #define LG_GCC_SIZE 0x80000u
+@@ -133,15 +134,16 @@
+ 	if (lg_started) return;
+ 	lg_started = true;
+ 	PE_parse_boot_argn("lemongpu", &mode, sizeof(mode));
+-	if (mode == 2 || mode == 3 || mode == 4 || mode == 5 || mode == 6) {
++	if (mode == 2 || mode == 3 || mode == 4 || mode == 5 || mode == 6 || mode == 7) {
+ 		if (lg_config_enable()) {
+ 			lg_snapshot();
+ 			if (mode == 3) lemon_rpm_snapshot();
+ 			if (mode == 4) lemon_rpm_open();
+-			if (mode == 5 || mode == 6) {
++			if (mode == 5 || mode == 6 || mode == 7) {
+ 				if (lemon_rpm_prepare_power()) {
+ 					bool ready = lemon_gpu_power_probe();
+-					if (mode == 6 && ready) lemon_gpu_memory_probe();
++					if ((mode == 6 || mode == 7) && ready) lemon_gpu_memory_probe();
++					if (mode == 7 && ready) lemon_gpu_cp_probe();
+ 				}
+ 				else printf("LEMON GPU POWER: stopped before domain/clock writes: RPM not ready\n");
+ 			}
+--- a/bsd/dev/lemon_gpu_memory.c
++++ b/bsd/dev/lemon_gpu_memory.c
+@@ -21,6 +21,17 @@
+ #define LM_FSR_FORMAT 0x600u
+ #define LM_FSR_FAULT 0xc00001feu
+ static vm_offset_t lm_owned_memory;
++static vm_offset_t lm_owned_base;
++static uint64_t lm_owned_pa;
++bool lemon_gpu_memory_context(vm_offset_t *, uint64_t *);
++
++bool
++lemon_gpu_memory_context(vm_offset_t *base, uint64_t *pa)
++{
++	if (!lm_owned_memory) return false;
++	*base=lm_owned_base; *pa=lm_owned_pa;
++	return true;
++}
+ 
+ /* Format/control registers first; TTBRs are tracked separately in bits7/8. */
+ static const unsigned lm_offsets[] = {0x1800,0x1000,LM_CB+0x10,LM_CB+0x30,LM_CB+0x34,LM_CB+0x38,LM_CB+0x3c};
+@@ -354,6 +365,8 @@
+ 		/* Keep the newly owned disabled context and its tables for this boot.
+ 		 * Restoring TYPE0 would request unsupported Stage2, not restore valid S1. */
+ 		lm_owned_memory = memory;
++		lm_owned_base = base;
++		lm_owned_pa = pa;
+ 		printf("LEMON GPU MEMORY: prepared=1 owned=1 retained=%u translated=0; disabled/unrouted, no GPU DMA\n",LM_BYTES);
+ 		return;
+ 	}
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -653,3 +653,5 @@
+ bsd/skywalk/packet/pbufpool.c			optional skywalk
+ bsd/skywalk/packet/pbufpool_kern.c		optional skywalk
+ bsd/dev/cpu_copy_in_cksum_gen.c			optional skywalk
++
++bsd/dev/lemon_gpu_cp.c		standard
+--- /dev/null
++++ b/bsd/dev/lemon_gpu_cp.c
+@@ -0,0 +1,358 @@
++/* A610 first CP checkpoint: private SQE/ring/marker, polled completion.
++ * Register/packet definitions: Linux msm/adreno a6xx.xml and a6xx_gpu.c.
++ * No graphics, ZAP/SCM, secure-mode switch, user client or framebuffer access.
++ */
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/clock.h>
++#include <machine/machine_routines.h>
++#include <arm/caches_internal.h>
++#include <vm/pmap.h>
++#include <vm/vm_kern.h>
++#include <pexpert/pexpert.h>
++#include <pexpert/device_tree.h>
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++extern ppnum_t pmap_find_phys(pmap_t, addr64_t);
++extern bool lemon_gpu_memory_context(vm_offset_t *, uint64_t *);
++void lemon_gpu_cp_probe(void);
++
++#define LC_SIZE 0x13000u
++#define LC_VA 0x20000000u
++#define LC_RING 0x9000u
++#define LC_TARGET 0xa000u
++#define LC_SHADOW 0xb000u
++#define LC_PT 0x10000u
++#define LC_MARKER 0x600df00du
++#define LC_SCRATCH 0xcafe6101u
++#define LC_CB 0x8000u
++#define LC_FAULT 0xc00001feu
++#define LC_SMR 0x80010000u /* user SID0/1, never SID2 (secure). */
++
++enum {
++	LC_QOS=0x11, LC_RBBM_HALT=0x16, LC_INT_MASK=0x38,
++	LC_INT_STATUS=0x201, LC_STATUS=0x210, LC_RB_BASE=0x800,
++	LC_RB_CNTL=0x802, LC_RPTR_ADDR=0x804, LC_RPTR=0x806, LC_WPTR=0x807,
++	LC_SQE=0x808, LC_HW_FAULT=0x821, LC_CP_INT=0x823, LC_SQE_BASE=0x830,
++	LC_CP_ADDR=0x842, LC_CP_SCRATCH=0x883, LC_ROQ1=0x8c1, LC_ROQ2=0x8c2,
++	LC_POOL=0x8c3, LC_POOL_DBG=0x90e, LC_AHB=0x98d,
++	LC_GBIF_QSB=0x3c03, LC_GBIF_HALT=0x3c45
++};
++static struct {
++	vm_offset_t gpu, smmu, memory;
++	uint64_t pa;
++	uint32_t old_smr, old_s2cr, wptr;
++	int slot;
++	bool entered, pointer, route, executed;
++} lc;
++
++static uint32_t
++lc_read(vm_offset_t base, unsigned off)
++{
++	uint32_t v = *(volatile uint32_t *)(base + off);
++	__asm__ volatile("dmb oshld" ::: "memory");
++	return v;
++}
++
++static void
++lc_write(vm_offset_t base, unsigned off, uint32_t value)
++{
++	__asm__ volatile("mov w9, %w1\n\tstr w9, [%0]\n\tdsb oshst"
++	    :: "r"(base+off), "r"(value) : "x9", "memory");
++}
++
++static uint64_t
++lc_read64(vm_offset_t base, unsigned off)
++{
++	uint64_t v = *(volatile uint64_t *)(base + off);
++	__asm__ volatile("dmb oshld" ::: "memory");
++	return v;
++}
++
++static void
++lc_write64(vm_offset_t base, unsigned off, uint64_t value)
++{
++	__asm__ volatile("mov x9, %1\n\tstr x9, [%0]\n\tdsb oshst"
++	    :: "r"(base+off), "r"(value) : "x9", "memory");
++}
++
++static bool
++lc_set(vm_offset_t base, unsigned off, uint32_t value, uint32_t mask)
++{
++	lc_write(base,off,value);
++	uint32_t got = lc_read(base,off);
++	printf("LEMON GPU CP: reg=%#x requested=%#x returned=%#x mask=%#x\n",off,value,got,mask);
++	return (got & mask) == (value & mask);
++}
++
++static bool
++lc_set64(vm_offset_t base, unsigned off, uint64_t value)
++{
++	lc_write64(base,off,value);
++	uint64_t got = lc_read64(base,off);
++	printf("LEMON GPU CP: reg64=%#x requested=%#llx returned=%#llx\n",off,
++	    (unsigned long long)value,(unsigned long long)got);
++	return got == value;
++}
++
++static bool
++lc_gset(unsigned reg, uint32_t value)
++{
++	return lc_set(lc.gpu,reg*4,value,0xffffffffu);
++}
++
++static bool
++lc_gset64(unsigned reg, uint32_t value)
++{
++	/* GPU registers are two 32-bit words, not atomic SMMU TTBR stores. */
++	return lc_gset(reg,value) && lc_gset(reg+1,0);
++}
++
++static bool
++lc_tlb(void)
++{
++	lc_write(lc.smmu,LC_CB+0x610,0);
++	lc_write(lc.smmu,LC_CB+0x7f0,0);
++	for (unsigned i=0; i<2000; i++) {
++		if (!(lc_read(lc.smmu,LC_CB+0x7f4)&1)) return true;
++		delay(1);
++	}
++	return false;
++}
++
++static bool
++lc_streams(unsigned count, bool choose)
++{
++	int available = -1;
++	for (unsigned i=0; i<count; i++) {
++		uint32_t smr=lc_read(lc.smmu,0x800+i*4), s2cr=lc_read(lc.smmu,0xc00+i*4);
++		if (!(smr & (1u<<31))) { if (available<0) available=(int)i; continue; }
++		unsigned id=smr&0x7fff, mask=(smr>>16)&0x7fff;
++		if (!((id^0u)&~mask) || !((id^1u)&~mask) ||
++		    (s2cr&0x30000u)==0x30000u || (!(s2cr&0x30000u) && !(s2cr&0xff))) {
++			printf("LEMON GPU CP: conflicting stream%u smr=%#x s2cr=%#x\n",i,smr,s2cr);
++			return false;
++		}
++	}
++	if (choose) {
++		if (available<0) return false;
++		lc.slot=available;
++		lc.old_smr=lc_read(lc.smmu,0x800+4*(unsigned)available);
++		lc.old_s2cr=lc_read(lc.smmu,0xc00+4*(unsigned)available);
++	}
++	return true;
++}
++
++static bool
++lc_fault_free(void)
++{
++	uint32_t fsr=lc_read(lc.smmu,LC_CB+0x58);
++	return !(fsr&~0x600u) && !lc_read(lc.smmu,0x48) &&
++	    !lc_read(lc.gpu,LC_HW_FAULT*4) && !(lc_read(lc.gpu,LC_CP_INT*4)&0xf7u) &&
++	    !(lc_read(lc.gpu,LC_INT_STATUS*4)&0x038002c2u);
++}
++
++static bool
++lc_firmware(const uint32_t **firmware, unsigned *size)
++{
++	DTEntry node;
++	const void *data;
++	unsigned chip_size=0;
++	const void *chip;
++	if (SecureDTLookupEntry(NULL,"/lemon-gpu",&node)!=kSuccess ||
++	    SecureDTGetProperty(node,"chip-id",&chip,&chip_size)!=kSuccess ||
++	    chip_size!=4 || ((uintptr_t)chip&3) || *(const uint32_t *)chip!=0x06010000 ||
++	    SecureDTGetProperty(node,"sqe-firmware",&data,size)!=kSuccess ||
++	    *size<16 || *size>0x8004 || (*size&3) || ((uintptr_t)data&3)) return false;
++	const uint32_t *words=data;
++	/* Linux's SQE header/version check; header dword0 is not uploaded. */
++	if (words[0] || !(((words[1]&0xf)==0xa && (words[3]&0xf)>=1) || (words[1]&0xfff)>=0x190)) return false;
++	*firmware=words;
++	printf("LEMON GPU CP: A610 SQE bytes=%u version=%#x\n",*size,words[1]);
++	return true;
++}
++
++static bool
++lc_buffer(const uint32_t *fw, unsigned bytes)
++{
++	if (kmem_alloc_contig(kernel_map,&lc.memory,LC_SIZE,PAGE_MASK,0,0,
++	    KMA_DATA|KMA_ZERO,VM_KERN_MEMORY_IOKIT)!=KERN_SUCCESS || !lc.memory) return false;
++	lc.pa=ptoa_64(pmap_find_phys(kernel_pmap,lc.memory));
++	bool valid=lc.pa && lc.pa < ((1ull<<36)-LC_SIZE);
++	for (unsigned off=0; valid && off<LC_SIZE; off+=4096)
++		valid=ptoa_64(pmap_find_phys(kernel_pmap,lc.memory+off))==lc.pa+off;
++	if (!valid) { kmem_free(kernel_map,lc.memory,LC_SIZE); lc.memory=0; return false; }
++	uint32_t *code=(uint32_t *)lc.memory;
++	for (unsigned i=1; i<bytes/4; i++) code[i-1]=fw[i];
++	*(uint32_t *)(lc.memory+LC_TARGET)=0x11111111;
++	*(uint32_t *)(lc.memory+LC_SHADOW)=0x22222222;
++	uint64_t *l1=(uint64_t *)(lc.memory+LC_PT), *l2=l1+512, *l3=l2+512;
++	l1[LC_VA>>30]=(lc.pa+LC_PT+4096)|3;
++	l2[(LC_VA>>21)&511]=(lc.pa+LC_PT+8192)|3;
++	/* Normal NC, AF/nG, OSH/NS, non-executable; no tables mapped to GPU. */
++	uint64_t flags=3ull|(1u<<5)|(2u<<8)|(1u<<10)|(1u<<11)|(3ull<<53);
++	for (unsigned i=0; i<12; i++) {
++		if (i==8) continue; /* guard page between microcode and ring. */
++		unsigned ap=(i<8 || i==9)?3:1; /* code/ring RO, targets RW; unprivileged allowed. */
++		l3[((LC_VA>>12)&511)+i]=(lc.pa+i*4096)|flags|((uint64_t)ap<<6);
++	}
++	clean_dcache64(lc.pa,LC_SIZE,TRUE);
++	__asm__ volatile("dsb sy" ::: "memory");
++	return true;
++}
++
++static unsigned
++lc_parity(uint32_t value)
++{
++	value^=value>>16; value^=value>>8; value^=value>>4; value^=value>>2; value^=value>>1;
++	return (~value)&1;
++}
++
++static uint32_t
++lc_pkt7(unsigned op, unsigned count)
++{
++	return 0x70000000u|count|(lc_parity(count)<<15)|(op<<16)|(lc_parity(op)<<23);
++}
++
++static uint32_t
++lc_pkt4(unsigned reg)
++{
++	return 0x40000001u|(reg<<8)|(lc_parity(reg)<<27);
++}
++
++static void
++lc_put(uint32_t word)
++{
++	/* Both fixed submissions together use18 words, no wrap or user input. */
++	((uint32_t *)(lc.memory+LC_RING))[lc.wptr++]=word;
++}
++
++static bool
++lc_submit(void)
++{
++	if (lc.wptr>32) return false;
++	clean_dcache64(lc.pa+LC_RING,4096,TRUE);
++	__asm__ volatile("dsb sy" ::: "memory");
++	lc_write(lc.gpu,LC_WPTR*4,lc.wptr);
++	for (unsigned i=0; i<10000; i++) {
++		if (!lc_fault_free()) return false;
++		if (lc_read(lc.gpu,LC_RPTR*4)==lc.wptr && !(lc_read(lc.gpu,LC_STATUS*4)&~1u)) return true;
++		delay(10);
++	}
++	return false;
++}
++
++static void
++lc_report(const char *step)
++{
++	printf("LEMON GPU CP: step=%s rptr=%#x wptr=%#x status=%#x hw_fault=%#x cp_int=%#x int=%#x sqe=%#x fsr=%#x far=%#llx syn=%#x gfsr=%#x\n",
++	    step,lc_read(lc.gpu,LC_RPTR*4),lc_read(lc.gpu,LC_WPTR*4),lc_read(lc.gpu,LC_STATUS*4),
++	    lc_read(lc.gpu,LC_HW_FAULT*4),lc_read(lc.gpu,LC_CP_INT*4),lc_read(lc.gpu,LC_INT_STATUS*4),
++	    lc_read(lc.gpu,LC_SQE*4),lc_read(lc.smmu,LC_CB+0x58),
++	    (unsigned long long)lc_read64(lc.smmu,LC_CB+0x60),lc_read(lc.smmu,LC_CB+0x68),lc_read(lc.smmu,0x48));
++}
++
++void
++lemon_gpu_cp_probe(void)
++{
++	int mode=0;
++	PE_parse_boot_argn("lemongpu",&mode,sizeof(mode));
++	if (mode!=7 || lc.entered) return;
++	lc.entered=true; lc.slot=-1;
++	uint64_t prepared_pa=0;
++	const uint32_t *fw;
++	unsigned fw_bytes=0;
++	if (!lemon_gpu_memory_context(&lc.smmu,&prepared_pa) || !lc_firmware(&fw,&fw_bytes)) {
++		printf("LEMON GPU CP: no owned memory context or valid A610 SQE; stop\n"); return;
++	}
++	vm_offset_t cc=ml_io_map(0x05990000,0x9000), gcc=ml_io_map(0x01400000,0x80000);
++	if (!cc || !gcc || !(lc_read(cc,0x1540)&(1u<<31)) || !(lc_read(cc,0x100c)&(1u<<31)) ||
++	    (lc_read(cc,0x1078)&0x80000001u)!=1 || (lc_read(cc,0x1054)&0x80000001u)!=1 ||
++	    (lc_read(cc,0x1098)&0x80000001u)!=1 || (lc_read(cc,0x5000)&0x80000001u)!=1 ||
++	    (lc_read(gcc,0x3600c)&0x80000001u)!=1 || (lc_read(gcc,0x36018)&0x80000001u)!=1 ||
++	    (lc_read(gcc,0x36004)&0x80000001u)!=1 || !(lc_read(gcc,0x7900c)&16) ||
++	    (lc_read(gcc,0x36040)&(1u<<31))) {
++		printf("LEMON GPU CP: power/clock prerequisite failed; stop\n"); return;
++	}
++	unsigned count=lc_read(lc.smmu,0x20)&255;
++	if (!count || count>128 || lc_read(lc.smmu,0x1800)!=1 || lc_read(lc.smmu,0x1000)!=0x1f300 ||
++	    lc_read(lc.smmu,LC_CB+0x10)!=0x38071 || lc_read(lc.smmu,LC_CB+0x30)!=0xa0a02020 ||
++	    lc_read(lc.smmu,LC_CB+0x34) || lc_read(lc.smmu,LC_CB+0x38)!=0x44 || lc_read(lc.smmu,LC_CB+0x3c) ||
++	    (lc_read(lc.smmu,LC_CB)&1) || lc_read64(lc.smmu,LC_CB+0x20)!=prepared_pa ||
++	    lc_read64(lc.smmu,LC_CB+0x28) || (lc_read(lc.smmu,LC_CB+0x58)&~0x600u) ||
++	    lc_read(lc.smmu,0x48) || !lc_streams(count,true)) {
++		printf("LEMON GPU CP: context/stream ownership guard failed; stop\n"); return;
++	}
++	lc.gpu=ml_io_map(0x05900000,0x40000);
++	if (!lc.gpu) return;
++	lc_report("cold");
++	if ((lc_read(lc.gpu,LC_SQE*4)&1) || lc_read(lc.gpu,LC_RPTR*4) ||
++	    lc_read(lc.gpu,LC_WPTR*4) || (lc_read(lc.gpu,LC_STATUS*4)&~1u) || !lc_fault_free()) {
++		printf("LEMON GPU CP: core not cold/idle; no writes\n"); return;
++	}
++	if (!lc_buffer(fw,fw_bytes)) { printf("LEMON GPU CP: buffer allocation/physical range failed\n"); return; }
++	const char *step="core-registers";
++	bool ok=true, completed=false;
++	/* A610 wrapper path: no A630 HFI/OOB, VBIF gate, APRIV or graphics state. */
++	static const uint32_t init[][2]={
++		{LC_INT_MASK,0},{LC_GBIF_HALT,0},{LC_RBBM_HALT,0},
++		{LC_GBIF_QSB,0x00071620},{LC_GBIF_QSB+1,0x00071620},
++		{LC_GBIF_QSB+2,0x00071620},{LC_GBIF_QSB+3,0x00071620},{LC_QOS,3},
++		{LC_CP_ADDR,1},{LC_ROQ2,0x00800060},{LC_ROQ1,0x40201b16},
++		{LC_POOL,48},{LC_POOL_DBG,47},{LC_AHB,1}
++	};
++	for (unsigned i=0; ok && i<sizeof(init)/sizeof(init[0]); i++) ok=lc_gset(init[i][0],init[i][1]);
++	if (!ok) goto done;
++	step="table-pointer";
++	lc.pointer=true;
++	if (!lc_set64(lc.smmu,LC_CB+0x20,lc.pa+LC_PT) || !lc_streams(count,false) || !lc_tlb()) goto done;
++	step="context-enable";
++	if (!lc_set(lc.smmu,LC_CB,0x1127,0x11f7) || !lc_tlb()) goto done;
++	step="stream-attach";
++	if (lc_read(lc.smmu,0x800+4*(unsigned)lc.slot)!=lc.old_smr ||
++	    lc_read(lc.smmu,0xc00+4*(unsigned)lc.slot)!=lc.old_s2cr || !lc_streams(count,false)) goto done;
++	lc.route=true; /* Mark before attempts, including a partially accepted write. */
++	if (!lc_set(lc.smmu,0xc00+4*(unsigned)lc.slot,0,0x030300ff) ||
++	    !lc_set(lc.smmu,0x800+4*(unsigned)lc.slot,LC_SMR,0xffffffffu)) goto done;
++	step="ring-registers";
++	if (!lc_gset64(LC_SQE_BASE,LC_VA) || !lc_gset64(LC_RB_BASE,LC_VA+LC_RING) ||
++	    !lc_gset(LC_RB_CNTL,0x08000209) || !lc_gset64(LC_RPTR_ADDR,LC_VA+LC_SHADOW) ||
++	    !lc_set(lc.gpu,LC_SQE*4,1,1)) goto done;
++	step="ME_INIT";
++	lc_put(lc_pkt7(0x48,8));
++	lc_put(0x2f); lc_put(3); lc_put(0x20000000);
++	for (unsigned i=0; i<5; i++) lc_put(0);
++	if (!lc_submit()) goto done;
++	step="MEM_WRITE";
++	lc_put(lc_pkt7(0x10,1)); lc_put(0);
++	lc_put(lc_pkt4(LC_CP_SCRATCH)); lc_put(LC_SCRATCH);
++	lc_put(lc_pkt7(0x3d,3)); lc_put(LC_VA+LC_TARGET); lc_put(0); lc_put(LC_MARKER);
++	lc_put(lc_pkt7(0x26,0));
++	if (!lc_submit()) goto done;
++	completed=true;
++done:
++	/* Target page has not been CPU-written since the initial clean. */
++	flush_dcache64(lc.pa+LC_TARGET,4096,TRUE);
++	__asm__ volatile("dsb sy" ::: "memory");
++	lc.executed=completed && *(volatile uint32_t *)(lc.memory+LC_TARGET)==LC_MARKER &&
++	    lc_read(lc.gpu,LC_CP_SCRATCH*4)==LC_SCRATCH && lc_fault_free();
++	lc_report(step);
++	printf("LEMON GPU CP: executed=%u marker=%#x scratch=%#x; no drawing/secure-mode switch\n",
++	    lc.executed,*(volatile uint32_t *)(lc.memory+LC_TARGET),lc_read(lc.gpu,LC_CP_SCRATCH*4));
++	/* Retain every referenced buffer, including on timeout. No reset/power-down
++	 * is inferred from a halt register alone. Remove only our stream route. */
++	bool halted=lc_set(lc.gpu,LC_SQE*4,0,1), unrouted=true;
++	if (lc.route) {
++		uint32_t smr=lc_read(lc.smmu,0x800+4*(unsigned)lc.slot);
++		uint32_t s2cr=lc_read(lc.smmu,0xc00+4*(unsigned)lc.slot);
++		if ((smr!=LC_SMR && smr!=lc.old_smr) || (s2cr&0x030300ff)) unrouted=false;
++		else unrouted=lc_set(lc.smmu,0x800+4*(unsigned)lc.slot,lc.old_smr,0xffffffffu) &&
++		    lc_set(lc.smmu,0xc00+4*(unsigned)lc.slot,lc.old_s2cr,0x030300ff);
++	}
++	unrouted=lc_streams(count,false) && unrouted;
++	bool disabled=false;
++	if (halted && unrouted && lc.pointer) disabled=lc_set(lc.smmu,LC_CB,0,0x11f7) && lc_tlb();
++	printf("LEMON GPU CP: cleanup halted=%u unrouted=%u disabled=%u retained=%u bytes; clocks retained\n",
++	    halted,unrouted,disabled,LC_SIZE);
++}
++#endif

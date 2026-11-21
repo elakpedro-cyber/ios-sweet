@@ -2,9 +2,39 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
-### STOPPED AT USER REQUEST; V37 CP WORK IN PROGRESS (2026-11-21)
+### V37 READY FOR CI; USER RESUMED (2026-11-21)
 
-User explicitly said "остановись пока что". STOP work until user resumes.
+User resumed with "продолжи". Finished v37 first CP/SQE checkpoint patch0039,
+staged as0120 in workflow with actual-module CP model verification. No phone
+I/O, flash or reboot. Phone last TWRP/v36; installed rootfs remains intact.
+No graphics acceleration, ZAP/PAS, secure-mode switch or GPU user client.
+
+Actual CP module: independent PM4 decoder/PTE walker,32 fault scenarios,
+ASan/UBSan and ARMv8.0 compilation pass. Memory owned-query/60-case regression
+and outer mode7 power/memory gates also pass. Private logs gpu-cp-tests.txt,
+gpu-cp-memory-tests.txt, gpu-cp-gate-tests.txt. Final target flush covers failure
+diagnostics too; success still requires completed second submission. Minimal
+CP-only core init remains untested on hardware; no GPU DMA/execution proven.
+
+research/check_v37_package.py: patch0039 applies with zero fuzz and reproduces
+all tested sources (line endings normalized); exact SQE SHA/32264-byte length,
+ADT round-trip/unchanged baseline, payload embedding/RAM bounds pass using
+v36 only as a layout fixture. check_ci_cache.py: YAML/all shell steps/exact
+pinned build edits pass. git diff --check passed. See gpu/README.md for guards.
+
+Private research/build_gpu_cp_v37_boot.py requires new CP kernel markers and
+xnu/out-gpu-cp-kernel/kernel.development.sweet. Embeds private local stock
+research/lemon-gpu-firmware/a630_sqe.fw in /lemon-gpu ADT node with chip-id
+06010000. Firmware not committed. Output shim/out/lemon-gpu-cp/
+boot-lemon-gpu-cp-v37.img; lemongpu7,5CPUs,30Hz,4K,766MiB, existing touch,
+loader/DTB preserved. No real v37 boot built yet. Next: commit/push to trigger
+Actions, confirm exact run SHA, then STOP per prior instruction. User reports
+completion. Successful CI/artifact verification/packaging precedes requesting
+explicit flash approval. Do not flash from this resume alone.
+
+### HISTORICAL PAUSE; V37 CP WORK IN PROGRESS (2026-11-21)
+
+User explicitly said "остановись пока что"; subsequently resumed (see above).
 No Actions/push/phone I/O/flash/reboot during this implementation turn.
 Phone last TWRP/v36. Existing v36 disabled memory preparation remains verified.
 

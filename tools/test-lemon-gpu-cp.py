@@ -1,0 +1,285 @@
+"""Run the actual opt-in A610 CP checkpoint against a bounded MMIO/PM4 model."""
+import argparse
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--xnu', type=Path, required=True)
+tree = parser.parse_args().xnu
+source = (tree/'bsd/dev/lemon_gpu_cp.c').read_text()
+assert 'bsd/dev/lemon_gpu_cp.c' in (tree/'bsd/conf/files').read_text()
+for include in ('pexpert/device_tree.h','arm/caches_internal.h','kern/clock.h','vm/vm_kern.h'):
+    assert '#include <'+include+'>' in source
+source = re.sub(r'^#include <[^>]+>\n','',source,flags=re.M)
+header = r'''
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#define ARM64_BOARD_CONFIG_SWEET 1
+#define LEMON_4K 1
+#define PAGE_MASK 4095u
+#define KMA_DATA 1u
+#define KMA_ZERO 2u
+#define VM_KERN_MEMORY_IOKIT 1u
+#define KERN_SUCCESS 0
+#define kSuccess 0
+#define TRUE 1
+#define ptoa_64(p) ((uint64_t)(p)<<12)
+typedef uintptr_t vm_offset_t,vm_size_t;
+typedef uint64_t addr64_t;
+typedef uint32_t ppnum_t;
+typedef void *vm_map_t,*pmap_t,*DTEntry;
+extern vm_map_t kernel_map;
+extern pmap_t kernel_pmap;
+extern int PE_parse_boot_argn(const char*,void*,unsigned);
+extern int SecureDTLookupEntry(DTEntry,const char*,DTEntry*);
+extern int SecureDTGetProperty(DTEntry,const char*,const void**,unsigned*);
+extern void delay(int),clean_dcache64(addr64_t,unsigned,int),flush_dcache64(addr64_t,unsigned,int);
+extern int kmem_alloc_contig(vm_map_t,vm_offset_t*,vm_size_t,vm_offset_t,ppnum_t,ppnum_t,unsigned,unsigned);
+extern void kmem_free(vm_map_t,vm_offset_t,vm_size_t);
+'''
+mock=source
+for name,result,args in [('lc_read','uint32_t','vm_offset_t,unsigned'),('lc_write','void','vm_offset_t,unsigned,uint32_t'),
+                         ('lc_read64','uint64_t','vm_offset_t,unsigned'),('lc_write64','void','vm_offset_t,unsigned,uint64_t')]:
+    mock,count=re.subn(r'static '+result+r'\n'+name+r'\(.*?\n}\n',
+                       'static '+result+' '+name+'('+args+');\n',mock,flags=re.S)
+    assert count==1,name
+mock=re.sub(r'^\s*__asm__ volatile\([^\n]+\);','',mock,flags=re.M)
+test=r'''
+static uint32_t gpu[0x40000/4],smmu[0x10000/4],gcc[0x80000/4],cc[0x9000/4];
+static uint32_t fw[8066],chip;
+static unsigned scenario,option,maps,writes,gpu_writes,submits,allocations,frees,cleans,flushes,processed;
+static void *allocation;
+static const uint64_t physical=0x103100000ull,prepared=0x102d94000ull;
+vm_map_t kernel_map=(void*)1;
+pmap_t kernel_pmap=(void*)2;
+int PE_parse_boot_argn(const char *n,void *p,unsigned len) {
+    assert(!strcmp(n,"lemongpu") && len==4);*(int*)p=option;return 1;
+}
+int SecureDTLookupEntry(DTEntry search,const char *name,DTEntry *out) {
+    assert(!search && !strcmp(name,"/lemon-gpu"));*out=(void*)3;return scenario==2?-1:0;
+}
+int SecureDTGetProperty(DTEntry node,const char *name,const void **out,unsigned *size) {
+    assert(node==(void*)3);
+    if(!strcmp(name,"chip-id")) {*out=&chip;*size=4;return 0;}
+    assert(!strcmp(name,"sqe-firmware"));*out=fw;*size=scenario==26?3:sizeof(fw);return 0;
+}
+bool lemon_gpu_memory_context(vm_offset_t *base,uint64_t *pa) {
+    if(scenario==1) return false;
+    *base=(uintptr_t)smmu;*pa=prepared;return true;
+}
+vm_offset_t ml_io_map(vm_offset_t pa,vm_size_t size) {
+    maps++;
+    if(pa==0x5990000) {assert(size==sizeof(cc));return (uintptr_t)cc;}
+    if(pa==0x1400000) {assert(size==sizeof(gcc));return (uintptr_t)gcc;}
+    assert(pa==0x5900000 && size==sizeof(gpu));return scenario==8?0:(uintptr_t)gpu;
+}
+void delay(int us) {assert(us==1 || us==10);}
+int kmem_alloc_contig(vm_map_t map,vm_offset_t *out,vm_size_t bytes,vm_offset_t mask,
+    ppnum_t max,ppnum_t pmask,unsigned flags,unsigned tag) {
+    assert(map==kernel_map && bytes==0x13000 && mask==4095 && !max && !pmask);
+    assert(flags==(KMA_DATA|KMA_ZERO) && tag==VM_KERN_MEMORY_IOKIT);allocations++;
+    if(scenario==10) return -1;
+    allocation=aligned_alloc(4096,bytes);assert(allocation);memset(allocation,0,bytes);
+    *out=(uintptr_t)allocation;return 0;
+}
+ppnum_t pmap_find_phys(pmap_t map,addr64_t va) {
+    assert(map==kernel_pmap && allocation && va>=(uintptr_t)allocation && va<(uintptr_t)allocation+LC_SIZE);
+    uint64_t off=va-(uintptr_t)allocation;
+    if(scenario==11 && off==8192) off+=4096;
+    return (physical+off)>>12;
+}
+void kmem_free(vm_map_t map,vm_offset_t va,vm_size_t bytes) {
+    assert(map==kernel_map && va==(uintptr_t)allocation && bytes==LC_SIZE && !writes);
+    frees++;free(allocation);allocation=0;
+}
+void clean_dcache64(addr64_t pa,unsigned bytes,int phys) {
+    assert(phys && allocation);
+    assert((pa==physical && bytes==LC_SIZE) || (pa==physical+LC_RING && bytes==4096));cleans++;
+}
+void flush_dcache64(addr64_t pa,unsigned bytes,int phys) {
+    assert(phys && pa==physical+LC_TARGET && bytes==4096);flushes++;
+}
+static uint64_t raw64(unsigned off) {return smmu[off/4]|((uint64_t)smmu[off/4+1]<<32);}
+static uint32_t lc_read(vm_offset_t base,unsigned off) {
+    assert(!(off&3));
+    if(base==(uintptr_t)cc) {
+        assert(off==0x1540 || off==0x100c || off==0x1078 || off==0x1054 || off==0x1098 || off==0x5000);
+        return cc[off/4];
+    }
+    if(base==(uintptr_t)gcc) {
+        assert(off==0x3600c || off==0x36018 || off==0x36004 || off==0x7900c || off==0x36040);
+        return gcc[off/4];
+    }
+    if(base==(uintptr_t)smmu) {
+        assert(off==0x20 || off==0x48 || off==0x1000 || off==0x1800 ||
+            (off>=0x800 && off<0x810) || (off>=0xc00 && off<0xc10) ||
+            off==0x8000 || off==0x8010 || (off>=0x8020 && off<=0x803c) ||
+            off==0x8058 || off==0x8060 || off==0x8064 || off==0x8068 || off==0x87f4);
+        return off==0x8058?smmu[off/4]|0x400:smmu[off/4];
+    }
+    assert(base==(uintptr_t)gpu && off<sizeof(gpu));return gpu[off/4];
+}
+static uint64_t lc_read64(vm_offset_t base,unsigned off) {
+    assert(base==(uintptr_t)smmu && (off==0x8020 || off==0x8028 || off==0x8060));
+    return lc_read(base,off)|((uint64_t)lc_read(base,off+4)<<32);
+}
+static void lc_write64(vm_offset_t base,unsigned off,uint64_t value) {
+    assert(base==(uintptr_t)smmu && off==0x8020 && allocation);writes++;
+    assert(!(smmu[0x8000/4]&1) && !(smmu[0x800/4]&(1u<<31)));
+    if(scenario==15) return;
+    smmu[off/4]=value;smmu[off/4+1]=value>>32;
+}
+static uint64_t translate(uint32_t va,bool write) {
+    uint64_t pa=raw64(0x8020);
+    const unsigned shifts[]={30,21,12};
+    for(unsigned level=0;level<3;level++) {
+        assert(pa>=physical+0x10000 && pa<physical+0x13000 && !(pa&4095));
+        uint64_t word=*(uint64_t*)((uintptr_t)allocation+pa-physical+((va>>shifts[level])&511)*8);
+        if((word&3)!=3) return 0;
+        pa=word&0x0000fffffffff000ull;
+        if(level==2) {
+            assert((word&(1u<<10)) && (word&(3ull<<53))==(3ull<<53));
+            if(write) assert(((word>>6)&3)==1);
+            assert(pa>=physical && pa<physical+0xc000);
+        }
+    }
+    return pa+(va&4095);
+}
+static uint32_t *gpu_word(uint32_t va,bool write) {
+    uint64_t pa=translate(va,write);assert(pa && allocation);
+    return (uint32_t*)((uintptr_t)allocation+pa-physical);
+}
+static unsigned odd_parity(uint32_t value) {
+    unsigned bits=0;for(unsigned i=0;i<32;i++) bits+=(value>>i)&1;return !(bits&1);
+}
+static void execute(unsigned end) {
+    assert(allocation && cleans>=2 && (gpu[LC_SQE]&1) && (smmu[0x8000/4]&1));
+    submits++;
+    if(scenario==20) return;
+    if(scenario==24 && submits==2) {smmu[0x8058/4]=2;return;}
+    assert(smmu[0x800/4]==0x80010000 && !(smmu[0xc00/4]&0x30300ff));
+    assert(gpu[LC_SQE_BASE]==LC_VA && gpu[LC_SQE_BASE+1]==0);
+    assert(*gpu_word(LC_VA,false)==fw[1]);
+    assert(!translate(LC_VA+0x8000,false) && !translate(LC_VA+0x10000,false));
+    assert(gpu[LC_RB_CNTL]==0x08000209 && gpu[LC_RB_BASE]==LC_VA+LC_RING);
+    assert(end==9 || end==18);
+    while(processed<end) {
+        uint32_t h=*gpu_word(gpu[LC_RB_BASE]+4*processed++,false);
+        if((h>>28)==7) {
+            unsigned count=h&0x3fff,op=(h>>16)&0x7f;
+            assert(((h>>15)&1)==odd_parity(count) && ((h>>23)&1)==odd_parity(op));
+            assert(processed+count<=end);
+            uint32_t a[8]={0};assert(count<=8);
+            for(unsigned i=0;i<count;i++) a[i]=*gpu_word(gpu[LC_RB_BASE]+4*processed++,false);
+            if(op==0x48) {assert(count==8 && a[0]==0x2f && a[1]==3 && a[2]==0x20000000);}
+            else if(op==0x10) assert(count==1);
+            else if(op==0x26) assert(!count);
+            else {
+                assert(op==0x3d && count==3 && !a[1] && a[0]==LC_VA+LC_TARGET && a[2]==0x600df00d);
+                if(scenario==22) {smmu[0x8058/4]=2;return;}
+                if(scenario!=21) *gpu_word(a[0],true)=a[2];
+            }
+        } else {
+            assert((h>>28)==4);unsigned reg=(h>>8)&0x3ffff,count=h&0x7f;
+            assert(count==1 && reg==0x883 && ((h>>7)&1)==odd_parity(count) && ((h>>27)&1)==odd_parity(reg));
+            uint32_t value=*gpu_word(gpu[LC_RB_BASE]+4*processed++,false);
+            if(scenario!=33) gpu[reg]=value;
+        }
+    }
+    gpu[LC_RPTR]=end;
+    if(scenario==24 && submits==1) smmu[0x800/4]=0x80000004; /* Foreign route must not be overwritten. */
+    if(scenario==31) smmu[0x48/4]=1;
+}
+static void lc_write(vm_offset_t base,unsigned off,uint32_t value) {
+    assert(allocation);writes++;
+    if(base==(uintptr_t)smmu) {
+        assert(off==0x8000 || off==0x8610 || off==0x87f0 || off==0x800 || off==0xc00);
+        if(off==0x87f0) {smmu[0x87f4/4]=scenario==16?1:0;return;}
+        if(scenario==17 && off==0x8000 && (value&1)) return;
+        if(scenario==18 && off==0x800 && (value&(1u<<31))) return;
+        smmu[off/4]=value;return;
+    }
+    assert(base==(uintptr_t)gpu && !(off&3));gpu_writes++;
+    unsigned reg=off/4;
+    bool allowed=reg==0x11 || reg==0x16 || reg==0x38 || (reg>=0x3c03 && reg<=0x3c06) ||
+        reg==0x3c45 || reg==0x842 || reg==0x8c1 || reg==0x8c2 || reg==0x8c3 || reg==0x90e || reg==0x98d ||
+        reg==0x800 || reg==0x801 || reg==0x802 || reg==0x804 || reg==0x805 || reg==0x808 ||
+        reg==0x830 || reg==0x831 || reg==0x807;
+    assert(allowed); /* In particular no SECVID/TRUST, GMU, reset or framebuffer access. */
+    if(scenario==14 && reg==0x8c2) return;
+    if(scenario==19 && reg==0x808 && value==1) return;
+    if(scenario==23 && reg==0x808 && value==0) return;
+    if(scenario==32 && reg==0x800) return;
+    gpu[reg]=value;
+    if(reg==0x807) execute(value);
+}
+static void setup(unsigned mode) {
+    if(allocation) {free(allocation);allocation=0;} /* Simulated reboot of retained memory. */
+    memset(&lc,0,sizeof(lc));memset(gpu,0,sizeof(gpu));memset(smmu,0,sizeof(smmu));
+    memset(cc,0,sizeof(cc));memset(gcc,0,sizeof(gcc));memset(fw,0,sizeof(fw));
+    scenario=mode;option=7;chip=0x06010000;
+    maps=writes=gpu_writes=submits=allocations=frees=cleans=flushes=processed=0;
+    fw[1]=0x197;
+    cc[0x1540/4]=cc[0x100c/4]=1u<<31;
+    cc[0x1078/4]=cc[0x1054/4]=cc[0x1098/4]=cc[0x5000/4]=1;
+    gcc[0x3600c/4]=gcc[0x36018/4]=gcc[0x36004/4]=1;gcc[0x7900c/4]=16;
+    smmu[0x20/4]=0x4c017e04;smmu[0x1800/4]=1;smmu[0x1000/4]=0x1f300;
+    smmu[0x8010/4]=0x38071;smmu[0x8030/4]=0xa0a02020;smmu[0x8038/4]=0x44;
+    smmu[0x8020/4]=prepared;smmu[0x8024/4]=prepared>>32;
+    smmu[0x808/4]=0x80000002;smmu[0xc08/4]=0x10000; /* Secure SID2 entry, unchanged. */
+    if(mode==3) chip=0x06030001;
+    if(mode==4) cc[0x1054/4]=0x80000000;
+    if(mode==5) smmu[0x8020/4]^=4096;
+    if(mode==6) smmu[0x800/4]=0x80000000;
+    if(mode==7) smmu[0x808/4]=0x80030002;
+    if(mode==9) gpu[LC_STATUS]=4;
+    if(mode==12) smmu[0x8030/4]^=1;
+    if(mode==13) for(unsigned i=0;i<4;i++) {smmu[(0x800+i*4)/4]=0x80000004+i;smmu[(0xc00+i*4)/4]=0x10000;}
+    if(mode==25) fw[1]=0x100;
+    if(mode==28) smmu[0x48/4]=1;
+    if(mode==29) gpu[LC_HW_FAULT]=1;
+    if(mode==30) gpu[LC_RPTR]=1;
+}
+int main(void) {
+    assert(lc_pkt7(0x48,8)==0x70c80008 && lc_pkt7(0x3d,3)==0x703d8003 && lc_pkt7(0x26,0)==0x70268000);
+    setup(0);option=6;lemon_gpu_cp_probe();assert(!maps && !writes && !allocations);
+    setup(0);lemon_gpu_cp_probe();
+    assert(lc.executed && submits==2 && flushes==1 && allocation && !frees);
+    assert(!(smmu[0x8000/4]&1) && smmu[0x800/4]==0 && !gpu[LC_SQE]);
+    unsigned previous=writes;lemon_gpu_cp_probe();assert(writes==previous);
+    for(unsigned i=1;i<=33;i++) {
+        if(i==27) continue;
+        setup(i);lemon_gpu_cp_probe();
+        if(i==23) assert(lc.executed); /* Execution and teardown are separate outcomes. */
+        else assert(!lc.executed);
+        assert(smmu[0x808/4]==(i==7?0x80030002:i==13?0x80000006:0x80000002));
+        if(i<=13 || i==25 || i==26 || i==28 || i==29 || i==30) assert(!writes);
+        if(i==11) assert(frees==1 && !allocation);
+        if(i>=14 && i<=24) assert(allocation && !frees);
+        if(i==23) assert(gpu[LC_SQE]==1 && (smmu[0x8000/4]&1));
+        if(i==24) assert(smmu[0x800/4]==0x80000004 && (smmu[0x8000/4]&1));
+        if(i==33) assert(*(uint32_t*)((uintptr_t)allocation+LC_TARGET)==LC_MARKER && !lc.executed);
+    }
+    setup(0);
+    puts("PASS: actual A610 CP code; independent PM4/PTE model, GPU marker+scratch, RO SQE/ring and unmapped guards, 32 fault cases, bounded polling/cleanup/retention, default off and duplicate entry; MODEL ONLY, no real GPU tested");
+}
+'''
+with tempfile.TemporaryDirectory() as directory:
+    root=Path(directory)
+    (root/'full.c').write_text(header+source)
+    (root/'test.c').write_text(header+mock+test)
+    flags=['-std=c11','-Wall','-Wextra','-Werror']
+    subprocess.run(['cc',*flags,'-fsanitize=address,undefined',str(root/'test.c'),'-o',str(root/'test')],check=True)
+    subprocess.run([str(root/'test')],check=True)
+    cross=shutil.which('aarch64-linux-gnu-gcc')
+    if cross:
+        subprocess.run([cross,*flags,'-mcpu=cortex-a53','-march=armv8-a+crypto','-mno-outline-atomics','-c',str(root/'full.c'),'-o',str(root/'cp.o')],check=True)
+        print('PASS: actual CP module ARMv8.0 compile including explicit-GPR MMIO/barriers')
