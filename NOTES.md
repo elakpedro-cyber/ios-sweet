@@ -2,6 +2,36 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### REQUIRED CLOCK FIX PREPARED; MEMORY SETUP DEFERRED, NO ACTIONS (2026-11-21)
+
+User: investigate108c, combine memory setup if possible, otherwise line only.
+Compared official Xiaomi MiCode lime-q-oss gpucc-bengal.c and clk-branch.c:
+108c CX_SNOC_DVM is HALT_DELAY, waits10us, no enable-bit readback requirement.
+Definition EXISTS/registered; do not call it nonexistent or broken. Its zero
+readback in v29 does not prove clock-off (CLK_OFF31 clear). Live GPU/SMMU
+consumer lists omit GPUCC108c and10a4, require GCC36018 SNOC instead. Mainline
+SM6115 consumers agree. Patch0032 removes requests for both unneeded GPUCC
+CX branches, logs their read-only state, keeps checks on all required buses,
+GMU1098/GX1054. Cold consumer ownership guard on10a4 still preserved to prevent
+retuning a possibly used PLL. Required-stage failures remain fail-closed.
+
+Full memory/SMMU setup not combined: live kgsl-smmu59a0000 has qcom,skip-init,
+dynamic/3-level properties and separate secure/user streams; inherited XNU
+SMMU identity/context/stream state not yet observed, no ready A610 mapper.
+This is the user's allowed line-only fallback, not a claim SMMU can never be
+in the same image. No SMMU/core access, page-table writes or extra votes added.
+
+Actual MMIO model uses observed108c0 and forbids writes to108c and10a4. Final
+required clocks succeed in model; optional values stay unchanged. Existing
+fault cases + new stuck required GMU case14 stop as expected. ASan/UBSan and
+ARMv8.0 compile PASS; research/required-clocks-tests.txt. No hardware proof yet.
+Local workflow stages patch0113. Private builder research/build_gpu_required_boot.py
+ready for v30: input xnu/out-gpu-required-kernel/kernel.development.sweet;
+output shim/out/lemon-gpu-required/boot-lemon-gpu-required-v30.img, lemongpu5,
+requires optional-CX log marker. No new kernel/image, CI/push or phone I/O.
+Next user may authorize Actions; then package and confirm flash as usual.
+References stored in gpu/README.md. Current phone remains v29/TWRP.
+
 ### COMBINED GPU POWER TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
 
 V29 HARDWARE RESULT: returned TWRP, ADB recovery available. Read-only userdata

@@ -55,8 +55,8 @@ static void lp_write(vm_offset_t base,unsigned o,uint32_t value) {
     case 0x101c:case 0x1120:mask=3;break;
     case 0x1020:case 0x1124:mask=0x10371f;break;
     case 0x106c:case 0x100c:case 0x1008:case 0x1508:
-    case 0x1078:case 0x109c:case 0x1060:case 0x108c:
-    case 0x1098:case 0x10a4:case 0x1054:break;
+    case 0x1078:case 0x109c:case 0x1060:
+    case 0x1098:case 0x1054:break;
     default:assert(!"unapproved GPUCC write");
     }
     assert(((cc[o/4]^value)&~mask)==0);
@@ -83,7 +83,7 @@ static void lp_write(vm_offset_t base,unsigned o,uint32_t value) {
         if(o==0x1060 || o==0x10a4 || o==0x1054) assert(cc[0x100c/4]>>31);
         if(o==0x1098) assert((cc[0x1124/4]&0x10371f)==0x505);
         if(o==0x1054 || o==0x10a4) assert((cc[0x1020/4]&0x10371f)==0x303);
-        if(!(failure==5 && o==0x109c)) cc[o/4]&=~(1u<<31);
+        if(!(failure==5 && o==0x109c) && !(failure==14 && o==0x1098)) cc[o/4]&=~(1u<<31);
     }
 }
 static void setup(unsigned mode) {
@@ -96,6 +96,7 @@ static void setup(unsigned mode) {
     cc[0x106c/4]=cc[0x100c/4]=0x222001;cc[0x1508/4]=1;
     cc[0x1054/4]=cc[0x10a4/4]=cc[0x1098/4]=0x80004220;
     cc[0x1078/4]=cc[0x109c/4]=cc[0x1060/4]=cc[0x108c/4]=0x80000000;
+    cc[0x108c/4]=0; /* Actual v29 readback: optional branch is not requested. */
     cc[0x101c/4]=cc[0x1120/4]=0x80000000;
     if(mode==7) gcc[0x7900c/4]&=~16u;
     if(mode==8) gcc[1]=40;
@@ -107,10 +108,11 @@ int main(void) {
     assert((cc[0x1054/4]&0x80000001u)==1 && (cc[0x1098/4]&0x80000001u)==1);
     assert(!(cc[0x101c/4]&2) && !(cc[0x1120/4]&2));
     assert(gcc[0x79004/4]==(0x3456|0x8000) && reset_writes==2);
+    assert(cc[0x108c/4]==0 && cc[0x10a4/4]==0x80004220);
     setup(0);cc[0x100/4]=0x80000007;cc[0x104/4]=0x21;
     cc[0x108/4]=0x55555555;cc[0x10c/4]=0x55;cc[0x110/4]=0x01200003;
     lemon_gpu_power_probe();assert(!pll_writes && (cc[0x1054/4]&0x80000001u)==1);
-    for(unsigned mode=1;mode<=13;mode++) {
+    for(unsigned mode=1;mode<=14;mode++) {
         setup(mode);lemon_gpu_power_probe();assert(!(cc[0x1054/4]&1));
         if(mode==1) assert(!reset_writes && !pll_writes);
         if(mode==2 || mode==5) assert(!pll_writes);

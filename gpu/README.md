@@ -139,6 +139,24 @@ References: [RPM wire format](https://github.com/torvalds/linux/blob/master/driv
 [SM6115 clocks](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/gpucc-sm6115.c),
 [power domain sequence](https://github.com/torvalds/linux/blob/master/drivers/clk/qcom/gdsc.c).
 
+v29 hardware confirmed the GLINK endpoint, all four RPM ACKs and CX/GX ON.
+It stopped when optional GPUCC CX_SNOC_DVM108c read back0 after an enable
+request. Xiaomi's lime-q-oss driver labels this branch HALT_DELAY; its enable
+path waits10us and does not require an enable-bit readback. The live phone's
+GPU/SMMU clock consumer lists do not request this branch or GPUCC CX_GFX3D10a4;
+they use the separate GCC SNOC36018 for SMMU interfacing. Patch0032 therefore
+leaves both optional GPUCC branches unchanged, logs them, and retains the
+required GCC bus, GMU1098 and GX_GFX3D1054 clock checks. It does not conclude
+that108c is broken or that readback0 means a stopped clock.
+
+The MMIO model now uses the observed108c=0 and forbids writes to both optional
+branches, while requiring the final clocks to succeed and testing that a stuck
+required GMU still stops. No hardware result for this fix yet. Full memory/SMMU
+setup is not included: the live qsmmu-v500 node has skip-init/dynamic properties,
+and its inherited stream/context ownership has not been inspected on XNU.
+References: [Xiaomi clocks](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/lime-q-oss/drivers/clk/qcom/gpucc-bengal.c),
+[Xiaomi branch policy](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/lime-q-oss/drivers/clk/qcom/clk-branch.c).
+
 The installed XNU has no `LemonGPU` implementation. GPU initialization, address
 translation, memory ownership, command submission/fences, fault handling and
 IOSurface sharing must be implemented for A610. Pixel 3's A630 GMU/HFI sequence

@@ -1,0 +1,19 @@
+--- a/bsd/dev/lemon_gpu_power.c
++++ b/bsd/dev/lemon_gpu_power.c
+@@ -146,9 +146,14 @@
+ 	if (!(lp_read(gcc, 0x79004) & (1u << 15))) goto out;
+ 	if (!lp_rcg(cc, 0x101c, 0x303) || !lp_rcg(cc, 0x1120, 0x505)) goto out;
+ 	stage = 4;
++	/* Live lemon GPU/SMMU consumers do not request GPUCC CX_SNOC_DVM or
++	 * CX_GFX3D. Keep these optional branches unchanged; the required SNOC
++	 * interface is GCC36018. Do not treat DELAY-only clocks as strict gates. */
++	printf("LEMON GPU POWER: optional CX clocks unchanged snoc=%#x gfx=%#x\n",
++	    lp_read(cc, 0x108c), lp_read(cc, 0x10a4));
+ 	if (!lp_branch(gcc, 0x71154) || !lp_branch(gcc, 0x3600c) ||
+-	    !lp_branch(gcc, 0x36018) || !lp_branch(cc, 0x108c) ||
+-	    !lp_branch(cc, 0x1098) || !lp_branch(cc, 0x10a4) || !lp_branch(cc, 0x1054)) goto out;
++	    !lp_branch(gcc, 0x36018) || !lp_branch(cc, 0x1098) ||
++	    !lp_branch(cc, 0x1054)) goto out;
+ 	lp_update(cc, 0x101c, 2, 0);
+ 	lp_update(cc, 0x1120, 2, 0);
+ 	stage = 5;
