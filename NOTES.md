@@ -2,6 +2,28 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V37 HARDWARE LOG: STOP AT ROQ2 READBACK, NO CP EXECUTION (2026-11-21)
+
+User saw lock screen and returned TWRP. Read-only research/read_v37_log.py
+saved lemon-v37-log.bin/.txt: total120110 bytes/flush14.5/5CPU SGI, power stage5,
+owned memory preparation pass (PA102d9a000,20KiB,SCTLR.M0,FSR400/GFSR0).
+ADT stock SQE valid bytes32264/version016ee197. Cold CP: RPTR0/WPTR0/status1,
+HW_FAULT0/CP_INT0/INT0/SQE0. Logs FAR281508282486/syndrome50004, but FSR
+contains FORMAT only; do NOT infer a fresh translation fault from stale FAR.
+Initial CP register readbacks pass through CP_ADDR_MODE_CNTL. First failure:
+ROQ_THRESHOLDS_2 byte offset2308 (dword8c2), requested00800060, returned0.
+Step core-registers; executed0, marker11111111 untouched, scratch0. Cleanup
+halted1/unrouted1/disabled0,77824bytes retained; pointer was never changed,
+context/stream never enabled, SQE/ME_INIT/test command never started.
+SpringBoard/backboardd exec present; no panic( found. No device writes/reboot
+or Actions during log collection. Phone in TWRP, v37 boot remains installed.
+
+Next investigate ROQ register access/readback and CP/core initialization
+prerequisites before changing a strict guard. Local mainline a6xx_gpu.c lines
+1302-1304 writes same A610 values00800060/40201b16 but does not verify readback.
+That alone does NOT prove ROQ is write-only or prove successful hardware write.
+No new code fix or CI launched. No GPU DMA, CP execution or rendering proven.
+
 ### V37 FLASHED; REBOOT REQUESTED, AWAIT HARDWARE LOG (2026-11-21)
 
 User explicitly approved flash/start with "да". ADB recovery visible.
