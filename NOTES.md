@@ -4,6 +4,17 @@
 
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
+V27 READY: run44845635960 SUCCESS source894910f85dda59ef3161840dc3bcf74281ad82b8.
+Downloaded xnu-kernel via gh; kernel SHA256SUMS, ARM64 Mach-O and OPEN marker
+verified. Kernel SHA314080ee802d24f7535e858f6fa631961b10467777698c98b87cc01c75b11983.
+Packaged v27 via research/build_rpm_open_boot.py; layout/ADT/RAM/DTB PASS.
+Image17002496 bytes: shim/out/lemon-rpm-open/boot-lemon-rpm-open-v27.img
+SHA7882bddc1fdff8d7652f961ab30eb02dbbe766147bdf2875e8111c2da5b4b745.
+lemongpu=4; other boot args unchanged. ADB recovery available. Prepared
+research/flash_v27.py with exact prior v26 full boot SHA, protected partition
+checks and prefix readback. NOT executed; awaiting boot write/launch confirmation
+per AGENTS. Phone remains v26/TWRP. No new Actions or phone writes/reboot.
+
 FIX BUILD STARTED; STOPPED: source894910f85dda59ef3161840dc3bcf74281ad82b8
 run44845635960 confirmed IN_PROGRESS:
 https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44845635960
