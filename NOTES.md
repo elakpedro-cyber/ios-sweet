@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V39 ACTIONS QUEUED; STOPPED (2026-11-22)
+
+User explicitly approved Actions launch with "да". Pushed
+1372139f1e5b065f03172055db2c759f3e992bd8 to fork/lemon-bringup.
+GitHub connector confirms run44950310523 queued at exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44950310523
+STOP after launch per user preference; await user completion report.
+No phone access/write/reboot, artifacts downloaded or v39 boot packaged.
+Phone last TWRP/v38. Verify build/tests/artifact, package using private
+builder below, then obtain explicit flash/start approval.
+
 ### V39 PREPARED LOCALLY; NO ACTIONS/PHONE WRITES (2026-11-22)
 
 User left phone in TWRP. Compared Linux hw_init/state capture and Pixel3
