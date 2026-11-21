@@ -2,6 +2,26 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V34 LOG READ: ALL CONFIG WRITES MATCH; FINAL GUARD FAILED (2026-11-21)
+
+USB recovery reappeared after user replug. Read-only research/read_v34_log.py
+saved private lemon-v34-log.bin/.txt,total133179/flush32. Power stage5/5CPUs
+success. Same capability IDs/GFSR0/ATS0; initial CBAR/CBA2R0,SCTLR14536108,
+reset=1. Allocation/table/software walk ready at PA102d92000,size20480.
+ALL programming readbacks match: CBA2R1,CBAR1f300,TCR2=38071,TCR=a0a02020,
+TTBR0=102d92000,TTBR1=0,CONTEXTIDR0,MAIR0=44,MAIR1=0.
+Then config=0; cleanup unconfirmed, retained20480,detached=0. No owned-success.
+No stream rejection log; no cleanup pointer-clear logs. Current source final
+guard requires same full SCTLR plus FSR0 and unrouted state. Likely format-
+dependent SCTLR changed or FSR became nonzero; post-config SCTLR/FSR were not
+logged, so exact cause is NOT established. Do not call SMMU memory ready or
+claim GPU translation. Need inspect SCTLR register-format-dependent fields and
+log both SCTLR/FSR at final guard/cleanup; validate disabled M and ownership
+without assuming full raw SCTLR equality across TYPE0->Stage1 format change.
+No SCTLR writes, stream routing, ATS/TLB/GPU DMA. User has rebooted TWRP.
+No new code/Actions/partition writes/reboot during log read. Phone TWRP/v34,
+boot full SHAc8f86303a9042781cf7ccb9cd56a4789a714032ff37b4464b36bbc68639351a3.
+
 ### V34 FLASHED AND REBOOT REQUESTED (2026-11-21)
 
 User approved flash/start with "да". research/flash_v34.py passed prior v33
