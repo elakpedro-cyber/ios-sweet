@@ -4,6 +4,17 @@
 
 ### REQUIRED CLOCK FIX PREPARED; MEMORY SETUP DEFERRED, NO ACTIONS (2026-11-21)
 
+V30 READY: run44906323319 SUCCESS source0cf914a78f874ba628990b69abf53cd7409de8ec.
+Downloaded xnu-kernel via gh; SHA256SUMS, ARM64 Mach-O and new clock marker PASS.
+Kernel SHAc7b35fc0fb5d2e486c67160276c54f2d9c72fc6f9ff9986e7b773a94d42bdd99.
+Packaged research/build_gpu_required_boot.py; layout/ADT/RAM/DTB checks PASS.
+Image17002496 bytes: shim/out/lemon-gpu-required/boot-lemon-gpu-required-v30.img
+SHA53a4189f22377d40c8685b65596da9fb82105e2f1567593c7403e8cc04321f84.
+lemongpu5, other args unchanged. ADB recovery connected. Prepared private
+research/flash_v30.py with exact prior v29 full boot checksum, protected
+recovery/dtbo and prefix readback checks. NOT executed; awaiting boot write/
+launch confirmation per AGENTS. Phone remains v29/TWRP. No new CI/phone writes.
+
 V30 ACTIONS STARTED; STOPPED: user explicitly said "запускай". Pushed
 0cf914a78f874ba628990b69abf53cd7409de8ec to fork/lemon-bringup. Run44906323319
 confirmed IN_PROGRESS https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44906323319
