@@ -2,6 +2,14 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V36 ACTIONS STARTED; STOPPED (2026-11-21)
+
+Pushed3752ea4a09a13f3457b43af3ba7e38a6409a0ff4 to fork/lemon-bringup.
+GitHub connector confirmed run44932829878 in_progress at exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44932829878
+Stopped after launch; no wait/download/phone writes/reboot. User reports build
+completion; next verify kernel/boot and ask explicit flash approval.
+
 ### V35 READ; ROOT CAUSE FOUND, V36 FSR FIX READY (2026-11-21)
 
 After user replug, read-only research/read_v35_log.py saved private
