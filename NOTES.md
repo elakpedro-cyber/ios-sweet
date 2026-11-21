@@ -2,6 +2,36 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V37 KERNEL/BOOT READY; CI TEST FAILURE NEEDS LOG (2026-11-21)
+
+User reported completion. Connector confirms run44943150288 FAILURE at exact
+b3795827fe65ab0dd671c5c1c11ee9c6557ab132. Build succeeded; only failed step:
+Verify guarded A610 CP checkpoint (step25), job136964552375. Do not call CI
+green or flash before identifying this test failure. gh run view/logs and
+direct API requests fail TLS/connect timeout; connector job-log fetch repeatedly
+returns Transport closed. Async user question requests error lines from step.
+No guessed test fix or new Actions run. Local prior GCC/ASan model passes;
+macOS Clang-only warning is a hypothesis, NOT an observed cause.
+
+Connector artifact14722372724 xnu-kernel,66868307-byte ZIP verified digest
+cd5d94dfdd2162009cd04e29826bc27873a349e84c25df58296c2639105e1f14.
+Extracted xnu/out-gpu-cp-kernel/kernel.development.sweet,16710664 bytes,
+ARM64 Mach-O magic verified, SHA256SUMS matches kernel SHA256
+93201f524ca549bf3380b13e5e77cc3134490a3cf5a34dc3060163a546b355e1.
+Private download_v37.py used; temporary signed-link JSON removed.
+build_gpu_cp_v37_boot.py passed all required markers, private SQE identity,
+ADT/layout/RAM/DTB checks with REAL new kernel. Boot
+shim/out/lemon-gpu-cp/boot-lemon-gpu-cp-v37.img,17055744 bytes/4164blocks,
+SHA256185b4c2d8cd6d0e9edd92196e69512aff34884b5bb47c5d75dd0a7762084de7e.
+research/flash_v37.py prepared, NOT EXECUTED; previous full v36 boot SHA,
+exact boot path/size, protected recovery/dtbo and readback checks retained.
+ADB get-state: no devices. No phone writes/reboot. After test is resolved,
+request explicit flash/start approval and replug if still missing.
+
+Attempted local Clang install in WSL for reproducing CI compiler differences;
+Ubuntu mirror unreachable, apt-get terminated, no compiler installed. No
+project dependencies changed. Do not repeat unbounded network retries.
+
 ### V37 ACTIONS STARTED; STOPPED (2026-11-21)
 
 Pushed b3795827fe65ab0dd671c5c1c11ee9c6557ab132 to fork/lemon-bringup.
