@@ -2,6 +2,15 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V31 ACTIONS STARTED; STOPPED (2026-11-21)
+
+User approved launch with "да". Pushed commit
+607947bf9611ca39773c8d17e5f751950ad2aa5d to fork/lemon-bringup.
+Run44910287337 confirmed in_progress:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44910287337
+Stopped after launch as requested; no waiting, artifact download or phone I/O.
+User will report when the build finishes. Last phone state remains v30/TWRP.
+
 ### COMBINED MEMORY TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
 
 User requested combining SMMU survey, buffer/tables and translation check.
