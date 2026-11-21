@@ -1,0 +1,141 @@
+--- a/bsd/dev/lemon_gpu_cp.c
++++ b/bsd/dev/lemon_gpu_cp.c
+@@ -43,7 +43,7 @@
+ 	uint64_t pa;
+ 	uint32_t old_smr, old_s2cr, wptr;
+ 	int slot;
+-	bool entered, pointer, route, executed;
++	bool entered, pointer, route, started, executed;
+ } lc;
+ 
+ static uint32_t
+@@ -150,6 +150,85 @@
+ 	return !(fsr&~0x600u) && !lc_read(lc.smmu,0x48) &&
+ 	    !lc_read(lc.gpu,LC_HW_FAULT*4) && !(lc_read(lc.gpu,LC_CP_INT*4)&0xf7u) &&
+ 	    !(lc_read(lc.gpu,LC_INT_STATUS*4)&0x038002c2u);
++}
++
++static bool
++lc_core_clocks(void)
++{
++	/* GPU-side a612_hwcg is also the Linux A610 catalog entry. GMU AO
++	 * firmware/CGC, shader work and secure registers remain untouched. */
++	static const uint32_t clocks[][2]={
++		{0x0b0, 0x22222222}, /* RBBM_CLOCK_CNTL_SP0 */
++		{0x0b4, 0x02222220}, /* RBBM_CLOCK_CNTL2_SP0 */
++		{0x0b8, 0x00000081}, /* RBBM_CLOCK_DELAY_SP0 */
++		{0x0bc, 0x0000f3cf}, /* RBBM_CLOCK_HYST_SP0 */
++		{0x0c0, 0x22222222}, /* RBBM_CLOCK_CNTL_TP0 */
++		{0x0c4, 0x22222222}, /* RBBM_CLOCK_CNTL2_TP0 */
++		{0x0c8, 0x22222222}, /* RBBM_CLOCK_CNTL3_TP0 */
++		{0x0cc, 0x00022222}, /* RBBM_CLOCK_CNTL4_TP0 */
++		{0x0d0, 0x11111111}, /* RBBM_CLOCK_DELAY_TP0 */
++		{0x0d4, 0x11111111}, /* RBBM_CLOCK_DELAY2_TP0 */
++		{0x0d8, 0x11111111}, /* RBBM_CLOCK_DELAY3_TP0 */
++		{0x0dc, 0x00011111}, /* RBBM_CLOCK_DELAY4_TP0 */
++		{0x0e0, 0x77777777}, /* RBBM_CLOCK_HYST_TP0 */
++		{0x0e4, 0x77777777}, /* RBBM_CLOCK_HYST2_TP0 */
++		{0x0e8, 0x77777777}, /* RBBM_CLOCK_HYST3_TP0 */
++		{0x0ec, 0x00077777}, /* RBBM_CLOCK_HYST4_TP0 */
++		{0x0f0, 0x22222222}, /* RBBM_CLOCK_CNTL_RB0 */
++		{0x0f4, 0x01202222}, /* RBBM_CLOCK_CNTL2_RB0 */
++		{0x0f8, 0x00002220}, /* RBBM_CLOCK_CNTL_CCU0 */
++		{0x100, 0x00040f00}, /* RBBM_CLOCK_HYST_RB_CCU0 */
++		{0x104, 0x05522022}, /* RBBM_CLOCK_CNTL_RAC */
++		{0x105, 0x00005555}, /* RBBM_CLOCK_CNTL2_RAC */
++		{0x106, 0x00000011}, /* RBBM_CLOCK_DELAY_RAC */
++		{0x107, 0x00445044}, /* RBBM_CLOCK_HYST_RAC */
++		{0x108, 0x04222222}, /* RBBM_CLOCK_CNTL_TSE_RAS_RBBM */
++		{0x111, 0x00002222}, /* RBBM_CLOCK_MODE_VFD */
++		{0x114, 0x02222222}, /* RBBM_CLOCK_MODE_GPC */
++		{0x117, 0x00000002}, /* RBBM_CLOCK_DELAY_HLSQ_2 */
++		{0x11b, 0x00002222}, /* RBBM_CLOCK_MODE_HLSQ */
++		{0x109, 0x00004000}, /* RBBM_CLOCK_DELAY_TSE_RAS_RBBM */
++		{0x112, 0x00002222}, /* RBBM_CLOCK_DELAY_VFD */
++		{0x115, 0x00000200}, /* RBBM_CLOCK_DELAY_GPC */
++		{0x11c, 0x00000000}, /* RBBM_CLOCK_DELAY_HLSQ */
++		{0x10a, 0x00000000}, /* RBBM_CLOCK_HYST_TSE_RAS_RBBM */
++		{0x113, 0x00000000}, /* RBBM_CLOCK_HYST_VFD */
++		{0x116, 0x04104004}, /* RBBM_CLOCK_HYST_GPC */
++		{0x11d, 0x00000000}, /* RBBM_CLOCK_HYST_HLSQ */
++		{0x10b, 0x22222222}, /* RBBM_CLOCK_CNTL_UCHE */
++		{0x110, 0x00000004}, /* RBBM_CLOCK_HYST_UCHE */
++		{0x10f, 0x00000002}, /* RBBM_CLOCK_DELAY_UCHE */
++		{0x533, 0x00000182}, /* RBBM_ISDB_CNT */
++		{0x044, 0x00000000}, /* RBBM_RAC_THRESHOLD_CNT */
++		{0x042, 0x00000000}, /* RBBM_SP_HYST_CNT */
++		{0x118, 0x00000222}, /* RBBM_CLOCK_CNTL_GMU_GX */
++		{0x119, 0x00000111}, /* RBBM_CLOCK_DELAY_GMU_GX */
++		{0x11a, 0x00000555}, /* RBBM_CLOCK_HYST_GMU_GX */
++	};
++	printf("LEMON GPU CP: core clocks before=%#x roq2=%#x\n",
++	    lc_read(lc.gpu,0xae*4),lc_read(lc.gpu,LC_ROQ2*4));
++	for (unsigned i=0; i<sizeof(clocks)/sizeof(clocks[0]); i++) {
++		lc_write(lc.gpu,clocks[i][0]*4,clocks[i][1]);
++		printf("LEMON GPU CP: clock reg=%#x requested=%#x returned=%#x\n",
++		    clocks[i][0],clocks[i][1],lc_read(lc.gpu,clocks[i][0]*4));
++	}
++	/* Mainline programs these clocks before ROQ. Preserve strict ROQ
++	 * validation: a readable CP register returning zero is not success. */
++	return lc_gset(0xae,0xaaa8aa82) && lc_fault_free();
++}
++
++static bool
++lc_halt(void)
++{
++	if (!lc.started) return !lc_read(lc.gpu,LC_SQE*4) && !(lc_read(lc.gpu,LC_STATUS*4)&~1u);
++	/* Linux a6xx_gpu_state_get/a6xx_recover use3 (enable + halt request).
++	 * Register acknowledgement alone does not prove outstanding work idle. */
++	if (!lc_set(lc.gpu,LC_SQE*4,3,3)) return false;
++	for (unsigned i=0; i<2000; i++) {
++		if (!(lc_read(lc.gpu,LC_STATUS*4)&~1u)) return true;
++		delay(1);
++	}
++	return false;
+ }
+ 
+ static bool
+@@ -286,16 +365,19 @@
+ 	lc.gpu=ml_io_map(0x05900000,0x40000);
+ 	if (!lc.gpu) return;
+ 	lc_report("cold");
+-	if ((lc_read(lc.gpu,LC_SQE*4)&1) || lc_read(lc.gpu,LC_RPTR*4) ||
++	if (lc_read(lc.gpu,LC_SQE*4) || lc_read(lc.gpu,LC_RPTR*4) ||
+ 	    lc_read(lc.gpu,LC_WPTR*4) || (lc_read(lc.gpu,LC_STATUS*4)&~1u) || !lc_fault_free()) {
+ 		printf("LEMON GPU CP: core not cold/idle; no writes\n"); return;
+ 	}
+ 	if (!lc_buffer(fw,fw_bytes)) { printf("LEMON GPU CP: buffer allocation/physical range failed\n"); return; }
+-	const char *step="core-registers";
++	const char *step="bus-unhalt";
+ 	bool ok=true, completed=false;
++	if (!lc_gset(LC_INT_MASK,0) || !lc_gset(LC_GBIF_HALT,0) || !lc_gset(LC_RBBM_HALT,0)) goto done;
++	step="core-clocks";
++	if (!lc_core_clocks()) goto done;
++	step="core-registers";
+ 	/* A610 wrapper path: no A630 HFI/OOB, VBIF gate, APRIV or graphics state. */
+ 	static const uint32_t init[][2]={
+-		{LC_INT_MASK,0},{LC_GBIF_HALT,0},{LC_RBBM_HALT,0},
+ 		{LC_GBIF_QSB,0x00071620},{LC_GBIF_QSB+1,0x00071620},
+ 		{LC_GBIF_QSB+2,0x00071620},{LC_GBIF_QSB+3,0x00071620},{LC_QOS,3},
+ 		{LC_CP_ADDR,1},{LC_ROQ2,0x00800060},{LC_ROQ1,0x40201b16},
+@@ -316,8 +398,9 @@
+ 	    !lc_set(lc.smmu,0x800+4*(unsigned)lc.slot,LC_SMR,0xffffffffu)) goto done;
+ 	step="ring-registers";
+ 	if (!lc_gset64(LC_SQE_BASE,LC_VA) || !lc_gset64(LC_RB_BASE,LC_VA+LC_RING) ||
+-	    !lc_gset(LC_RB_CNTL,0x08000209) || !lc_gset64(LC_RPTR_ADDR,LC_VA+LC_SHADOW) ||
+-	    !lc_set(lc.gpu,LC_SQE*4,1,1)) goto done;
++	    !lc_gset(LC_RB_CNTL,0x08000209) || !lc_gset64(LC_RPTR_ADDR,LC_VA+LC_SHADOW)) goto done;
++	lc.started=true;
++	if (!lc_set(lc.gpu,LC_SQE*4,1,3)) goto done;
+ 	step="ME_INIT";
+ 	lc_put(lc_pkt7(0x48,8));
+ 	lc_put(0x2f); lc_put(3); lc_put(0x20000000);
+@@ -341,7 +424,7 @@
+ 	    lc.executed,*(volatile uint32_t *)(lc.memory+LC_TARGET),lc_read(lc.gpu,LC_CP_SCRATCH*4));
+ 	/* Retain every referenced buffer, including on timeout. No reset/power-down
+ 	 * is inferred from a halt register alone. Remove only our stream route. */
+-	bool halted=lc_set(lc.gpu,LC_SQE*4,0,1), unrouted=true;
++	bool halted=lc_halt(), unrouted=true;
+ 	if (lc.route) {
+ 		uint32_t smr=lc_read(lc.smmu,0x800+4*(unsigned)lc.slot);
+ 		uint32_t s2cr=lc_read(lc.smmu,0xc00+4*(unsigned)lc.slot);

@@ -2,6 +2,42 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V38 PREPARED LOCALLY; NO ACTIONS/PHONE ACCESS (2026-11-21)
+
+User left phone in TWRP; investigated v37 ROQ2 zero readback. Mainline
+a6xx_gpu_state.c:a6xx_get_cp_roq_size directly reads this A6xx register.
+Do NOT label it write-only or bypass the guard. a6xx_gpu.c enables HWCG
+before ROQ; our v37 omitted it. This is a missing prerequisite, not proof
+that clocks caused v37 failure. Patch0040 programs GPU-side A61046-entry
+a612_hwcg table, then top RBBM_CLOCK_CNTL aaa8aa82/fault validation before
+ROQ. Every readback logged; strict ROQ check retained. Does not write GMU AO,
+SECVID/TRUST, graphics state or framebuffer. Full GMU-side CGC not added.
+
+Also found Linux SQE halt uses3, unlike donor's0. Cleanup now requests3 and
+polls RBBM idle up to2ms; only then may it disable an unrouted owned context.
+If SQE start was not attempted, verify0/idle without writing SQE. Start
+validates both low bits, cold guard rejects any nonzero control. Retention
+remains unconditional after MMIO. This is CP initialization, not acceleration.
+
+tools/test-lemon-gpu-cp.py actual-module36-fault-case ASan/UBSan model and
+ARMv8.0 compile pass; private research/gpu-cp-v38-tests.txt. Tests cover clock
+ordering/top failure/fault, unchanged ROQ rejection, halt ignored and halt
+acknowledged while engine stays busy, plus existing DMA/permission guards.
+research/package_v38.py confirms all46 addresses/values/order against local
+pinned Linux catalog/XML and patch zero-fuzz/reproduces tested source. CI
+stages0040 as0121. check_ci_cache.py YAML/all shell edits pass; diff check pass.
+
+Private research/lemon_gpu_cp_v37.c is v37 baseline; current lemon_gpu_cp.c
+and /home/hadirpc/lemon-gpu-probe-xnu/bsd/dev/lemon_gpu_cp.c contain v38.
+research/build_gpu_cp_clocks_v38_boot.py expects new kernel at
+xnu/out-gpu-cp-clocks-kernel/kernel.development.sweet; requires new core-clock
+marker, preserves v37 firmware/ADT/touch/5CPUs/30Hz/RAM/DTB checks. Output
+shim/out/lemon-gpu-cp-clocks/boot-lemon-gpu-cp-clocks-v38.img. Not built yet.
+Changes committed LOCAL ONLY; no push/Actions launched, no phone access.
+Next user launch request: push to fork/lemon-bringup (triggers run), confirm
+exact SHA/run ID, then STOP per earlier preference. Flash later requires
+explicit approval and previous full v37 boot SHA below. Phone stays TWRP.
+
 ### V37 HARDWARE LOG: STOP AT ROQ2 READBACK, NO CP EXECUTION (2026-11-21)
 
 User saw lock screen and returned TWRP. Read-only research/read_v37_log.py

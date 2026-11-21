@@ -26,6 +26,28 @@ no Pixel 3 kernel, clock, regulator, SMMU or GMU initialization was copied.
 
 ## Checks performed
 
+### v38 GPU-side clocks and SQE halt (patch0040, hardware pending)
+
+v37 stopped before translation/commands: ROQ2 read back zero after writing
+`0x00800060`. Linux reads this register to determine ROQ size, so the strict
+readback guard remains. An omitted prerequisite is GPU-side clock setup;
+whether that omission caused the hardware result is still unconfirmed.
+
+Patch0040 programs the 46 GPU-side `a612_hwcg` entries selected by the Linux
+A610 catalog, then validates `RBBM_CLOCK_CNTL=0xaaa8aa82` and fault status
+before ROQ setup. Every clock entry's readback is logged. The table was
+checked against the pinned Linux catalog/XML; GMU AO and secure registers
+remain untouched. This is clock initialization, not rendering support.
+
+SQE cleanup now uses Linux's halt request `3` plus a bounded idle check.
+Without an attempted SQE start, cleanup verifies the disabled/idle state
+instead of enabling the engine. Failure to acknowledge halt or become idle
+prevents context disabling; referenced buffers remain retained. Cold entry
+rejects any nonzero SQE control. The actual-module ASan/UBSan model passes
+36 fault cases and ARMv8.0 compilation, including clock failure, strict ROQ
+rejection and acknowledged halt with a busy engine. Hardware remains untested.
+See Linux [ROQ read and SQE halt](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu_state.c).
+
 ### v37 first CP/SQE checkpoint (patch0039)
 
 Opt-in `lemongpu=7` extends the existing power and owned-memory gates with a
