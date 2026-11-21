@@ -4,6 +4,12 @@
 
 ### COMBINED GPU POWER TEST PREPARED LOCALLY; NO ACTIONS (2026-11-21)
 
+V29 ACTIONS STARTED; STOPPED: user explicitly said "запускай". Pushed
+182087ceb445b0a3a613365557b19e7e984d6080 to fork/lemon-bringup. Run44900330721
+confirmed IN_PROGRESS https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44900330721
+Stopped after launch per user's earlier preference. No waiting/download/phone
+writes/reboot. Next check this run/source and package v29 when user reports done.
+
 Final checks also cover the observed target OPEN -> extra OPENs -> ACK order,
 and rejected reset/clamp writes before GX power-up. Final logs:
 research/combined-rpm-tests-final.txt and combined-power-tests-final.txt.
