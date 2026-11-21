@@ -4,6 +4,16 @@
 
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
+BUILD BLOCKED (2026-11-21): user reported done, checked exact run44841697461
+source79bcd48. Actual conclusion CANCELLED, not success. Job136651405449
+started00:07:44Z, completed00:16:35Z. Check-run annotation exactly:
+"repository invocation blocked". Check output summary/text null; cause not
+explained. Do NOT assume billing, user cancellation, compiler failure or code
+bug without evidence. No newer run for branch among latest4. No successful
+v27 kernel available; did not package/flash/reboot or start another Actions.
+Next user needs inspect GitHub run/account notice to resolve invocation block,
+then rerun same source. No code changes indicated by this infrastructure result.
+
 ACTION STARTED, STOPPED AS REQUESTED: pushed79bcd48bc778d6015b68aa33a7c1efe002df848c.
 Run44841697461 confirmed in_progress:
 https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44841697461
