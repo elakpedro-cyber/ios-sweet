@@ -2,6 +2,17 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V38 ACTIONS STARTED; STOPPED (2026-11-21)
+
+User said "делай" after v38 preparation. Pushed
+aa78c46f8c4a42bec39ae8863bb8d80d933a0c34 to fork/lemon-bringup.
+GitHub connector confirmed run44947366043 in_progress at exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44947366043
+STOP after launch per user preference; user will report completion.
+No phone I/O, flash/reboot, artifacts downloaded or v38 boot packaged.
+Phone last TWRP/v37. Next verify build/tests/artifact and use private v38
+builder below; flash/start still needs explicit approval.
+
 ### V38 PREPARED LOCALLY; NO ACTIONS/PHONE ACCESS (2026-11-21)
 
 User left phone in TWRP; investigated v37 ROQ2 zero readback. Mainline
