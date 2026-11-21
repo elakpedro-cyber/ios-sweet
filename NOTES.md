@@ -2,6 +2,23 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V33 SUCCESS; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
+
+Run44916435156 success at e2279aed37adebf07ab3266794785afec445152b.
+Job9m44s (14:55:33..15:05:17Z). KDK and compiler caches restored;
+1074/1075 cacheable calls hit (99.91%), one miss. <=6min not reached.
+Private log research/v33-actions.log. Downloaded xnu-kernel to
+xnu/out-gpu-memory-disabled-kernel; SHA256SUMS/ARM64 Mach-O verified.
+Kernel SHA256b073e66ae5b0150e52f523f3b967cfbcfba6e10e6c2c43c925e6bd93df09403c.
+research/build_gpu_memory_v33_boot.py passed layout/RAM/ADT/DTB/marker checks.
+Boot shim/out/lemon-gpu-memory-disabled/boot-lemon-gpu-memory-disabled-v33.img,
+17002496 bytes SHA256
+74824815cdeb8c682dd454db800fc8e18e8b372243380cca7740009de4a9f130.
+Private research/flash_v33.py prepared for prior full v32 boot hash
+d07838d7f3202f061de10a088541a701987fd31b6be4176e433c28734cb6b7ea,
+with exact target/size/readback and recovery/dtbo hash checks. ADB recovery
+confirmed. No partition writes/reboot; await explicit user flash approval.
+
 ### V33 ACTIONS STARTED; STOPPED (2026-11-21)
 
 User explicitly approved launch with "да". Pushed
