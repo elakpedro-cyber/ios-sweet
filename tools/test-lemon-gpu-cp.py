@@ -233,7 +233,7 @@ static void setup(unsigned mode) {
     gcc[0x3600c/4]=gcc[0x36018/4]=gcc[0x36004/4]=1;gcc[0x7900c/4]=16;
     smmu[0x20/4]=0x4c017e04;smmu[0x1800/4]=1;smmu[0x1000/4]=0x1f300;
     smmu[0x8010/4]=0x38071;smmu[0x8030/4]=0xa0a02020;smmu[0x8038/4]=0x44;
-    smmu[0x8020/4]=prepared;smmu[0x8024/4]=prepared>>32;
+    smmu[0x8020/4]=(uint32_t)prepared;smmu[0x8024/4]=(uint32_t)(prepared>>32);
     smmu[0x808/4]=0x80000002;smmu[0xc08/4]=0x10000; /* Secure SID2 entry, unchanged. */
     if(mode==3) chip=0x06030001;
     if(mode==4) cc[0x1054/4]=0x80000000;

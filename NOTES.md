@@ -2,6 +2,19 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V37 TEST HARNESS FIXED; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
+
+User supplied exact failed-step log: Apple Clang -Werror,-Wconstant-conversion
+rejects test mock smmu[0x8020/4]=prepared (64-bit PA4342759424 truncated to
+low32). Fixed test only with explicit uint32_t casts for low/high register
+halves. No kernel/patch/workflow/boot changes and no kernel rebuild needed.
+Actual-module32-fault-case ASan/UBSan model and ARMv8.0 cross-compile pass
+again; research/gpu-cp-v37-cast-tests.txt. git diff --check passes. macOS test
+has NOT been rerun; original CI run remains red due this harness diagnostic.
+Existing compiled kernel and verified v37 boot remain as recorded below.
+No new Actions launch. Request explicit flash/start approval before executing
+research/flash_v37.py; ADB last no devices, may need replug while in TWRP.
+
 ### V37 KERNEL/BOOT READY; CI TEST FAILURE NEEDS LOG (2026-11-21)
 
 User reported completion. Connector confirms run44943150288 FAILURE at exact
