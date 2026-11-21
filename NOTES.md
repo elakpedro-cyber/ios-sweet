@@ -2,6 +2,16 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V32 WITH CI CACHES QUEUED; STOPPED (2026-11-21)
+
+User approved launch with "давай". Pushed
+e384d62417d7a4fa7231700fae4572679d94bef2 to fork/lemon-bringup.
+Run44912933122 confirmed queued for exact SHA:
+https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44912933122
+Includes port0034 no-ATS fallback plus KDK/ccache/header parallelism changes.
+First run populates caches; no speed guarantee yet. Stopped after scheduling,
+no waiting/download/flash/reboot/phone I/O. User will report completion.
+
 ### ACTIONS SPEEDUP PREPARED LOCALLY; NO PUSH/RUN (2026-11-21)
 
 User asked to speed up Actions. v31 job lasted11m18s, Build10m29s; KDK
