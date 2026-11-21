@@ -4,6 +4,18 @@
 
 ### RPM GLINK OPEN PREPARED; STOP AFTER ACTIONS LAUNCH (2026-11-21)
 
+ATTEMPT2 COMPILE FAILURE FIXED (2026-11-21): run44841697461 attempt2 FAILURE,
+job136658847414 Build. Actual compiler error lemon_rpm.c:199 undeclared delay.
+Forgot kern/clock.h; previous host harness supplied delay declaration and
+masked this missing kernel include. Added include via regenerated patch0028;
+test now requires this include and extracts actual delay declaration from
+osfmk/kern/clock.h instead of injecting a guessed one. Actual handshake,
+snapshot, GPU regression tests and Cortex-A53 cross-compiles all PASS again.
+Saved failed CI log research/rpm-open-attempt2-failed.log, local retest output
+research/rpm-open-local-retest.txt. No other true compiler errors identified;
+optional upstream patch-skip warnings are unrelated. Next push fixed source,
+launch fresh Actions run and STOP as requested. Phone unchanged in TWRP/v26.
+
 RESTARTED: user reported Actions had been disabled and they re-enabled it.
 Ran gh run rerun44841697461; API confirmed attempt2 IN_PROGRESS, same source
 79bcd48bc778d6015b68aa33a7c1efe002df848c, conclusion null. Stopped after launch

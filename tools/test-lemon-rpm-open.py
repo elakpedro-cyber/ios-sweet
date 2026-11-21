@@ -10,6 +10,9 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--xnu', type=Path, required=True)
 tree = parser.parse_args().xnu
 source = (tree / 'bsd/dev/lemon_rpm.c').read_text()
+assert '#include <kern/clock.h>' in source, 'delay() requires the XNU clock header'
+clock_header = (tree / 'osfmk/kern/clock.h').read_text()
+delay_decl = re.search(r'extern void delay\(int usec\);', clock_header).group()
 source = re.sub(r'^#include <[^>]+>\n', '', source, flags=re.M)
 header = '''
 #include <stdbool.h>
@@ -20,8 +23,8 @@ header = '''
 #define ARM64_BOARD_CONFIG_SWEET 1
 #define LEMON_4K 1
 typedef uintptr_t vm_offset_t, vm_size_t;
-extern void delay(int);
 '''
+header += delay_decl + '\n'
 mock = re.sub(r'static void\nlr_write\(.*?\n}\n',
               'static void lr_write(vm_offset_t, unsigned, uint32_t);\n', source, flags=re.S)
 assert mock != source

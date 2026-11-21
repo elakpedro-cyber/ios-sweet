@@ -1,12 +1,14 @@
 --- a/bsd/dev/lemon_rpm.c
 +++ b/bsd/dev/lemon_rpm.c
-@@ -1,4 +1,4 @@
+@@ -1,12 +1,14 @@
 -/* SM6115 RPM GLINK handoff checkpoint. Read-only; no rail votes or FIFO writes.
 +/* SM6115 RPM GLINK handoff checkpoint. Mode3 snapshot; mode4 GLINK open only, no rail votes.
   * Layout: Linux drivers/rpmsg/qcom_glink_rpm.c; addresses: live lemon FDT.
   */
  #if defined(ARM64_BOARD_CONFIG_SWEET) && defined(LEMON_4K)
-@@ -7,6 +7,7 @@
+ #include <sys/param.h>
+ #include <sys/systm.h>
++#include <kern/clock.h>
  #include <machine/machine_routines.h>
  extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
  void lemon_rpm_snapshot(void);
@@ -14,7 +16,7 @@
  
  #define LR_PA 0x045f0000u
  #define LR_SIZE 0x7000u
-@@ -69,6 +70,158 @@
+@@ -69,6 +71,158 @@
  	return true;
  }
  
