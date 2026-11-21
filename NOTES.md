@@ -4,6 +4,18 @@
 
 ### V27 RESULT / OPEN_ACK FIX PREPARED; NO ACTIONS (2026-11-21)
 
+V28 READY: run44893157363 SUCCESS source dd773cf033eb406b9a7bf538b551c3f6df0f15dd.
+Downloaded xnu-kernel via gh to xnu/out-rpm-ack-kernel. Kernel SHA256SUMS,
+ARM64 Mach-O and v28 rejected-header marker verified. Kernel SHA:
+8c29cfd19092152a9c759be9d06403a83bbbe75f6ee37801a41f7d5916ec5de6.
+Packaged research/build_rpm_ack_boot.py; layout/ADT/RAM/DTB checks PASS.
+Image17002496 bytes: shim/out/lemon-rpm-ack/boot-lemon-rpm-ack-v28.img
+SHA da8e181a27da42467a62e5d4150963c277f136888fa1ba29762e60af33277f7c.
+lemongpu4, other args unchanged. Phone recovery connected. Prepared private
+research/flash_v28.py with exact prior v27 full boot checksum, protected
+recovery/dtbo hashes and prefix readback; NOT executed. Awaiting confirmation
+for boot write/launch per AGENTS. No new Actions or phone writes/reboot.
+
 V28 BUILD STARTED; STOPPED: user explicitly said "запускай". Pushed
 dd773cf033eb406b9a7bf538b551c3f6df0f15dd to fork/lemon-bringup. Run44893157363
 confirmed IN_PROGRESS https://github.com/elakpedro-cyber/ios-sweet/actions/runs/44893157363
