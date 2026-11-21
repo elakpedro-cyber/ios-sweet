@@ -2,6 +2,42 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### APOLLO FORK REVIEW ONLY (2026-11-22)
+
+User requested assessment of aTechGeekDev/ios-apollo branch
+claude/awesome-einstein-qskxih. Resolved exact SHA
+a4e3579354cf111e99213289004950cbf27146b9. Reviewed tree and selected README,
+kernel patches0097/0098/0100/0101/0102/0104/0105/0112/0163/0170/0174/0179,
+Mesa build/DRM shim, CA loader, GPU test, Metal/Metal2 README/ABI/fetch scripts.
+Private copies under research/apollo-review; no donor files imported into
+production, no implementation changes, Actions or phone access. V40 launch
+below remains pending user completion report; did not poll it for this task.
+
+Target is Mi10T/SM8250/Adreno650, not SM6115/A610. Useful donor candidates:
+0112 SweetGPU IOKit GEM/BO mapping, real GPU-written fences and submissions;
+0170 SweetAccelerator NativeAdreno ABI for Turnip (BO/import/map/submit/wait);
+userland/mesa25.0.7 freedreno Darwin shim and CA loader with service wait/
+software fallback; later0163 recovery/0174 watchdog and0179 map/cache-call
+instrumentation. Watchdog recovery treats old fences as passed; do not import
+this as proof failed work completed. Port loss/error semantics deliberately.
+
+Metal2 includes NativeAdreno ABI + Turnip Darwin backend fetch/patch pipeline
++ Metal-to-Vulkan frontend/bridge. This is a possible future path; README
+claims Turnip tests passed on A650 and describes staged Metal enablement.
+No hardware verification performed here; root README still calls Metal WIP.
+Legacy userland/metal README contains inherited upstream test claims/fake GPU
+tests, not independent evidence of working Metal on our phone. Favor the
+smaller GL/service reuse first, after real v40 GPU command proof.
+
+Direct-copy blockers: A650 chip06050002/GMEM120000,39-bit IOVA/UBWC3 and
+bank/swizzle fields hardcoded in0170; ours A610chip06010000/GMEM21000/32-bit
+IOVA/4K kernel. Different power/GMU/HFI/SMMU physical addresses/stream masks,
+SQE/ZAP firmware. 0100 SCTLR_ON still sets ASIDPNE bit12; it is not a ready
+fix for our v39 readback. Keep v40 explicit hint0 contract. 0104 uses user
+SMR mask401 from apollo DT; do not copy over lemon mask1. No boot/DTB/whole
+kernel replacement. Main repo MIT; component license/credit files include
+HackiOS/IOS-26-Hot/UniXNU, preserve relevant notices on any actual import.
+
 ### V40 COMBINED FIRST BLOCK ACTIONS STARTED; STOPPED (2026-11-22)
 
 Pushed3a3d33524352434627289680da0244dd06ab0307 to fork/lemon-bringup.
