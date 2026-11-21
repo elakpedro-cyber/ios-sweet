@@ -2,6 +2,22 @@
 
 ## Local Redmi 9T NFC port handoff (2026-11-07)
 
+### V34 BUILD SUCCESS; BOOT READY, AWAIT FLASH APPROVAL (2026-11-21)
+
+Run44919803108 success at626c28f10fe7e69d07fcd86cf95efcd09ba487ad.
+gh download succeeded after one TLS retry; artifact xnu-kernel in
+xnu/out-gpu-memory-contract-kernel. SHA256SUMS and ARM64 Mach-O verified.
+Kernel SHA256d84ef6bb2f2baebd2f62e6d7d8b0c7276776868410f6dd86adb9fd34c2ab6d1e.
+research/build_gpu_memory_v34_boot.py passed markers/layout/RAM/ADT/DTB.
+Boot shim/out/lemon-gpu-memory-contract/boot-lemon-gpu-memory-contract-v34.img,
+17018880 bytes (4155 blocks), SHA256
+9c46808ce0cc7d563ce802329cbdebf541ccbfdc677c1859efdf096865776837.
+Private research/flash_v34.py prepared with NEW length/count and prior full
+v33 partition SHA76213c15046a6113d9e19da4aef1747d694831ab6827a15e79d1924525a516d7,
+exact target/size/readback and recovery/dtbo preservation. ADB recovery confirmed.
+No phone write/reboot. Await user approval to flash/start v34. Job timing API
+timed out; no new elapsed-time claim.
+
 ### V34 ACTIONS STARTED; STOPPED (2026-11-21)
 
 Pushed approved grouped change626c28f10fe7e69d07fcd86cf95efcd09ba487ad
